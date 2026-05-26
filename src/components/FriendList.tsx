@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { Friend, Interaction, LogInteractionInput } from '../friends/Friend'
+import type { Friend, Interaction, LogInteractionInput, WateringState } from '../friends/Friend'
+import { deriveWateringState } from '../friends/Friend'
 import './FriendList.css'
 
 interface FriendListProps {
@@ -14,11 +15,33 @@ const TYPE_LABELS: Record<string, string> = {
   'in-person': 'In person',
 }
 
+function wateringIcon(state: WateringState): string {
+  switch (state) {
+    case 'watered':
+      return '🪴'
+    case 'nearing':
+      return '🌿'
+    case 'dry':
+      return '🥀'
+  }
+}
+
+function daysSinceContact(lastInteractionAt: string | undefined, now: Date): number | null {
+  if (!lastInteractionAt) return null
+  return Math.floor((now.getTime() - new Date(lastInteractionAt).getTime()) / 86400000)
+}
+
 function FriendList({ friends, onWater }: FriendListProps) {
+  const now = new Date()
   return (
     <ul className="friend-list">
       {friends.map((friend) => (
-        <FriendCard key={friend.id} friend={friend} onWater={onWater} />
+        <FriendCard
+          key={friend.id}
+          friend={friend}
+          onWater={onWater}
+          wateringState={deriveWateringState(friend, now)}
+        />
       ))}
     </ul>
   )
@@ -69,9 +92,11 @@ function InteractionHistory({ interactions }: { interactions: Interaction[] }) {
 function FriendCard({
   friend,
   onWater,
+  wateringState,
 }: {
   friend: Friend
   onWater: (friendId: string, input?: LogInteractionInput) => void
+  wateringState: WateringState
 }) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState('')
@@ -91,11 +116,18 @@ function FriendCard({
     setNote('')
   }
 
+  const days = daysSinceContact(friend.lastInteractionAt, new Date())
+
   return (
     <li className="friend-card-wrapper">
-      <div className="friend-card">
-        <span className="friend-plant">🪴</span>
-        <span className="friend-name">{friend.name}</span>
+      <div className={`friend-card friend-card--${wateringState}`}>
+        <span className="friend-plant">{wateringIcon(wateringState)}</span>
+        <div className="friend-info">
+          <span className="friend-name">{friend.name}</span>
+          {days !== null && (
+            <span className="friend-watering">{days}d</span>
+          )}
+        </div>
         <button
           className="friend-expand-button"
           type="button"

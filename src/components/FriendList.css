@@ -29,11 +29,35 @@
   line-height: 1;
 }
 
-.friend-name {
+.friend-info {
   flex: 1;
+}
+
+.friend-name {
   font-size: 1rem;
   font-weight: 600;
   color: #3d3929;
+  display: block;
+}
+
+.friend-watering {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b6656;
+}
+
+.friend-card--nearing {
+  border-color: #d4a84b;
+  background: #fef9ef;
+}
+
+.friend-card--dry {
+  border-color: #c48b7a;
+  background: #fdf5f3;
+}
+
+.friend-card--dry .friend-name {
+  color: #7a4a3a;
 }
 
 .friend-expand-button {

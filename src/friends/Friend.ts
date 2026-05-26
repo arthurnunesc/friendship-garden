@@ -5,6 +5,8 @@ export interface Interaction {
   note?: string
 }
 
+export type WateringState = 'watered' | 'nearing' | 'dry'
+
 export interface Friend {
   id: string
   name: string
@@ -59,4 +61,20 @@ export function logInteraction(
     lastInteractionAt: now,
     interactions: [...friend.interactions, interaction],
   }
+}
+
+const NEARING_MULTIPLIER = 1.5
+
+export function deriveWateringState(
+  friend: Friend,
+  now: Date = new Date(),
+): WateringState {
+  if (!friend.lastInteractionAt) return 'dry'
+
+  const last = new Date(friend.lastInteractionAt)
+  const daysSince = (now.getTime() - last.getTime()) / 86400000
+
+  if (daysSince < friend.cadenceDays) return 'watered'
+  if (daysSince < friend.cadenceDays * NEARING_MULTIPLIER) return 'nearing'
+  return 'dry'
 }

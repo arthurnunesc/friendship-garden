@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createFriend, logInteraction, DEFAULT_CADENCE_DAYS } from './Friend'
+import { createFriend, logInteraction, deriveWateringState, DEFAULT_CADENCE_DAYS } from './Friend'
 import type { Friend } from './Friend'
 
 describe('createFriend', () => {
@@ -124,5 +124,70 @@ describe('logInteraction', () => {
       expect(updated.interactions[0].type).toBe('in-person')
       expect(updated.interactions[0].note).toBe('Coffee downtown')
     })
+  })
+})
+
+describe('deriveWateringState', () => {
+  const now = new Date('2025-06-01T12:00:00Z')
+
+  it('returns dry when friend has never been contacted', () => {
+    const friend = createFriend({ name: 'Alice' })
+    expect(deriveWateringState(friend, now)).toBe('dry')
+  })
+
+  it('returns watered when last contact is within cadence', () => {
+    const friend = {
+      ...createFriend({ name: 'Alice', cadenceDays: 14 }),
+      lastInteractionAt: '2025-05-30T12:00:00Z',
+    }
+    expect(deriveWateringState(friend, now)).toBe('watered')
+  })
+
+  it('returns watered exactly at a cadence boundary under 14 days', () => {
+    const friend = {
+      ...createFriend({ name: 'Alice', cadenceDays: 14 }),
+      lastInteractionAt: '2025-05-18T12:00:01Z',
+    }
+    expect(deriveWateringState(friend, now)).toBe('watered')
+  })
+
+  it('returns nearing when just past cadence', () => {
+    const friend = {
+      ...createFriend({ name: 'Alice', cadenceDays: 14 }),
+      lastInteractionAt: '2025-05-18T12:00:00Z',
+    }
+    expect(deriveWateringState(friend, now)).toBe('nearing')
+  })
+
+  it('returns nearing at the top of the nearing window', () => {
+    const friend = {
+      ...createFriend({ name: 'Alice', cadenceDays: 14 }),
+      lastInteractionAt: '2025-05-12T00:00:00Z',
+    }
+    expect(deriveWateringState(friend, now)).toBe('nearing')
+  })
+
+  it('returns dry when past the nearing window', () => {
+    const friend = {
+      ...createFriend({ name: 'Alice', cadenceDays: 14 }),
+      lastInteractionAt: '2025-05-10T12:00:00Z',
+    }
+    expect(deriveWateringState(friend, now)).toBe('dry')
+  })
+
+  it('respects custom cadence values', () => {
+    const friend = {
+      ...createFriend({ name: 'Alice', cadenceDays: 7 }),
+      lastInteractionAt: '2025-05-31T12:00:00Z',
+    }
+    expect(deriveWateringState(friend, now)).toBe('watered')
+  })
+
+  it('custom cadence nearing window respects shorter cadence', () => {
+    const friend = {
+      ...createFriend({ name: 'Alice', cadenceDays: 7 }),
+      lastInteractionAt: '2025-05-23T12:00:00Z',
+    }
+    expect(deriveWateringState(friend, now)).toBe('nearing')
   })
 })

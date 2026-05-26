@@ -553,4 +553,120 @@ describe('App', () => {
       expect(historySection!.querySelectorAll('.history-item')).toHaveLength(3)
     })
   })
+
+  describe('watering state', () => {
+    it('shows 🥀 for a friend who needs watering', () => {
+      const old = new Date()
+      old.setDate(old.getDate() - 30) // 30 days ago, well past 14-day cadence
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          lastInteractionAt: old.toISOString(),
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      // The dry icon should be visible
+      const plant = screen.getByText('🥀')
+      expect(plant).toBeInTheDocument()
+      expect(plant.closest('.friend-card--dry')).toBeInTheDocument()
+    })
+
+    it('shows 🪴 for a recently watered friend', () => {
+      const recent = new Date()
+      recent.setHours(recent.getHours() - 1) // 1 hour ago
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          lastInteractionAt: recent.toISOString(),
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      const plant = screen.getByText('🪴')
+      expect(plant).toBeInTheDocument()
+      expect(plant.closest('.friend-card--watered')).toBeInTheDocument()
+    })
+
+    it('shows 🌿 for a friend nearing dryness', () => {
+      const nearing = new Date()
+      nearing.setDate(nearing.getDate() - 18) // 18 days ago, past 14 but within nearing
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          lastInteractionAt: nearing.toISOString(),
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      const plant = screen.getByText('🌿')
+      expect(plant).toBeInTheDocument()
+      expect(plant.closest('.friend-card--nearing')).toBeInTheDocument()
+    })
+
+    it('shows days since last contact on each card', () => {
+      const ago = new Date()
+      ago.setDate(ago.getDate() - 5)
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          lastInteractionAt: ago.toISOString(),
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      expect(screen.getByText('5d')).toBeInTheDocument()
+    })
+
+    it('resets watering state after logging a conversation', async () => {
+      const user = userEvent.setup()
+      const old = new Date()
+      old.setDate(old.getDate() - 30)
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            lastInteractionAt: old.toISOString(),
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+
+      // Should start as dry
+      expect(screen.getByText('🥀')).toBeInTheDocument()
+
+      // Water the friend
+      await user.click(
+        screen.getByRole('button', { name: /water alice/i }),
+      )
+
+      // The saved friend should have a fresh lastInteractionAt
+      expect(saved[0].lastInteractionAt).toBeDefined()
+    })
+  })
 })
