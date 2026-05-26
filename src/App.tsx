@@ -125,9 +125,10 @@ function GardenView({
 
 interface AppProps {
   storage?: GardenStorage
+  onImportSuccess?: () => void
 }
 
-function App({ storage = localStorageStore }: AppProps) {
+function App({ storage = localStorageStore, onImportSuccess }: AppProps) {
   const { friends, addFriend, waterFriend, updateFriend, removeFriend } = useGardenStore(storage)
   const [isAdding, setIsAdding] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -172,8 +173,14 @@ function App({ storage = localStorageStore }: AppProps) {
           showFeedback(result.error, 'error')
           return
         }
-        storage.saveFriends(result.friends)
-        window.location.reload()
+          storage.saveFriends(result.friends)
+          if (onImportSuccess) {
+            onImportSuccess()
+          } else {
+            showFeedback('Garden imported successfully.', 'success')
+            // Delay reload to let the user see the success message
+            setTimeout(() => window.location.reload(), 200)
+          }
       } catch {
         showFeedback('Invalid JSON file. Please check the file format.', 'error')
       }
