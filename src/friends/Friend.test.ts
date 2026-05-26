@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { createFriend, DEFAULT_CADENCE_DAYS } from './Friend'
+import { createFriend, logInteraction, DEFAULT_CADENCE_DAYS } from './Friend'
+import type { Friend } from './Friend'
 
 describe('createFriend', () => {
   it('creates a friend with a unique id', () => {
@@ -21,6 +22,12 @@ describe('createFriend', () => {
     expect(friend.createdAt).toMatch(
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
     )
+  })
+
+  it('initializes with no lastInteractionAt and empty interactions', () => {
+    const friend = createFriend({ name: 'Alice' })
+    expect(friend.lastInteractionAt).toBeUndefined()
+    expect(friend.interactions).toEqual([])
   })
 
   describe('cadence', () => {
@@ -45,5 +52,42 @@ describe('createFriend', () => {
       const friend = createFriend({ name: 'Alice', birthday: '1990-05-14' })
       expect(friend.birthday).toBe('1990-05-14')
     })
+  })
+})
+
+describe('logInteraction', () => {
+  it('sets lastInteractionAt to the current date', () => {
+    const friend = createFriend({ name: 'Alice' })
+    const updated = logInteraction(friend)
+
+    expect(updated.lastInteractionAt).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+    )
+  })
+
+  it('appends an interaction record', () => {
+    const friend = createFriend({ name: 'Alice' })
+    const updated = logInteraction(friend)
+
+    expect(updated.interactions).toHaveLength(1)
+    expect(updated.interactions[0].id).toMatch(/^int-/)
+    expect(updated.interactions[0].date).toBe(updated.lastInteractionAt)
+  })
+
+  it('does not mutate the original friend', () => {
+    const friend = createFriend({ name: 'Alice' })
+    const updated = logInteraction(friend)
+
+    expect(friend.lastInteractionAt).toBeUndefined()
+    expect(friend.interactions).toEqual([])
+    expect(updated).not.toBe(friend)
+  })
+
+  it('accumulates multiple interactions', () => {
+    let friend: Friend = createFriend({ name: 'Alice' })
+    friend = logInteraction(friend)
+    friend = logInteraction(friend)
+
+    expect(friend.interactions).toHaveLength(2)
   })
 })

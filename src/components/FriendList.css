@@ -22,7 +22,31 @@
 }
 
 .friend-name {
+  flex: 1;
   font-size: 1rem;
   font-weight: 600;
   color: #3d3929;
+}
+
+.friend-water-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.25rem;
+  background: transparent;
+  border: 1px solid #d4cfc4;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: background-color 0.15s ease;
+}
+
+.friend-water-button:hover {
+  background: #e8f0e4;
+}
+
+.friend-water-button:active {
+  background: #d4e6cf;
 }

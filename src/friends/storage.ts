@@ -14,13 +14,18 @@ export const localStorageStore: GardenStorage = {
       if (!raw) return []
       const data = JSON.parse(raw)
       if (!Array.isArray(data)) return []
-      return data.filter(
-        (item): item is Friend =>
-          typeof item.id === 'string' &&
-          typeof item.name === 'string' &&
-          typeof item.cadenceDays === 'number' &&
-          typeof item.createdAt === 'string',
-      )
+      return data
+        .filter(
+          (item): item is Friend =>
+            typeof item.id === 'string' &&
+            typeof item.name === 'string' &&
+            typeof item.cadenceDays === 'number' &&
+            typeof item.createdAt === 'string',
+        )
+        .map((friend) => ({
+          ...friend,
+          interactions: Array.isArray(friend.interactions) ? friend.interactions : [],
+        }))
     } catch {
       return []
     }

@@ -1,6 +1,6 @@
 import { useState, useCallback, type FC } from 'react'
 import './App.css'
-import { createFriend, type Friend } from './friends/Friend'
+import { createFriend, logInteraction, type Friend } from './friends/Friend'
 import { localStorageStore } from './friends/storage'
 import type { GardenStorage } from './friends/storage'
 import AddFriendForm, { type AddFriendData } from './components/AddFriendForm'
@@ -18,7 +18,18 @@ function useGardenStore(storage: GardenStorage) {
     [friends, storage],
   )
 
-  return { friends, addFriend }
+  const waterFriend = useCallback(
+    (friendId: string) => {
+      const updated = friends.map((f) =>
+        f.id === friendId ? logInteraction(f) : f,
+      )
+      setFriends(updated)
+      storage.saveFriends(updated)
+    },
+    [friends, storage],
+  )
+
+  return { friends, addFriend, waterFriend }
 }
 
 function EmptyGarden({ onAdd }: { onAdd: () => void }) {
@@ -41,15 +52,16 @@ function EmptyGarden({ onAdd }: { onAdd: () => void }) {
 interface PopulatedGardenProps {
   friends: Friend[]
   onAdd: () => void
+  onWater: (friendId: string) => void
 }
 
-const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd }) => (
+const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd, onWater }) => (
   <>
     <h2 className="garden-label">
       Your garden ({friends.length})
     </h2>
     <div className="garden-scroll">
-      <FriendList friends={friends} />
+      <FriendList friends={friends} onWater={onWater} />
     </div>
     <button className="add-friend-button" type="button" onClick={onAdd}>
       Add a friend
@@ -63,6 +75,7 @@ interface GardenViewProps {
   onStartAdd: () => void
   onCancelAdd: () => void
   onAddFriend: (data: AddFriendData) => void
+  onWater: (friendId: string) => void
 }
 
 function GardenView({
@@ -71,6 +84,7 @@ function GardenView({
   onStartAdd,
   onCancelAdd,
   onAddFriend,
+  onWater,
 }: GardenViewProps) {
   if (isAdding) {
     return <AddFriendForm onSubmit={onAddFriend} onCancel={onCancelAdd} />
@@ -80,7 +94,7 @@ function GardenView({
     return <EmptyGarden onAdd={onStartAdd} />
   }
 
-  return <PopulatedGarden friends={friends} onAdd={onStartAdd} />
+  return <PopulatedGarden friends={friends} onAdd={onStartAdd} onWater={onWater} />
 }
 
 interface AppProps {
@@ -88,7 +102,7 @@ interface AppProps {
 }
 
 function App({ storage = localStorageStore }: AppProps) {
-  const { friends, addFriend } = useGardenStore(storage)
+  const { friends, addFriend, waterFriend } = useGardenStore(storage)
   const [isAdding, setIsAdding] = useState(false)
 
   const handleAddFriend = (data: AddFriendData) => {
@@ -106,6 +120,7 @@ function App({ storage = localStorageStore }: AppProps) {
         onStartAdd={() => setIsAdding(true)}
         onCancelAdd={() => setIsAdding(false)}
         onAddFriend={handleAddFriend}
+        onWater={waterFriend}
       />
     </main>
   )

@@ -110,6 +110,7 @@ describe('App', () => {
           id: 'f-1',
           name: 'Alice',
           cadenceDays: 14,
+          interactions: [],
           createdAt: '2025-01-01T00:00:00.000Z',
         },
       ]
@@ -239,6 +240,7 @@ describe('App', () => {
         id: `f-${i}`,
         name: `Friend ${i + 1}`,
         cadenceDays: 14,
+        interactions: [],
         createdAt: '2025-01-01T00:00:00.000Z',
       }))
       render(<App storage={createFakeStorage(persisted)} />)
@@ -251,6 +253,7 @@ describe('App', () => {
         id: `f-${i}`,
         name: `Friend ${i + 1}`,
         cadenceDays: 14,
+        interactions: [],
         createdAt: '2025-01-01T00:00:00.000Z',
       }))
       render(<App storage={createFakeStorage(persisted)} />)
@@ -273,6 +276,96 @@ describe('App', () => {
       expect(screen.queryByPlaceholderText(/filter/i)).toBeNull()
       expect(screen.queryByRole('combobox', { name: /group/i })).toBeNull()
       expect(screen.queryByRole('combobox', { name: /sort/i })).toBeNull()
+    })
+  })
+
+  describe('watering', () => {
+    it('logs a conversation and updates lastInteractionAt', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /water alice/i }),
+      )
+
+      expect(saved).toHaveLength(1)
+      expect(saved[0].lastInteractionAt).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+      )
+      expect(saved[0].interactions).toHaveLength(1)
+    })
+
+    it('shows a water button for each friend', () => {
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'f-2',
+          name: 'Bob',
+          cadenceDays: 14,
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      expect(
+        screen.getByRole('button', { name: /water alice/i }),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /water bob/i }),
+      ).toBeInTheDocument()
+    })
+
+    it('any meaningful interaction counts as watering', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+
+      // Water twice — any interaction counts
+      await user.click(
+        screen.getByRole('button', { name: /water alice/i }),
+      )
+      await user.click(
+        screen.getByRole('button', { name: /water alice/i }),
+      )
+
+      expect(saved[0].interactions).toHaveLength(2)
     })
   })
 })

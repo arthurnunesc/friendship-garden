@@ -29,6 +29,7 @@ describe('GardenStorage interface', () => {
         id: 'f-1',
         name: 'Alice',
         cadenceDays: 14,
+        interactions: [],
         createdAt: '2025-01-01T00:00:00.000Z',
       },
     ]
@@ -42,6 +43,7 @@ describe('GardenStorage interface', () => {
         id: 'f-1',
         name: 'Alice',
         cadenceDays: 14,
+        interactions: [],
         createdAt: '2025-01-01T00:00:00.000Z',
       },
     ]
@@ -50,6 +52,7 @@ describe('GardenStorage interface', () => {
         id: 'f-2',
         name: 'Bob',
         cadenceDays: 14,
+        interactions: [],
         createdAt: '2025-02-01T00:00:00.000Z',
       },
     ]
