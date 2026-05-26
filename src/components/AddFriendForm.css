@@ -1,0 +1,81 @@
+.add-friend-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 18rem;
+  margin-bottom: 2rem;
+}
+
+.add-friend-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d5a27;
+  margin-bottom: 0.75rem;
+}
+
+.add-friend-input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-family: inherit;
+  color: #3d3929;
+  background: #fff;
+  border: 1px solid #d4cfc4;
+  border-radius: 0.75rem;
+  outline: none;
+  margin-bottom: 1rem;
+}
+
+.add-friend-input:focus {
+  border-color: #4a7c3f;
+  box-shadow: 0 0 0 2px rgba(74, 124, 63, 0.2);
+}
+
+.add-friend-input::placeholder {
+  color: #b5af9f;
+}
+
+.add-friend-actions {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.add-friend-submit,
+.add-friend-cancel {
+  flex: 1;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.add-friend-submit {
+  color: #fff;
+  background: #4a7c3f;
+}
+
+.add-friend-submit:hover:not(:disabled) {
+  background: #3d6734;
+}
+
+.add-friend-submit:disabled {
+  background: #a3b89c;
+  cursor: default;
+}
+
+.add-friend-cancel {
+  color: #6b6656;
+  background: transparent;
+  border: 1px solid #d4cfc4;
+}
+
+.add-friend-cancel:hover {
+  background: #e8e4d9;
+}

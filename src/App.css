@@ -29,6 +29,10 @@ body {
   text-align: center;
 }
 
+.garden--populated {
+  justify-content: flex-start;
+}
+
 .garden-icon {
   font-size: 3rem;
   margin-bottom: 1rem;
@@ -84,4 +88,16 @@ body {
 
 .add-friend-button:active {
   background: #345a2c;
+}
+
+.garden-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #6b6656;
+  margin-bottom: 0.75rem;
+  align-self: flex-start;
+  max-width: 20rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
 }
