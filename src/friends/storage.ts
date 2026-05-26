@@ -18,6 +18,7 @@ export const localStorageStore: GardenStorage = {
         (item): item is Friend =>
           typeof item.id === 'string' &&
           typeof item.name === 'string' &&
+          typeof item.cadenceDays === 'number' &&
           typeof item.createdAt === 'string',
       )
     } catch {

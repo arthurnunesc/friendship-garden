@@ -232,4 +232,47 @@ describe('App', () => {
       expect(friends[0].birthday).toBe('1990-05-14')
     })
   })
+
+  describe('garden list', () => {
+    it('shows the friend count in the garden label', () => {
+      const persisted: Friend[] = Array.from({ length: 3 }, (_, i) => ({
+        id: `f-${i}`,
+        name: `Friend ${i + 1}`,
+        cadenceDays: 14,
+        createdAt: '2025-01-01T00:00:00.000Z',
+      }))
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      expect(screen.getByText(/your garden \(3\)/i)).toBeInTheDocument()
+    })
+
+    it('renders 25 friends and keeps the add button visible', () => {
+      const persisted: Friend[] = Array.from({ length: 25 }, (_, i) => ({
+        id: `f-${i}`,
+        name: `Friend ${i + 1}`,
+        cadenceDays: 14,
+        createdAt: '2025-01-01T00:00:00.000Z',
+      }))
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      // All 25 names should be in the document
+      persisted.forEach((f) => {
+        expect(screen.getByText(f.name)).toBeInTheDocument()
+      })
+
+      // The add button should still be present
+      expect(
+        screen.getByRole('button', { name: /add a friend/i }),
+      ).toBeInTheDocument()
+    })
+
+    it('does not add search, filtering, or grouping UI', () => {
+      render(<App storage={createFakeStorage([])} />)
+
+      expect(screen.queryByPlaceholderText(/search/i)).toBeNull()
+      expect(screen.queryByPlaceholderText(/filter/i)).toBeNull()
+      expect(screen.queryByRole('combobox', { name: /group/i })).toBeNull()
+      expect(screen.queryByRole('combobox', { name: /sort/i })).toBeNull()
+    })
+  })
 })

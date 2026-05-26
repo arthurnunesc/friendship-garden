@@ -45,8 +45,12 @@ interface PopulatedGardenProps {
 
 const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd }) => (
   <>
-    <h2 className="garden-label">Your garden</h2>
-    <FriendList friends={friends} />
+    <h2 className="garden-label">
+      Your garden ({friends.length})
+    </h2>
+    <div className="garden-scroll">
+      <FriendList friends={friends} />
+    </div>
     <button className="add-friend-button" type="button" onClick={onAdd}>
       Add a friend
     </button>

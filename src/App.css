@@ -31,6 +31,19 @@ body {
 
 .garden--populated {
   justify-content: flex-start;
+  height: 100dvh;
+  overflow: hidden;
+  padding-bottom: 1rem;
+}
+
+.garden-scroll {
+  flex: 1;
+  overflow-y: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 1rem;
 }
 
 .garden-icon {
@@ -88,6 +101,10 @@ body {
 
 .add-friend-button:active {
   background: #345a2c;
+}
+
+.garden--populated .add-friend-button {
+  margin-top: 0.5rem;
 }
 
 .garden-label {
