@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import type { Friend } from './friends/Friend'
@@ -437,6 +437,120 @@ describe('App', () => {
       expect(saved[0].interactions).toHaveLength(1)
       expect(saved[0].interactions[0].type).toBeUndefined()
       expect(saved[0].interactions[0].note).toBeUndefined()
+    })
+  })
+
+  describe('history', () => {
+    it('shows interaction history when expanded', async () => {
+      const user = userEvent.setup()
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions: [
+            {
+              id: 'int-1',
+              date: '2025-05-20T10:00:00.000Z',
+              type: 'message',
+              note: 'Funny meme',
+            },
+            {
+              id: 'int-2',
+              date: '2025-05-25T14:00:00.000Z',
+              type: 'call',
+            },
+          ],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      expect(screen.getByText(/recent chats/i)).toBeInTheDocument()
+      expect(screen.getByText(/funny meme/i)).toBeInTheDocument()
+    })
+
+    it('shows no history section when there are no interactions', async () => {
+      const user = userEvent.setup()
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      expect(screen.queryByText(/recent chats/i)).toBeNull()
+    })
+
+    it('shows history in newest-first order', async () => {
+      const user = userEvent.setup()
+      const older = new Date('2025-05-10T00:00:00Z').toISOString()
+      const newer = new Date('2025-05-25T00:00:00Z').toISOString()
+
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions: [
+            { id: 'int-1', date: older, type: 'message' as const, note: 'Old' },
+            { id: 'int-2', date: newer, type: 'call' as const, note: 'New' },
+          ],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      const items = screen.getAllByText(/^(Old|New)$/)
+      expect(items[0]).toHaveTextContent('New')
+      expect(items[1]).toHaveTextContent('Old')
+    })
+
+    it('shows type and note only when present', async () => {
+      const user = userEvent.setup()
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions: [
+            { id: 'int-1', date: '2025-05-25T00:00:00.000Z', type: 'call' as const },
+            { id: 'int-2', date: '2025-05-20T00:00:00.000Z' },
+            { id: 'int-3', date: '2025-05-15T00:00:00.000Z', note: 'Just a note' },
+          ],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      // Type badge shows
+      const historySection = screen.getByText(/recent chats/i).closest('.history')
+      expect(historySection).toBeInTheDocument()
+      expect(within(historySection as HTMLElement).getByText('Call')).toBeInTheDocument()
+      // Note shows
+      expect(within(historySection as HTMLElement).getByText('Just a note')).toBeInTheDocument()
+      // Bare interaction renders without crashing
+      expect(historySection!.querySelectorAll('.history-item')).toHaveLength(3)
     })
   })
 })

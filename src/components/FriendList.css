@@ -140,3 +140,66 @@
 .water-save:hover {
   background: #3d6734;
 }
+
+.water-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #8c877a;
+  margin-bottom: 0.5rem;
+}
+
+.history {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e0dcd0;
+}
+
+.history-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #8c877a;
+  margin-bottom: 0.5rem;
+}
+
+.history-list {
+  list-style: none;
+}
+
+.history-item {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0ede6;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.125rem;
+}
+
+.history-date {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #3d3929;
+}
+
+.history-type {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #4a7c3f;
+  background: #e8f0e4;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.history-note {
+  font-size: 0.8125rem;
+  color: #6b6656;
+  line-height: 1.4;
+}
