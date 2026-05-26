@@ -22,6 +22,11 @@ Durable decisions that apply across all phases:
 
 **User stories**: 2, 25, 26, 27, 40, 42
 
+**GitHub issues**:
+
+- [#1: Scaffold the React app foundation](https://github.com/arthurnunesc/friendship-garden/issues/1)
+- [#2: Build the empty garden experience](https://github.com/arthurnunesc/friendship-garden/issues/2)
+
 ### What to build
 
 Create the mobile-first app foundation with an empty garden experience that explains the private, local-first purpose of the product and makes the primary action to add a friend obvious. This slice should be demoable without any saved data.
@@ -39,6 +44,12 @@ Create the mobile-first app foundation with an empty garden experience that expl
 ## Phase 2: Add and Display Friends
 
 **User stories**: 1, 3, 4, 5, 6, 22, 23, 24, 43
+
+**GitHub issues**:
+
+- [#3: Add friends by name and persist them locally](https://github.com/arthurnunesc/friendship-garden/issues/3)
+- [#4: Support birthday and cadence fields when adding friends](https://github.com/arthurnunesc/friendship-garden/issues/4)
+- [#5: Make the garden list mobile-friendly for the v1 scale](https://github.com/arthurnunesc/friendship-garden/issues/5)
 
 ### What to build
 
@@ -59,6 +70,12 @@ Allow the user to manually add friends with a required name, optional birthday, 
 
 **User stories**: 7, 8, 9, 10, 11, 12, 13, 44
 
+**GitHub issues**:
+
+- [#6: Log a basic conversation from the garden](https://github.com/arthurnunesc/friendship-garden/issues/6)
+- [#7: Add optional interaction type and note](https://github.com/arthurnunesc/friendship-garden/issues/7)
+- [#8: Show basic friend conversation history](https://github.com/arthurnunesc/friendship-garden/issues/8)
+
 ### What to build
 
 Let the user quickly log that they had a meaningful interaction with a friend. Logging should support an interaction date, optional interaction type, and optional short note, then update the friend's recent history immediately.
@@ -77,6 +94,12 @@ Let the user quickly log that they had a meaningful interaction with a friend. L
 ## Phase 4: Watering State and Weekly Check-In
 
 **User stories**: 14, 15, 16, 17, 18, 19, 35, 41
+
+**GitHub issues**:
+
+- [#9: Derive watering states from cadence and last contact](https://github.com/arthurnunesc/friendship-garden/issues/9)
+- [#10: Show days since last contact and urgent friends](https://github.com/arthurnunesc/friendship-garden/issues/10)
+- [#11: Apply gentle watering visuals and language](https://github.com/arthurnunesc/friendship-garden/issues/11)
 
 ### What to build
 
@@ -97,6 +120,10 @@ Derive and display each friend's garden state from their last interaction date a
 
 **User stories**: 20, 21
 
+**GitHub issues**:
+
+- [#12: Highlight upcoming birthdays](https://github.com/arthurnunesc/friendship-garden/issues/12)
+
 ### What to build
 
 Add upcoming birthday highlights directly into the garden display, keeping birthdays as lightweight contextual signals rather than creating a separate reminder engine.
@@ -113,6 +140,11 @@ Add upcoming birthday highlights directly into the garden display, keeping birth
 ## Phase 6: Edit and Remove Friends
 
 **User stories**: 32, 33, 34
+
+**GitHub issues**:
+
+- [#13: Edit friend details](https://github.com/arthurnunesc/friendship-garden/issues/13)
+- [#14: Remove friends with confirmation](https://github.com/arthurnunesc/friendship-garden/issues/14)
 
 ### What to build
 
@@ -132,6 +164,12 @@ Allow the user to correct friend details and remove friends from the intentional
 
 **User stories**: 28, 29, 30, 31
 
+**GitHub issues**:
+
+- [#15: Export the full garden backup payload](https://github.com/arthurnunesc/friendship-garden/issues/15)
+- [#16: Import a valid garden backup](https://github.com/arthurnunesc/friendship-garden/issues/16)
+- [#17: Reject malformed imports without data loss](https://github.com/arthurnunesc/friendship-garden/issues/17)
+
 ### What to build
 
 Provide manual backup and restore through export and import. Export should include enough data to fully restore the garden, and import must validate the payload before replacing local data.
@@ -150,6 +188,10 @@ Provide manual backup and restore through export and import. Export should inclu
 ## Phase 8: Boundary Hardening
 
 **User stories**: 36, 37, 38, 39, 45
+
+**GitHub issues**:
+
+- [#18: Harden v1 product boundaries](https://github.com/arthurnunesc/friendship-garden/issues/18)
 
 ### What to build
 
