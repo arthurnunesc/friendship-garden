@@ -49,6 +49,14 @@ describe('App', () => {
         'surveillance',
         'crm',
         'contact manager',
+        'dying',
+        'dead',
+        'death',
+        'decay',
+        'wilt',
+        'punish',
+        'streaks',
+        'overdue',
       ]
       forbidden.forEach((phrase) => {
         expect(copy).not.toContain(phrase)
@@ -555,9 +563,9 @@ describe('App', () => {
   })
 
   describe('watering state', () => {
-    it('shows 🥀 for a friend who needs watering', () => {
+    it('shows 💧 for a friend who needs watering', () => {
       const old = new Date()
-      old.setDate(old.getDate() - 30) // 30 days ago, well past 14-day cadence
+      old.setDate(old.getDate() - 30)
       const persisted: Friend[] = [
         {
           id: 'f-1',
@@ -570,10 +578,10 @@ describe('App', () => {
       ]
       render(<App storage={createFakeStorage(persisted)} />)
 
-      // The dry icon should be visible
-      const plant = screen.getByText('🥀')
-      expect(plant).toBeInTheDocument()
-      expect(plant.closest('.friend-card--dry')).toBeInTheDocument()
+      const card = document.querySelector('.friend-card--dry')
+      expect(card).toBeInTheDocument()
+      const plant = card!.querySelector('.friend-plant')
+      expect(plant).toHaveTextContent('💧')
     })
 
     it('shows 🪴 for a recently watered friend', () => {
@@ -658,7 +666,8 @@ describe('App', () => {
       render(<App storage={storage} />)
 
       // Should start as dry
-      expect(screen.getByText('🥀')).toBeInTheDocument()
+      const dryCard = document.querySelector('.friend-card--dry')
+      expect(dryCard).toBeInTheDocument()
 
       // Water the friend
       await user.click(
@@ -754,7 +763,7 @@ describe('App', () => {
 
       // Still visible despite being stale
       expect(screen.getByText('Stale friend')).toBeInTheDocument()
-      expect(screen.getByText('🥀')).toBeInTheDocument()
+      expect(document.querySelector('.friend-card--dry')).toBeInTheDocument()
     })
   })
 })

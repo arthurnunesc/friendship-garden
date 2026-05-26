@@ -22,7 +22,7 @@ function wateringIcon(state: WateringState): string {
     case 'nearing':
       return '🌿'
     case 'dry':
-      return '🥀'
+      return '💧'
   }
 }
 
