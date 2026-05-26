@@ -295,3 +295,57 @@
 .water-cancel:hover {
   background: #f0ede6;
 }
+
+.remove-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e0dcd0;
+}
+
+.remove-start-button {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #c07a5a;
+  background: transparent;
+  border: 1px solid #e0c4b8;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.remove-start-button:hover {
+  color: #a64d3a;
+  border-color: #c48b7a;
+  background: #fdf5f3;
+}
+
+.remove-confirm {
+  padding: 0.5rem 0;
+}
+
+.remove-confirm-text {
+  font-size: 0.8125rem;
+  color: #7a4a3a;
+  margin-bottom: 0.5rem;
+}
+
+.remove-confirm-button {
+  flex: 1;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: #c07a5a;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.remove-confirm-button:hover {
+  background: #a64d3a;
+}

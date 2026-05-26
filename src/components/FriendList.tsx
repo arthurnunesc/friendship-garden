@@ -7,6 +7,7 @@ interface FriendListProps {
   friends: Friend[]
   onWater: (friendId: string, input?: LogInteractionInput) => void
   onEdit: (friendId: string, input: EditFriendInput) => void
+  onRemove: (friendId: string) => void
 }
 
 const INTERACTION_TYPES = ['message', 'call', 'in-person'] as const
@@ -32,7 +33,7 @@ function daysSinceContact(lastInteractionAt: string | undefined, now: Date): num
   return Math.floor((now.getTime() - new Date(lastInteractionAt).getTime()) / 86400000)
 }
 
-function FriendList({ friends, onWater, onEdit }: FriendListProps) {
+function FriendList({ friends, onWater, onEdit, onRemove }: FriendListProps) {
   const now = new Date()
   const sorted = sortFriendsByUrgency(friends, now)
 
@@ -54,6 +55,7 @@ function FriendList({ friends, onWater, onEdit }: FriendListProps) {
             friend={friend}
             onWater={onWater}
             onEdit={onEdit}
+            onRemove={onRemove}
             wateringState={deriveWateringState(friend, now)}
             hasBirthday={hasUpcomingBirthday(friend, now)}
           />
@@ -109,12 +111,14 @@ function FriendCard({
   friend,
   onWater,
   onEdit,
+  onRemove,
   wateringState,
   hasBirthday,
 }: {
   friend: Friend
   onWater: (friendId: string, input?: LogInteractionInput) => void
   onEdit: (friendId: string, input: EditFriendInput) => void
+  onRemove: (friendId: string) => void
   wateringState: WateringState
   hasBirthday: boolean
 }) {
@@ -122,6 +126,7 @@ function FriendCard({
   const [type, setType] = useState('')
   const [note, setNote] = useState('')
   const [editing, setEditing] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
   const [editName, setEditName] = useState(friend.name)
   const [editBirthday, setEditBirthday] = useState(friend.birthday ?? '')
   const [editCadence, setEditCadence] = useState(String(friend.cadenceDays))
@@ -289,6 +294,40 @@ function FriendCard({
                     className="water-cancel"
                     type="button"
                     onClick={handleCancelEdit}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="remove-section">
+            {!confirmRemove ? (
+              <button
+                className="remove-start-button"
+                type="button"
+                onClick={() => setConfirmRemove(true)}
+              >
+                Remove from garden
+              </button>
+            ) : (
+              <div className="remove-confirm">
+                <p className="remove-confirm-text">
+                  Remove {friend.name} and their conversation history?
+                </p>
+                <div className="water-actions">
+                  <button
+                    className="remove-confirm-button"
+                    type="button"
+                    onClick={() => onRemove(friend.id)}
+                  >
+                    Yes, remove
+                  </button>
+                  <button
+                    className="water-cancel"
+                    type="button"
+                    onClick={() => setConfirmRemove(false)}
                   >
                     Cancel
                   </button>

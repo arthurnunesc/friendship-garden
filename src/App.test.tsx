@@ -939,4 +939,101 @@ describe('App', () => {
       expect(saved[0].cadenceDays).toBe(7)
     })
   })
+
+  describe('removing', () => {
+    it('shows remove button in the expanded panel', async () => {
+      const user = userEvent.setup()
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      expect(
+        screen.getByRole('button', { name: /remove from garden/i }),
+      ).toBeInTheDocument()
+    })
+
+    it('confirms removal before deleting', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [
+              { id: 'int-1', date: '2025-05-01T00:00:00.000Z' },
+            ],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+      await user.click(
+        screen.getByRole('button', { name: /remove from garden/i }),
+      )
+
+      // Should show confirmation
+      expect(screen.getByText(/remove alice/i)).toBeInTheDocument()
+
+      // Confirm
+      await user.click(
+        screen.getByRole('button', { name: /yes, remove/i }),
+      )
+
+      expect(saved).toHaveLength(0)
+    })
+
+    it('cancels removal and preserves the friend', async () => {
+      const user = userEvent.setup()
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions: [
+            { id: 'int-1', date: '2025-05-01T00:00:00.000Z' },
+          ],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+
+      render(<App storage={createFakeStorage(persisted)} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+      await user.click(
+        screen.getByRole('button', { name: /remove from garden/i }),
+      )
+      // Wait for confirmation to appear
+      expect(screen.getByText(/remove alice/i)).toBeInTheDocument()
+
+      // Cancel
+      const cancelButtons = screen.getAllByRole('button', { name: /cancel/i })
+      await user.click(cancelButtons[cancelButtons.length - 1])
+
+      // Friend should still be visible
+      expect(screen.getByText('Alice')).toBeInTheDocument()
+      // Confirmation text should be gone
+      expect(screen.queryByText(/remove alice/i)).toBeNull()
+    })
+  })
 })

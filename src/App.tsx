@@ -40,7 +40,16 @@ function useGardenStore(storage: GardenStorage) {
     [friends, storage],
   )
 
-  return { friends, addFriend, waterFriend, updateFriend }
+  const removeFriend = useCallback(
+    (friendId: string) => {
+      const updated = friends.filter((f) => f.id !== friendId)
+      setFriends(updated)
+      storage.saveFriends(updated)
+    },
+    [friends, storage],
+  )
+
+  return { friends, addFriend, waterFriend, updateFriend, removeFriend }
 }
 
 function EmptyGarden({ onAdd }: { onAdd: () => void }) {
@@ -65,15 +74,16 @@ interface PopulatedGardenProps {
   onAdd: () => void
   onWater: (friendId: string, input?: LogInteractionInput) => void
   onEdit: (friendId: string, input: EditFriendInput) => void
+  onRemove: (friendId: string) => void
 }
 
-const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd, onWater, onEdit }) => (
+const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd, onWater, onEdit, onRemove }) => (
   <>
     <h2 className="garden-label">
       Your garden ({friends.length})
     </h2>
     <div className="garden-scroll">
-      <FriendList friends={friends} onWater={onWater} onEdit={onEdit} />
+      <FriendList friends={friends} onWater={onWater} onEdit={onEdit} onRemove={onRemove} />
     </div>
     <button className="add-friend-button" type="button" onClick={onAdd}>
       Add a friend
@@ -89,6 +99,7 @@ interface GardenViewProps {
   onAddFriend: (data: AddFriendData) => void
   onWater: (friendId: string, input?: LogInteractionInput) => void
   onEdit: (friendId: string, input: EditFriendInput) => void
+  onRemove: (friendId: string) => void
 }
 
 function GardenView({
@@ -99,6 +110,7 @@ function GardenView({
   onAddFriend,
   onWater,
   onEdit,
+  onRemove,
 }: GardenViewProps) {
   if (isAdding) {
     return <AddFriendForm onSubmit={onAddFriend} onCancel={onCancelAdd} />
@@ -108,7 +120,7 @@ function GardenView({
     return <EmptyGarden onAdd={onStartAdd} />
   }
 
-  return <PopulatedGarden friends={friends} onAdd={onStartAdd} onWater={onWater} onEdit={onEdit} />
+  return <PopulatedGarden friends={friends} onAdd={onStartAdd} onWater={onWater} onEdit={onEdit} onRemove={onRemove} />
 }
 
 interface AppProps {
@@ -116,7 +128,7 @@ interface AppProps {
 }
 
 function App({ storage = localStorageStore }: AppProps) {
-  const { friends, addFriend, waterFriend, updateFriend } = useGardenStore(storage)
+  const { friends, addFriend, waterFriend, updateFriend, removeFriend } = useGardenStore(storage)
   const [isAdding, setIsAdding] = useState(false)
 
   const handleAddFriend = (data: AddFriendData) => {
@@ -136,6 +148,7 @@ function App({ storage = localStorageStore }: AppProps) {
         onAddFriend={handleAddFriend}
         onWater={waterFriend}
         onEdit={updateFriend}
+        onRemove={removeFriend}
       />
     </main>
   )
