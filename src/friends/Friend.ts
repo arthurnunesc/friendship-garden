@@ -163,3 +163,53 @@ export function exportGarden(friends: Friend[]): GardenExportPayload {
     friends,
   }
 }
+
+export interface ImportResult {
+  success: true
+  friends: Friend[]
+}
+
+export interface ImportError {
+  success: false
+  error: string
+}
+
+function isValidFriend(item: unknown): item is Friend {
+  if (!item || typeof item !== 'object') return false
+  const f = item as Record<string, unknown>
+  return (
+    typeof f.id === 'string' &&
+    typeof f.name === 'string' &&
+    typeof f.cadenceDays === 'number' &&
+    typeof f.createdAt === 'string' &&
+    (f.birthday === undefined || typeof f.birthday === 'string') &&
+    (f.lastInteractionAt === undefined || typeof f.lastInteractionAt === 'string') &&
+    Array.isArray(f.interactions)
+  )
+}
+
+export function validateAndImportGarden(
+  payload: unknown,
+): ImportResult | ImportError {
+  if (!payload || typeof payload !== 'object') {
+    return { success: false, error: 'Invalid garden backup: not a valid JSON object' }
+  }
+
+  const p = payload as Record<string, unknown>
+
+  if (p.version !== 1) {
+    return { success: false, error: 'Unsupported backup version' }
+  }
+
+  if (!Array.isArray(p.friends)) {
+    return { success: false, error: 'Invalid garden backup: friends must be an array' }
+  }
+
+  for (const item of p.friends) {
+    if (!isValidFriend(item)) {
+      return { success: false, error: `Invalid friend entry in backup: missing required fields` }
+    }
+  }
+
+  return { success: true, friends: p.friends as Friend[] }
+}

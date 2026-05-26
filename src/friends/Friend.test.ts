@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, editFriend, exportGarden, DEFAULT_CADENCE_DAYS } from './Friend'
+import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, editFriend, exportGarden, validateAndImportGarden, DEFAULT_CADENCE_DAYS } from './Friend'
 import type { Friend } from './Friend'
 
 describe('createFriend', () => {
@@ -396,5 +396,141 @@ describe('exportGarden', () => {
     const payload = exportGarden([])
 
     expect(payload.friends).toEqual([])
+  })
+})
+
+describe('validateAndImportGarden', () => {
+  it('returns success for a valid payload', () => {
+    const payload = exportGarden([
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        birthday: '1990-05-14',
+        interactions: [
+          { id: 'int-1', date: '2025-05-01T00:00:00.000Z', type: 'call', note: 'Hi' },
+        ],
+        lastInteractionAt: '2025-05-01T00:00:00.000Z',
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ])
+
+    const result = validateAndImportGarden(payload)
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('Expected success')
+    expect(result.friends).toHaveLength(1)
+    expect(result.friends[0].name).toBe('Alice')
+  })
+
+  it('restores cadence settings', () => {
+    const payload = exportGarden([
+      {
+        id: 'f-1',
+        name: 'Bob',
+        cadenceDays: 30,
+        interactions: [],
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ])
+
+    const result = validateAndImportGarden(payload)
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('Expected success')
+    expect(result.friends[0].cadenceDays).toBe(30)
+  })
+
+  it('restores birthdays', () => {
+    const payload = exportGarden([
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        birthday: '1992-03-15',
+        interactions: [],
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ])
+
+    const result = validateAndImportGarden(payload)
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('Expected success')
+    expect(result.friends[0].birthday).toBe('1992-03-15')
+  })
+
+  it('restores conversation history', () => {
+    const payload = exportGarden([
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        interactions: [
+          { id: 'int-1', date: '2025-05-01T00:00:00.000Z', type: 'message', note: 'Meme' },
+        ],
+        lastInteractionAt: '2025-05-01T00:00:00.000Z',
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ])
+
+    const result = validateAndImportGarden(payload)
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('Expected success')
+    expect(result.friends[0].interactions).toHaveLength(1)
+    expect(result.friends[0].interactions[0].type).toBe('message')
+    expect(result.friends[0].interactions[0].note).toBe('Meme')
+  })
+
+  it('rejects null input', () => {
+    const result = validateAndImportGarden(null)
+    expect(result.success).toBe(false)
+    if (result.success) throw new Error('Expected error')
+    expect(result.error).toContain('not a valid JSON object')
+  })
+
+  it('rejects wrong version', () => {
+    const result = validateAndImportGarden({ version: 2, friends: [], exportedAt: '' })
+    expect(result.success).toBe(false)
+    if (result.success) throw new Error('Expected error')
+    expect(result.error).toContain('Unsupported')
+  })
+
+  it('rejects missing friends array', () => {
+    const result = validateAndImportGarden({ version: 1, exportedAt: '' })
+    expect(result.success).toBe(false)
+    if (result.success) throw new Error('Expected error')
+    expect(result.error).toContain('friends must be an array')
+  })
+
+  it('rejects friend missing required fields', () => {
+    const result = validateAndImportGarden({
+      version: 1,
+      exportedAt: '2025-01-01T00:00:00.000Z',
+      friends: [{ name: 'Alice' }],
+    })
+    expect(result.success).toBe(false)
+    if (result.success) throw new Error('Expected error')
+    expect(result.error).toContain('missing required fields')
+  })
+
+  it('handles round-tripping: export then import', () => {
+    const original: Friend[] = [
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        birthday: '1990-05-14',
+        interactions: [
+          { id: 'int-1', date: '2025-05-01T00:00:00.000Z', type: 'call', note: 'Great chat' },
+        ],
+        lastInteractionAt: '2025-05-01T00:00:00.000Z',
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ]
+
+    const payload = exportGarden(original)
+    const result = validateAndImportGarden(payload)
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('Expected success')
+    expect(result.friends).toEqual(original)
   })
 })

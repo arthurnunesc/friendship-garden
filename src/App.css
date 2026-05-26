@@ -118,3 +118,42 @@ body {
   margin-right: auto;
   width: 100%;
 }
+
+.garden-tools {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.tool-button {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #6b6656;
+  background: transparent;
+  border: 1px solid #d4cfc4;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.tool-button:hover {
+  border-color: #4a7c3f;
+  color: #4a7c3f;
+  background: #f4f9f2;
+}
+
+.feedback {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.feedback--success {
+  color: #4a7c3f;
+}
+
+.feedback--error {
+  color: #c07a5a;
+}

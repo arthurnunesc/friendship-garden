@@ -1,6 +1,6 @@
-import { useState, useCallback, type FC } from 'react'
+import { useState, useCallback, useRef, type FC } from 'react'
 import './App.css'
-import { createFriend, logInteraction, editFriend, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
+import { createFriend, logInteraction, editFriend, exportGarden, validateAndImportGarden, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
 import { localStorageStore } from './friends/storage'
 import type { GardenStorage } from './friends/storage'
 import AddFriendForm, { type AddFriendData } from './components/AddFriendForm'
@@ -130,10 +130,58 @@ interface AppProps {
 function App({ storage = localStorageStore }: AppProps) {
   const { friends, addFriend, waterFriend, updateFriend, removeFriend } = useGardenStore(storage)
   const [isAdding, setIsAdding] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const showFeedback = (msg: string, type: 'success' | 'error') => {
+    setFeedback(msg)
+    setFeedbackType(type)
+    setTimeout(() => setFeedback(null), 4000)
+  }
 
   const handleAddFriend = (data: AddFriendData) => {
     addFriend(data)
     setIsAdding(false)
+  }
+
+  const handleExport = () => {
+    const payload = exportGarden(friends)
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `friendship-garden-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    showFeedback('Garden exported successfully.', 'success')
+  }
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const json = JSON.parse(reader.result as string)
+        const result = validateAndImportGarden(json)
+        if (!result.success) {
+          showFeedback(result.error, 'error')
+          return
+        }
+        storage.saveFriends(result.friends)
+        window.location.reload()
+      } catch {
+        showFeedback('Invalid JSON file. Please check the file format.', 'error')
+      }
+    }
+    reader.readAsText(file)
+
+    // Reset so the same file can be re-imported
+    e.target.value = ''
   }
 
   return (
@@ -150,6 +198,34 @@ function App({ storage = localStorageStore }: AppProps) {
         onEdit={updateFriend}
         onRemove={removeFriend}
       />
+      <div className="garden-tools">
+        <button className="tool-button" type="button" onClick={handleExport}>
+          Export
+        </button>
+        <button
+          className="tool-button"
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          Import
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json,application/json"
+          onChange={handleFile}
+          style={{ display: 'none' }}
+          data-testid="import-input"
+        />
+      </div>
+      {feedback && (
+        <p
+          className={`feedback feedback--${feedbackType}`}
+          role="status"
+        >
+          {feedback}
+        </p>
+      )}
     </main>
   )
 }
