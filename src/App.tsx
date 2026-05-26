@@ -1,6 +1,6 @@
 import { useState, useCallback, type FC } from 'react'
 import './App.css'
-import { createFriend, logInteraction, type Friend } from './friends/Friend'
+import { createFriend, logInteraction, type Friend, type LogInteractionInput } from './friends/Friend'
 import { localStorageStore } from './friends/storage'
 import type { GardenStorage } from './friends/storage'
 import AddFriendForm, { type AddFriendData } from './components/AddFriendForm'
@@ -19,9 +19,9 @@ function useGardenStore(storage: GardenStorage) {
   )
 
   const waterFriend = useCallback(
-    (friendId: string) => {
+    (friendId: string, input?: LogInteractionInput) => {
       const updated = friends.map((f) =>
-        f.id === friendId ? logInteraction(f) : f,
+        f.id === friendId ? logInteraction(f, input) : f,
       )
       setFriends(updated)
       storage.saveFriends(updated)
@@ -52,7 +52,7 @@ function EmptyGarden({ onAdd }: { onAdd: () => void }) {
 interface PopulatedGardenProps {
   friends: Friend[]
   onAdd: () => void
-  onWater: (friendId: string) => void
+  onWater: (friendId: string, input?: LogInteractionInput) => void
 }
 
 const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd, onWater }) => (
@@ -75,7 +75,7 @@ interface GardenViewProps {
   onStartAdd: () => void
   onCancelAdd: () => void
   onAddFriend: (data: AddFriendData) => void
-  onWater: (friendId: string) => void
+  onWater: (friendId: string, input?: LogInteractionInput) => void
 }
 
 function GardenView({

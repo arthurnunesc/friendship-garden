@@ -1,6 +1,8 @@
 export interface Interaction {
   id: string
   date: string
+  type?: 'message' | 'call' | 'in-person'
+  note?: string
 }
 
 export interface Friend {
@@ -36,12 +38,22 @@ export function createFriend(input: CreateFriendInput): Friend {
   }
 }
 
-export function logInteraction(friend: Friend): Friend {
+export interface LogInteractionInput {
+  type?: 'message' | 'call' | 'in-person'
+  note?: string
+}
+
+export function logInteraction(
+  friend: Friend,
+  input: LogInteractionInput = {},
+): Friend {
   const now = new Date().toISOString()
   const interaction: Interaction = {
     id: `int-${nextInteractionId++}`,
     date: now,
   }
+  if (input.type) interaction.type = input.type
+  if (input.note) interaction.note = input.note
   return {
     ...friend,
     lastInteractionAt: now,

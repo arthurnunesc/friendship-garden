@@ -90,4 +90,39 @@ describe('logInteraction', () => {
 
     expect(friend.interactions).toHaveLength(2)
   })
+
+  describe('optional metadata', () => {
+    it('works without type or note', () => {
+      const friend = createFriend({ name: 'Alice' })
+      const updated = logInteraction(friend)
+
+      expect(updated.interactions[0].type).toBeUndefined()
+      expect(updated.interactions[0].note).toBeUndefined()
+    })
+
+    it('stores interaction type when provided', () => {
+      const friend = createFriend({ name: 'Alice' })
+      const updated = logInteraction(friend, { type: 'call' })
+
+      expect(updated.interactions[0].type).toBe('call')
+    })
+
+    it('stores note when provided', () => {
+      const friend = createFriend({ name: 'Alice' })
+      const updated = logInteraction(friend, { note: 'Great chat!' })
+
+      expect(updated.interactions[0].note).toBe('Great chat!')
+    })
+
+    it('stores both type and note together', () => {
+      const friend = createFriend({ name: 'Alice' })
+      const updated = logInteraction(friend, {
+        type: 'in-person',
+        note: 'Coffee downtown',
+      })
+
+      expect(updated.interactions[0].type).toBe('in-person')
+      expect(updated.interactions[0].note).toBe('Coffee downtown')
+    })
+  })
 })

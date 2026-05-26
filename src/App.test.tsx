@@ -367,5 +367,76 @@ describe('App', () => {
 
       expect(saved[0].interactions).toHaveLength(2)
     })
+
+    it('logs with optional type and note', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+
+      // Expand details
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+      // Select type
+      await user.selectOptions(
+        screen.getByLabelText('Interaction type'),
+        'call',
+      )
+      // Add note
+      await user.type(
+        screen.getByLabelText('Note'),
+        'Great chat!',
+      )
+      await user.click(screen.getByRole('button', { name: /save/i }))
+
+      expect(saved[0].interactions[0].type).toBe('call')
+      expect(saved[0].interactions[0].note).toBe('Great chat!')
+    })
+
+    it('saves with empty optional fields just fine', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+      // Don't fill anything — just save
+      await user.click(screen.getByRole('button', { name: /save/i }))
+
+      expect(saved[0].interactions).toHaveLength(1)
+      expect(saved[0].interactions[0].type).toBeUndefined()
+      expect(saved[0].interactions[0].note).toBeUndefined()
+    })
   })
 })

@@ -5,6 +5,10 @@
   margin-bottom: 1.5rem;
 }
 
+.friend-card-wrapper {
+  margin-bottom: 0.5rem;
+}
+
 .friend-card {
   display: flex;
   align-items: center;
@@ -13,7 +17,11 @@
   background: #fff;
   border: 1px solid #e0dcd0;
   border-radius: 0.75rem;
-  margin-bottom: 0.5rem;
+}
+
+.friend-card-wrapper:has(.water-details) .friend-card {
+  border-radius: 0.75rem 0.75rem 0 0;
+  border-bottom-color: transparent;
 }
 
 .friend-plant {
@@ -26,6 +34,24 @@
   font-size: 1rem;
   font-weight: 600;
   color: #3d3929;
+}
+
+.friend-expand-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2.75rem;
+  font-size: 0.625rem;
+  background: transparent;
+  border: none;
+  color: #b5af9f;
+  cursor: pointer;
+  padding: 0;
+}
+
+.friend-expand-button:hover {
+  color: #6b6656;
 }
 
 .friend-water-button {
@@ -49,4 +75,68 @@
 
 .friend-water-button:active {
   background: #d4e6cf;
+}
+
+.water-details {
+  padding: 0.75rem 1rem 0.875rem;
+  background: #fff;
+  border: 1px solid #e0dcd0;
+  border-top: none;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+.water-select,
+.water-note {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9375rem;
+  font-family: inherit;
+  color: #3d3929;
+  background: #f9f7f4;
+  border: 1px solid #e0dcd0;
+  border-radius: 0.5rem;
+  outline: none;
+  margin-bottom: 0.5rem;
+}
+
+.water-select:focus,
+.water-note:focus {
+  border-color: #4a7c3f;
+  box-shadow: 0 0 0 2px rgba(74, 124, 63, 0.2);
+}
+
+.water-note::placeholder {
+  color: #b5af9f;
+}
+
+.water-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236b6656' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+
+.water-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.water-save {
+  flex: 1;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: #4a7c3f;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.water-save:hover {
+  background: #3d6734;
 }
