@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, editFriend, DEFAULT_CADENCE_DAYS } from './Friend'
+import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, editFriend, exportGarden, DEFAULT_CADENCE_DAYS } from './Friend'
 import type { Friend } from './Friend'
 
 describe('createFriend', () => {
@@ -310,5 +310,91 @@ describe('editFriend', () => {
     const edited = editFriend(friend, { name: 'Alice', cadenceDays: 30 })
     expect(friend.cadenceDays).toBe(14)
     expect(edited).not.toBe(friend)
+  })
+})
+
+describe('exportGarden', () => {
+  it('includes version, exportedAt, and friends', () => {
+    const friends: Friend[] = [
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        interactions: [],
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ]
+    const payload = exportGarden(friends)
+
+    expect(payload.version).toBe(1)
+    expect(payload.exportedAt).toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+    )
+    expect(payload.friends).toBe(friends)
+  })
+
+  it('includes cadence settings for each friend', () => {
+    const friends: Friend[] = [
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 7,
+        interactions: [],
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'f-2',
+        name: 'Bob',
+        cadenceDays: 30,
+        interactions: [],
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ]
+    const payload = exportGarden(friends)
+
+    expect(payload.friends[0].cadenceDays).toBe(7)
+    expect(payload.friends[1].cadenceDays).toBe(30)
+  })
+
+  it('includes birthdays when present', () => {
+    const friends: Friend[] = [
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        birthday: '1990-05-14',
+        interactions: [],
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ]
+    const payload = exportGarden(friends)
+
+    expect(payload.friends[0].birthday).toBe('1990-05-14')
+  })
+
+  it('includes conversation history', () => {
+    const friends: Friend[] = [
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        interactions: [
+          { id: 'int-1', date: '2025-05-01T00:00:00.000Z', type: 'call', note: 'Great chat' },
+        ],
+        lastInteractionAt: '2025-05-01T00:00:00.000Z',
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ]
+    const payload = exportGarden(friends)
+
+    expect(payload.friends[0].interactions).toHaveLength(1)
+    expect(payload.friends[0].interactions[0].type).toBe('call')
+    expect(payload.friends[0].interactions[0].note).toBe('Great chat')
+  })
+
+  it('handles empty garden', () => {
+    const payload = exportGarden([])
+
+    expect(payload.friends).toEqual([])
   })
 })

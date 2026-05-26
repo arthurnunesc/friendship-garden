@@ -149,3 +149,17 @@ export function editFriend(friend: Friend, input: EditFriendInput): Friend {
     cadenceDays: input.cadenceDays,
   }
 }
+
+export interface GardenExportPayload {
+  version: 1
+  exportedAt: string
+  friends: Friend[]
+}
+
+export function exportGarden(friends: Friend[]): GardenExportPayload {
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    friends,
+  }
+}
