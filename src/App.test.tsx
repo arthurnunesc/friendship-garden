@@ -823,4 +823,120 @@ describe('App', () => {
       expect(screen.queryByText('🎂')).toBeNull()
     })
   })
+
+  describe('editing', () => {
+    it('edits a friend name and persists', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+      await user.click(
+        screen.getByRole('button', { name: /edit name, birthday, or cadence/i }),
+      )
+
+      const nameInput: HTMLInputElement = screen.getByLabelText('Name')
+      await user.clear(nameInput)
+      await user.type(nameInput, 'Allison')
+
+      // Click the edit form's Save (scoped to edit-form)
+      const editForm = document.querySelector('.edit-form')!
+      await user.click(
+        within(editForm as HTMLElement).getByRole('button', { name: 'Save' }),
+      )
+
+      expect(saved[0].name).toBe('Allison')
+    })
+
+    it('edits birthday', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+      await user.click(
+        screen.getByRole('button', { name: /edit name, birthday, or cadence/i }),
+      )
+
+      const dateInput: HTMLInputElement = screen.getByLabelText('Birthday')
+      await user.clear(dateInput)
+      await user.type(dateInput, '1990-05-14')
+
+      const editForm = document.querySelector('.edit-form')!
+      await user.click(
+        within(editForm as HTMLElement).getByRole('button', { name: 'Save' }),
+      )
+
+      expect(saved[0].birthday).toBe('1990-05-14')
+    })
+
+    it('edits cadence', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+      await user.click(
+        screen.getByRole('button', { name: /edit name, birthday, or cadence/i }),
+      )
+
+      const cadenceSelect: HTMLSelectElement = screen.getByLabelText('Cadence')
+      await user.selectOptions(cadenceSelect, '7')
+
+      const editForm = document.querySelector('.edit-form')!
+      await user.click(
+        within(editForm as HTMLElement).getByRole('button', { name: 'Save' }),
+      )
+
+      expect(saved[0].cadenceDays).toBe(7)
+    })
+  })
 })

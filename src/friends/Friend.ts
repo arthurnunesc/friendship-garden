@@ -134,3 +134,18 @@ export function hasUpcomingBirthday(
 
   return daysUntil > 0 && daysUntil <= UPCOMING_DAYS
 }
+
+export interface EditFriendInput {
+  name: string
+  birthday?: string
+  cadenceDays: number
+}
+
+export function editFriend(friend: Friend, input: EditFriendInput): Friend {
+  return {
+    ...friend,
+    name: input.name.trim(),
+    birthday: input.birthday || undefined,
+    cadenceDays: input.cadenceDays,
+  }
+}

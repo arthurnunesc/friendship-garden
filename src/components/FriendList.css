@@ -242,3 +242,56 @@
   color: #6b6656;
   line-height: 1.4;
 }
+
+.edit-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e0dcd0;
+}
+
+.edit-start-button {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #6b6656;
+  background: transparent;
+  border: 1px dashed #d4cfc4;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.edit-start-button:hover {
+  border-color: #4a7c3f;
+  color: #4a7c3f;
+  background: #f4f9f2;
+}
+
+.edit-form .add-friend-optional-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8c877a;
+  margin-bottom: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.water-cancel {
+  flex: 1;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #6b6656;
+  background: transparent;
+  border: 1px solid #d4cfc4;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.water-cancel:hover {
+  background: #f0ede6;
+}

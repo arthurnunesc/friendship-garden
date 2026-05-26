@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, DEFAULT_CADENCE_DAYS } from './Friend'
+import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, editFriend, DEFAULT_CADENCE_DAYS } from './Friend'
 import type { Friend } from './Friend'
 
 describe('createFriend', () => {
@@ -271,5 +271,44 @@ describe('hasUpcomingBirthday', () => {
   it('returns false when birthday has already passed this year', () => {
     const friend = createFriend({ name: 'Alice', birthday: '1990-01-01' })
     expect(hasUpcomingBirthday(friend, new Date('2025-06-15T12:00:00Z'))).toBe(false)
+  })
+})
+
+describe('editFriend', () => {
+  it('updates the name', () => {
+    const friend = createFriend({ name: 'Alice' })
+    const edited = editFriend(friend, { name: 'Allison', cadenceDays: 14 })
+    expect(edited.name).toBe('Allison')
+  })
+
+  it('trims whitespace from the name', () => {
+    const friend = createFriend({ name: 'Alice' })
+    const edited = editFriend(friend, { name: '  Allison  ', cadenceDays: 14 })
+    expect(edited.name).toBe('Allison')
+  })
+
+  it('updates the birthday', () => {
+    const friend = createFriend({ name: 'Alice', birthday: '1990-05-14' })
+    const edited = editFriend(friend, { name: 'Alice', birthday: '1992-03-10', cadenceDays: 14 })
+    expect(edited.birthday).toBe('1992-03-10')
+  })
+
+  it('clears the birthday when empty', () => {
+    const friend = createFriend({ name: 'Alice', birthday: '1990-05-14' })
+    const edited = editFriend(friend, { name: 'Alice', cadenceDays: 14 })
+    expect(edited.birthday).toBeUndefined()
+  })
+
+  it('updates the cadence', () => {
+    const friend = createFriend({ name: 'Alice', cadenceDays: 14 })
+    const edited = editFriend(friend, { name: 'Alice', cadenceDays: 7 })
+    expect(edited.cadenceDays).toBe(7)
+  })
+
+  it('does not mutate the original friend', () => {
+    const friend = createFriend({ name: 'Alice', cadenceDays: 14 })
+    const edited = editFriend(friend, { name: 'Alice', cadenceDays: 30 })
+    expect(friend.cadenceDays).toBe(14)
+    expect(edited).not.toBe(friend)
   })
 })

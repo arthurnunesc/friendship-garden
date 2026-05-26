@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import type { Friend, Interaction, LogInteractionInput, WateringState } from '../friends/Friend'
-import { deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday } from '../friends/Friend'
+import type { Friend, Interaction, LogInteractionInput, WateringState, EditFriendInput } from '../friends/Friend'
+import { deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, DEFAULT_CADENCE_DAYS } from '../friends/Friend'
 import './FriendList.css'
 
 interface FriendListProps {
   friends: Friend[]
   onWater: (friendId: string, input?: LogInteractionInput) => void
+  onEdit: (friendId: string, input: EditFriendInput) => void
 }
 
 const INTERACTION_TYPES = ['message', 'call', 'in-person'] as const
@@ -31,7 +32,7 @@ function daysSinceContact(lastInteractionAt: string | undefined, now: Date): num
   return Math.floor((now.getTime() - new Date(lastInteractionAt).getTime()) / 86400000)
 }
 
-function FriendList({ friends, onWater }: FriendListProps) {
+function FriendList({ friends, onWater, onEdit }: FriendListProps) {
   const now = new Date()
   const sorted = sortFriendsByUrgency(friends, now)
 
@@ -52,6 +53,7 @@ function FriendList({ friends, onWater }: FriendListProps) {
           <FriendCard
             friend={friend}
             onWater={onWater}
+            onEdit={onEdit}
             wateringState={deriveWateringState(friend, now)}
             hasBirthday={hasUpcomingBirthday(friend, now)}
           />
@@ -106,23 +108,29 @@ function InteractionHistory({ interactions }: { interactions: Interaction[] }) {
 function FriendCard({
   friend,
   onWater,
+  onEdit,
   wateringState,
   hasBirthday,
 }: {
   friend: Friend
   onWater: (friendId: string, input?: LogInteractionInput) => void
+  onEdit: (friendId: string, input: EditFriendInput) => void
   wateringState: WateringState
   hasBirthday: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState('')
   const [note, setNote] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState(friend.name)
+  const [editBirthday, setEditBirthday] = useState(friend.birthday ?? '')
+  const [editCadence, setEditCadence] = useState(String(friend.cadenceDays))
 
   const handleWater = () => {
     onWater(friend.id)
   }
 
-  const handleSave = () => {
+  const handleSaveChat = () => {
     const input: LogInteractionInput = {}
     if (type) input.type = type as LogInteractionInput['type']
     if (note.trim()) input.note = note.trim()
@@ -130,6 +138,24 @@ function FriendCard({
     setOpen(false)
     setType('')
     setNote('')
+  }
+
+  const handleSaveEdit = () => {
+    const trimmed = editName.trim()
+    if (trimmed.length === 0) return
+    onEdit(friend.id, {
+      name: trimmed,
+      birthday: editBirthday || undefined,
+      cadenceDays: Number(editCadence) || DEFAULT_CADENCE_DAYS,
+    })
+    setEditing(false)
+  }
+
+  const handleCancelEdit = () => {
+    setEditName(friend.name)
+    setEditBirthday(friend.birthday ?? '')
+    setEditCadence(String(friend.cadenceDays))
+    setEditing(false)
   }
 
   const days = daysSinceContact(friend.lastInteractionAt, new Date())
@@ -190,11 +216,86 @@ function FriendCard({
             autoFocus
           />
           <div className="water-actions">
-            <button className="water-save" type="button" onClick={handleSave}>
+            <button className="water-save" type="button" onClick={handleSaveChat}>
               Save
             </button>
           </div>
           <InteractionHistory interactions={friend.interactions} />
+
+          <div className="edit-section">
+            <h3 className="water-title">Edit details</h3>
+            {!editing ? (
+              <button
+                className="edit-start-button"
+                type="button"
+                onClick={() => {
+                  setEditName(friend.name)
+                  setEditBirthday(friend.birthday ?? '')
+                  setEditCadence(String(friend.cadenceDays))
+                  setEditing(true)
+                }}
+              >
+                Edit name, birthday, or cadence
+              </button>
+            ) : (
+              <div className="edit-form">
+                <label className="add-friend-optional-label" htmlFor={`edit-name-${friend.id}`}>
+                  Name
+                </label>
+                <input
+                  id={`edit-name-${friend.id}`}
+                  className="add-friend-input water-note"
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  autoFocus
+                />
+                <label className="add-friend-optional-label" htmlFor={`edit-bday-${friend.id}`}>
+                  Birthday
+                </label>
+                <input
+                  id={`edit-bday-${friend.id}`}
+                  className="add-friend-input water-note"
+                  type="date"
+                  value={editBirthday}
+                  onChange={(e) => setEditBirthday(e.target.value)}
+                />
+                <label className="add-friend-optional-label" htmlFor={`edit-cadence-${friend.id}`}>
+                  Cadence
+                </label>
+                <select
+                  id={`edit-cadence-${friend.id}`}
+                  className="add-friend-input water-note"
+                  value={editCadence}
+                  onChange={(e) => setEditCadence(e.target.value)}
+                  style={{ appearance: 'auto' as React.CSSProperties['appearance'] }}
+                >
+                  <option value="7">1 week</option>
+                  <option value="14">2 weeks</option>
+                  <option value="21">3 weeks</option>
+                  <option value="30">1 month</option>
+                  <option value="60">2 months</option>
+                </select>
+                <div className="water-actions">
+                  <button
+                    className="water-save"
+                    type="button"
+                    onClick={handleSaveEdit}
+                    disabled={editName.trim().length === 0}
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="water-cancel"
+                    type="button"
+                    onClick={handleCancelEdit}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
