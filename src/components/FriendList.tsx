@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Friend, Interaction, LogInteractionInput, WateringState } from '../friends/Friend'
-import { deriveWateringState } from '../friends/Friend'
+import { deriveWateringState, sortFriendsByUrgency } from '../friends/Friend'
 import './FriendList.css'
 
 interface FriendListProps {
@@ -33,17 +33,30 @@ function daysSinceContact(lastInteractionAt: string | undefined, now: Date): num
 
 function FriendList({ friends, onWater }: FriendListProps) {
   const now = new Date()
+  const sorted = sortFriendsByUrgency(friends, now)
+
+  const firstDryIndex = sorted.findIndex(
+    (f) => deriveWateringState(f, now) === 'dry',
+  )
+
   return (
-    <ul className="friend-list">
-      {friends.map((friend) => (
-        <FriendCard
-          key={friend.id}
-          friend={friend}
-          onWater={onWater}
-          wateringState={deriveWateringState(friend, now)}
-        />
+    <div className="friend-list">
+      {sorted.map((friend, index) => (
+        <div key={friend.id}>
+          {index === 0 && firstDryIndex === 0 && (
+            <p className="friend-urgency-header">Needs attention</p>
+          )}
+          {index === firstDryIndex && firstDryIndex > 0 && (
+            <p className="friend-urgency-header">Needs attention</p>
+          )}
+          <FriendCard
+            friend={friend}
+            onWater={onWater}
+            wateringState={deriveWateringState(friend, now)}
+          />
+        </div>
       ))}
-    </ul>
+    </div>
   )
 }
 
@@ -119,7 +132,7 @@ function FriendCard({
   const days = daysSinceContact(friend.lastInteractionAt, new Date())
 
   return (
-    <li className="friend-card-wrapper">
+    <div className="friend-card-wrapper">
       <div className={`friend-card friend-card--${wateringState}`}>
         <span className="friend-plant">{wateringIcon(wateringState)}</span>
         <div className="friend-info">
@@ -178,7 +191,7 @@ function FriendCard({
           <InteractionHistory interactions={friend.interactions} />
         </div>
       )}
-    </li>
+    </div>
   )
 }
 

@@ -78,3 +78,29 @@ export function deriveWateringState(
   if (daysSince < friend.cadenceDays * NEARING_MULTIPLIER) return 'nearing'
   return 'dry'
 }
+
+const STATE_ORDER: Record<WateringState, number> = {
+  dry: 0,
+  nearing: 1,
+  watered: 2,
+}
+
+export function sortFriendsByUrgency(
+  friends: Friend[],
+  now: Date = new Date(),
+): Friend[] {
+  return [...friends].sort((a, b) => {
+    const stateA = STATE_ORDER[deriveWateringState(a, now)]
+    const stateB = STATE_ORDER[deriveWateringState(b, now)]
+    if (stateA !== stateB) return stateA - stateB
+
+    const daysA = a.lastInteractionAt
+      ? (now.getTime() - new Date(a.lastInteractionAt).getTime()) / 86400000
+      : Infinity
+    const daysB = b.lastInteractionAt
+      ? (now.getTime() - new Date(b.lastInteractionAt).getTime()) / 86400000
+      : Infinity
+
+    return daysB - daysA // more days = more urgent within same state
+  })
+}

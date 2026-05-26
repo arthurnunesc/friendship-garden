@@ -1,8 +1,16 @@
 .friend-list {
-  list-style: none;
   width: 100%;
   max-width: 20rem;
   margin-bottom: 1.5rem;
+}
+
+.friend-urgency-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #c07a5a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
 }
 
 .friend-card-wrapper {

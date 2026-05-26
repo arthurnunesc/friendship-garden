@@ -669,4 +669,92 @@ describe('App', () => {
       expect(saved[0].lastInteractionAt).toBeDefined()
     })
   })
+
+  describe('urgency ordering', () => {
+    it('shows "Needs attention" header when dry friends exist', () => {
+      const old = new Date()
+      old.setDate(old.getDate() - 30)
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          lastInteractionAt: old.toISOString(),
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      expect(screen.getByText('Needs attention')).toBeInTheDocument()
+    })
+
+    it('does not show urgency header when all friends are watered', () => {
+      const recent = new Date()
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          lastInteractionAt: recent.toISOString(),
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      expect(screen.queryByText('Needs attention')).toBeNull()
+    })
+
+    it('puts dry friends above watered friends', () => {
+      const old = new Date()
+      old.setDate(old.getDate() - 30)
+      const recent = new Date()
+
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Watered',
+          cadenceDays: 14,
+          lastInteractionAt: recent.toISOString(),
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'f-2',
+          name: 'Dry',
+          cadenceDays: 14,
+          lastInteractionAt: old.toISOString(),
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      const names = screen.getAllByText(/^(Watered|Dry)$/)
+      expect(names[0]).toHaveTextContent('Dry')
+      expect(names[1]).toHaveTextContent('Watered')
+    })
+
+    it('stale friends remain visible even if check-in is skipped', () => {
+      const veryOld = new Date()
+      veryOld.setDate(veryOld.getDate() - 90) // 3 months ago
+
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Stale friend',
+          cadenceDays: 14,
+          lastInteractionAt: veryOld.toISOString(),
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      // Still visible despite being stale
+      expect(screen.getByText('Stale friend')).toBeInTheDocument()
+      expect(screen.getByText('🥀')).toBeInTheDocument()
+    })
+  })
 })
