@@ -766,4 +766,61 @@ describe('App', () => {
       expect(document.querySelector('.friend-card--dry')).toBeInTheDocument()
     })
   })
+
+  describe('birthday highlights', () => {
+    it('shows 🎂 for a friend with upcoming birthday', () => {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const bday = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`
+
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          birthday: bday,
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      expect(screen.getByText('🎂')).toBeInTheDocument()
+    })
+
+    it('does not show 🎂 for friends without birthdays', () => {
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      expect(screen.queryByText('🎂')).toBeNull()
+    })
+
+    it('does not show 🎂 when birthday is far in the future', () => {
+      const farFuture = new Date()
+      farFuture.setDate(farFuture.getDate() + 30)
+      const bday = `${farFuture.getFullYear()}-${String(farFuture.getMonth() + 1).padStart(2, '0')}-${String(farFuture.getDate()).padStart(2, '0')}`
+
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          birthday: bday,
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      expect(screen.queryByText('🎂')).toBeNull()
+    })
+  })
 })

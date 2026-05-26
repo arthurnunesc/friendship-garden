@@ -101,6 +101,36 @@ export function sortFriendsByUrgency(
       ? (now.getTime() - new Date(b.lastInteractionAt).getTime()) / 86400000
       : Infinity
 
-    return daysB - daysA // more days = more urgent within same state
+    return daysB - daysA
   })
+}
+
+const UPCOMING_DAYS = 7
+
+export function hasUpcomingBirthday(
+  friend: Friend,
+  now: Date = new Date(),
+): boolean {
+  if (!friend.birthday) return false
+
+  const birthDate = new Date(friend.birthday)
+  const todayNoon = new Date(now)
+  todayNoon.setHours(12, 0, 0, 0)
+
+  let nextBirthday = new Date(
+    todayNoon.getFullYear(),
+    birthDate.getMonth(),
+    birthDate.getDate(),
+  )
+  nextBirthday.setHours(12, 0, 0, 0)
+
+  if (nextBirthday <= todayNoon) {
+    nextBirthday.setFullYear(nextBirthday.getFullYear() + 1)
+  }
+
+  const daysUntil = Math.ceil(
+    (nextBirthday.getTime() - todayNoon.getTime()) / 86400000,
+  )
+
+  return daysUntil > 0 && daysUntil <= UPCOMING_DAYS
 }

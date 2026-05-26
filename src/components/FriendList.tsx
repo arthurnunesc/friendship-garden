@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Friend, Interaction, LogInteractionInput, WateringState } from '../friends/Friend'
-import { deriveWateringState, sortFriendsByUrgency } from '../friends/Friend'
+import { deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday } from '../friends/Friend'
 import './FriendList.css'
 
 interface FriendListProps {
@@ -53,6 +53,7 @@ function FriendList({ friends, onWater }: FriendListProps) {
             friend={friend}
             onWater={onWater}
             wateringState={deriveWateringState(friend, now)}
+            hasBirthday={hasUpcomingBirthday(friend, now)}
           />
         </div>
       ))}
@@ -106,10 +107,12 @@ function FriendCard({
   friend,
   onWater,
   wateringState,
+  hasBirthday,
 }: {
   friend: Friend
   onWater: (friendId: string, input?: LogInteractionInput) => void
   wateringState: WateringState
+  hasBirthday: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState('')
@@ -136,7 +139,10 @@ function FriendCard({
       <div className={`friend-card friend-card--${wateringState}`}>
         <span className="friend-plant">{wateringIcon(wateringState)}</span>
         <div className="friend-info">
-          <span className="friend-name">{friend.name}</span>
+          <span className="friend-name">
+            {friend.name}
+            {hasBirthday && <span className="friend-birthday">🎂</span>}
+          </span>
           {days !== null && (
             <span className="friend-watering">{days}d</span>
           )}

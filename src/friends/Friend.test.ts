@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, DEFAULT_CADENCE_DAYS } from './Friend'
+import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, DEFAULT_CADENCE_DAYS } from './Friend'
 import type { Friend } from './Friend'
 
 describe('createFriend', () => {
@@ -229,5 +229,47 @@ describe('sortFriendsByUrgency', () => {
     const sorted = sortFriendsByUrgency([stale], now)
     expect(sorted).toHaveLength(1)
     expect(sorted[0].name).toBe('Stale')
+  })
+})
+
+describe('hasUpcomingBirthday', () => {
+  it('returns false when friend has no birthday', () => {
+    const friend = createFriend({ name: 'Alice' })
+    expect(hasUpcomingBirthday(friend, new Date('2025-06-15T12:00:00Z'))).toBe(false)
+  })
+
+  it('returns true when birthday is tomorrow', () => {
+    const friend = createFriend({ name: 'Alice', birthday: '1990-06-16' })
+    expect(hasUpcomingBirthday(friend, new Date('2025-06-15T12:00:00Z'))).toBe(true)
+  })
+
+  it('returns true when birthday is 6 days away', () => {
+    const friend = createFriend({ name: 'Alice', birthday: '1990-06-21' })
+    expect(hasUpcomingBirthday(friend, new Date('2025-06-15T12:00:00Z'))).toBe(true)
+  })
+
+  it('returns false when birthday is 8 days away', () => {
+    const friend = createFriend({ name: 'Alice', birthday: '1990-06-23' })
+    expect(hasUpcomingBirthday(friend, new Date('2025-06-15T12:00:00Z'))).toBe(false)
+  })
+
+  it('returns false when birthday is today', () => {
+    const friend = createFriend({ name: 'Alice', birthday: '1990-06-15' })
+    expect(hasUpcomingBirthday(friend, new Date('2025-06-15T12:00:00Z'))).toBe(false)
+  })
+
+  it('handles month boundary: March 29, birthday April 1', () => {
+    const friend = createFriend({ name: 'Alice', birthday: '1990-04-01' })
+    expect(hasUpcomingBirthday(friend, new Date('2025-03-29T12:00:00Z'))).toBe(true)
+  })
+
+  it('handles year boundary: December 30, birthday January 3', () => {
+    const friend = createFriend({ name: 'Alice', birthday: '1990-01-03' })
+    expect(hasUpcomingBirthday(friend, new Date('2025-12-30T12:00:00Z'))).toBe(true)
+  })
+
+  it('returns false when birthday has already passed this year', () => {
+    const friend = createFriend({ name: 'Alice', birthday: '1990-01-01' })
+    expect(hasUpcomingBirthday(friend, new Date('2025-06-15T12:00:00Z'))).toBe(false)
   })
 })
