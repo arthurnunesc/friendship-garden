@@ -3,15 +3,15 @@ import './App.css'
 import { createFriend, type Friend } from './friends/Friend'
 import { localStorageStore } from './friends/storage'
 import type { GardenStorage } from './friends/storage'
-import AddFriendForm from './components/AddFriendForm'
+import AddFriendForm, { type AddFriendData } from './components/AddFriendForm'
 import FriendList from './components/FriendList'
 
 function useGardenStore(storage: GardenStorage) {
   const [friends, setFriends] = useState<Friend[]>(() => storage.loadFriends())
 
   const addFriend = useCallback(
-    (name: string) => {
-      const updated = [...friends, createFriend(name)]
+    (data: AddFriendData) => {
+      const updated = [...friends, createFriend(data)]
       setFriends(updated)
       storage.saveFriends(updated)
     },
@@ -58,7 +58,7 @@ interface GardenViewProps {
   isAdding: boolean
   onStartAdd: () => void
   onCancelAdd: () => void
-  onAddFriend: (name: string) => void
+  onAddFriend: (data: AddFriendData) => void
 }
 
 function GardenView({
@@ -87,8 +87,8 @@ function App({ storage = localStorageStore }: AppProps) {
   const { friends, addFriend } = useGardenStore(storage)
   const [isAdding, setIsAdding] = useState(false)
 
-  const handleAddFriend = (name: string) => {
-    addFriend(name)
+  const handleAddFriend = (data: AddFriendData) => {
+    addFriend(data)
     setIsAdding(false)
   }
 

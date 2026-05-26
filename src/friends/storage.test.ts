@@ -25,7 +25,12 @@ describe('GardenStorage interface', () => {
 
   it('persists and loads friends', () => {
     const friends: Friend[] = [
-      { id: 'f-1', name: 'Alice', createdAt: '2025-01-01T00:00:00.000Z' },
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
     ]
     storage.saveFriends(friends)
     expect(storage.loadFriends()).toEqual(friends)
@@ -33,10 +38,20 @@ describe('GardenStorage interface', () => {
 
   it('overwrites previously saved friends', () => {
     const first: Friend[] = [
-      { id: 'f-1', name: 'Alice', createdAt: '2025-01-01T00:00:00.000Z' },
+      {
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
     ]
     const second: Friend[] = [
-      { id: 'f-2', name: 'Bob', createdAt: '2025-02-01T00:00:00.000Z' },
+      {
+        id: 'f-2',
+        name: 'Bob',
+        cadenceDays: 14,
+        createdAt: '2025-02-01T00:00:00.000Z',
+      },
     ]
     storage.saveFriends(first)
     storage.saveFriends(second)

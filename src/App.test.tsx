@@ -106,7 +106,12 @@ describe('App', () => {
   describe('persistence', () => {
     it('loads persisted friends on mount', () => {
       const persisted: Friend[] = [
-        { id: 'f-1', name: 'Alice', createdAt: '2025-01-01T00:00:00.000Z' },
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
       ]
       render(<App storage={createFakeStorage(persisted)} />)
 
@@ -135,6 +140,96 @@ describe('App', () => {
 
       expect(saved).toHaveLength(1)
       expect(saved[0].name).toBe('Bob')
+    })
+  })
+
+  describe('optional fields', () => {
+    it('shows optional details when expanded', async () => {
+      const user = userEvent.setup()
+      render(<App storage={createFakeStorage()} />)
+
+      await user.click(
+        screen.getByRole('button', { name: /add your first friend/i }),
+      )
+
+      const summary = screen.getByText(/more details/i)
+      await user.click(summary)
+
+      expect(
+        screen.getByLabelText('Birthday'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByLabelText('Contact cadence'),
+      ).toBeInTheDocument()
+    })
+
+    it('defaults cadence to 14 days when not changed', async () => {
+      const user = userEvent.setup()
+      const friends: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [],
+        saveFriends: (f) => {
+          friends.splice(0, friends.length, ...f)
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /add your first friend/i }),
+      )
+      await user.type(screen.getByLabelText(/what's their name/i), 'Alice')
+      await user.click(screen.getByRole('button', { name: /add to garden/i }))
+
+      expect(friends[0].cadenceDays).toBe(14)
+    })
+
+    it('records a custom cadence when selected', async () => {
+      const user = userEvent.setup()
+      const friends: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [],
+        saveFriends: (f) => {
+          friends.splice(0, friends.length, ...f)
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /add your first friend/i }),
+      )
+      await user.type(screen.getByLabelText(/what's their name/i), 'Alice')
+      await user.click(screen.getByText(/more details/i))
+      await user.selectOptions(
+        screen.getByLabelText('Contact cadence'),
+        '7',
+      )
+      await user.click(screen.getByRole('button', { name: /add to garden/i }))
+
+      expect(friends[0].cadenceDays).toBe(7)
+    })
+
+    it('records an optional birthday when provided', async () => {
+      const user = userEvent.setup()
+      const friends: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [],
+        saveFriends: (f) => {
+          friends.splice(0, friends.length, ...f)
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /add your first friend/i }),
+      )
+      await user.type(screen.getByLabelText(/what's their name/i), 'Alice')
+      await user.click(screen.getByText(/more details/i))
+      const dateInput = screen.getByLabelText('Birthday')
+      await user.clear(dateInput)
+      await user.type(dateInput, '1990-05-14')
+      await user.click(screen.getByRole('button', { name: /add to garden/i }))
+
+      expect(friends[0].birthday).toBe('1990-05-14')
     })
   })
 })
