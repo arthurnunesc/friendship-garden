@@ -254,7 +254,22 @@ describe('App', () => {
       }))
       render(<App storage={createFakeStorage(persisted)} />)
 
-      expect(screen.getByText(/your garden \(3\)/i)).toBeInTheDocument()
+      expect(screen.getByText(/your garden has 3 plants/i)).toBeInTheDocument()
+    })
+
+    it('shows singular plant for a garden with one friend', () => {
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions: [],
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+
+      expect(screen.getByText(/your garden has 1 plant/i)).toBeInTheDocument()
     })
 
     it('renders 25 friends and keeps the add button visible', () => {
@@ -308,7 +323,7 @@ describe('App', () => {
       }
 
       render(<App storage={storage} />)
-      await user.click(
+      await user.dblClick(
         screen.getByRole('button', { name: /water alice/i }),
       )
 
@@ -366,11 +381,10 @@ describe('App', () => {
 
       render(<App storage={storage} />)
 
-      // Water twice — any interaction counts
-      await user.click(
+      await user.dblClick(
         screen.getByRole('button', { name: /water alice/i }),
       )
-      await user.click(
+      await user.dblClick(
         screen.getByRole('button', { name: /water alice/i }),
       )
 
@@ -397,16 +411,10 @@ describe('App', () => {
 
       render(<App storage={storage} />)
 
-      // Expand details
       await user.click(
-        screen.getByRole('button', { name: /details for alice/i }),
+        screen.getByRole('button', { name: /water alice/i }),
       )
-      // Select type
-      await user.selectOptions(
-        screen.getByLabelText('Interaction type'),
-        'call',
-      )
-      // Add note
+      await user.click(screen.getByRole('button', { name: /call/i }))
       await user.type(
         screen.getByLabelText('Note'),
         'Great chat!',
@@ -438,7 +446,7 @@ describe('App', () => {
       render(<App storage={storage} />)
 
       await user.click(
-        screen.getByRole('button', { name: /details for alice/i }),
+        screen.getByRole('button', { name: /water alice/i }),
       )
       // Don't fill anything — just save
       await user.click(screen.getByRole('button', { name: /save/i }))
@@ -446,6 +454,33 @@ describe('App', () => {
       expect(saved[0].interactions).toHaveLength(1)
       expect(saved[0].interactions[0].type).toBeUndefined()
       expect(saved[0].interactions[0].note).toBeUndefined()
+    })
+
+    it('double-clicking the water button quick-waters without opening the modal', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.dblClick(
+        screen.getByRole('button', { name: /water alice/i }),
+      )
+
+      expect(saved[0].interactions).toHaveLength(1)
+      expect(screen.queryByTestId('water-popup')).toBeNull()
     })
   })
 
@@ -564,7 +599,7 @@ describe('App', () => {
   })
 
   describe('watering state', () => {
-    it('shows 💧 for a friend who needs watering', () => {
+    it('shows 🥀 for a friend who needs watering', () => {
       const old = new Date()
       old.setDate(old.getDate() - 30)
       const persisted: Friend[] = [
@@ -582,7 +617,7 @@ describe('App', () => {
       const card = document.querySelector('.friend-card--dry')
       expect(card).toBeInTheDocument()
       const plant = card!.querySelector('.friend-plant')
-      expect(plant).toHaveTextContent('💧')
+      expect(plant).toHaveTextContent('🥀')
     })
 
     it('shows 🪴 for a recently watered friend', () => {
@@ -671,7 +706,7 @@ describe('App', () => {
       expect(dryCard).toBeInTheDocument()
 
       // Water the friend
-      await user.click(
+      await user.dblClick(
         screen.getByRole('button', { name: /water alice/i }),
       )
 
