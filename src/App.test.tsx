@@ -1036,6 +1036,56 @@ describe('App', () => {
       // Confirmation text should be gone
       expect(screen.queryByText(/remove alice/i)).toBeNull()
     })
+
+    it('deleting one friend preserves all other friends', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-a',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+          {
+            id: 'f-b',
+            name: 'Bob',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-02T00:00:00.000Z',
+          },
+          {
+            id: 'f-c',
+            name: 'Carol',
+            cadenceDays: 14,
+            interactions: [],
+            createdAt: '2025-01-03T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+
+      await user.click(
+        screen.getByRole('button', { name: /details for bob/i }),
+      )
+      await user.click(
+        screen.getByRole('button', { name: /remove from garden/i }),
+      )
+      await user.click(
+        screen.getByRole('button', { name: /yes, remove/i }),
+      )
+
+      expect(saved).toHaveLength(2)
+      expect(saved.find((f) => f.name === 'Alice')).toBeDefined()
+      expect(saved.find((f) => f.name === 'Carol')).toBeDefined()
+      expect(saved.find((f) => f.name === 'Bob')).toBeUndefined()
+    })
   })
 
   describe('import validation', () => {
