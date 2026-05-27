@@ -29,9 +29,23 @@ function wateringIcon(state: WateringState): string {
   }
 }
 
-function daysSinceContact(lastInteractionAt: string | undefined, now: Date): number | null {
-  if (!lastInteractionAt) return null
-  return Math.floor((now.getTime() - new Date(lastInteractionAt).getTime()) / 86400000)
+function formatLastChatLabel(lastInteractionAt: string | undefined): string {
+  if (!lastInteractionAt) return 'no chats recorded'
+
+  const now = new Date()
+  const diffMs = now.getTime() - new Date(lastInteractionAt).getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  const diffWeeks = Math.floor(diffDays / 7)
+  const diffMonths = Math.floor(diffDays / 30)
+
+  if (diffMin < 1) return 'last chat just now'
+  if (diffMin < 60) return `last chat ${diffMin} minute${diffMin === 1 ? '' : 's'} ago`
+  if (diffHours < 24) return `last chat ${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  if (diffDays < 7) return `last chat ${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+  if (diffWeeks < 5) return `last chat ${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`
+  return `last chat ${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`
 }
 
 function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }: FriendListProps) {
@@ -366,7 +380,7 @@ function FriendCard({
     setEditing(false)
   }
 
-  const days = daysSinceContact(friend.lastInteractionAt, new Date())
+  const lastChatLabel = formatLastChatLabel(friend.lastInteractionAt)
 
   return (
     <div className="friend-card-wrapper">
@@ -377,9 +391,9 @@ function FriendCard({
             {friend.name}
             {hasBirthday && <span className="friend-birthday">🎂</span>}
           </span>
-          {days !== null && (
-            <span className="friend-watering">{days}d</span>
-          )}
+          <span className={`friend-watering${wateringState === 'dry' ? ' friend-watering--dry' : ''}`}>
+            {lastChatLabel}
+          </span>
         </div>
         <button
           className="friend-expand-button"

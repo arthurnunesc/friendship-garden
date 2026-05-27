@@ -73,6 +73,10 @@
   color: oklch(0.55 0.008 140);
 }
 
+.friend-watering--dry {
+  color: oklch(0.55 0.15 25);
+}
+
 .friend-birthday {
   display: inline-block;
   margin-left: 0.375rem;

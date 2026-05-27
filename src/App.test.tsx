@@ -909,7 +909,7 @@ describe('App', () => {
       ]
       render(<App storage={createFakeStorage(persisted)} />)
 
-      expect(screen.getByText('5d')).toBeInTheDocument()
+      expect(screen.getByText('last chat 5 days ago')).toBeInTheDocument()
     })
 
     it('resets watering state after logging a conversation', async () => {
