@@ -20,6 +20,21 @@ export interface Friend {
 let nextId = 1
 let nextInteractionId = 1
 
+export function initIdCounters(friends: Friend[]) {
+  let maxFriendId = 0
+  let maxInteractionId = 0
+  for (const f of friends) {
+    const match = f.id.match(/^friend-(\d+)$/)
+    if (match) maxFriendId = Math.max(maxFriendId, Number(match[1]))
+    for (const int of f.interactions) {
+      const intMatch = int.id.match(/^int-(\d+)$/)
+      if (intMatch) maxInteractionId = Math.max(maxInteractionId, Number(intMatch[1]))
+    }
+  }
+  nextId = Math.max(nextId, maxFriendId + 1)
+  nextInteractionId = Math.max(nextInteractionId, maxInteractionId + 1)
+}
+
 export interface CreateFriendInput {
   name: string
   birthday?: string
