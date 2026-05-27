@@ -88,7 +88,7 @@ interface PopulatedGardenProps {
 const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd, onWater, onEdit, onRemove }) => (
   <>
     <h2 className="garden-label">
-      Your garden ({friends.length})
+      Your garden has {friends.length} {friends.length === 1 ? 'plant' : 'plants'}
     </h2>
     <div className="garden-scroll">
       <FriendList friends={friends} onWater={onWater} onEdit={onEdit} onRemove={onRemove} />
