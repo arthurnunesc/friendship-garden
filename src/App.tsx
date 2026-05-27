@@ -1,13 +1,17 @@
 import { useState, useCallback, useRef, type FC } from 'react'
 import './App.css'
-import { createFriend, logInteraction, editFriend, exportGarden, validateAndImportGarden, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
+import { createFriend, logInteraction, editFriend, exportGarden, validateAndImportGarden, initIdCounters, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
 import { localStorageStore } from './friends/storage'
 import type { GardenStorage } from './friends/storage'
 import AddFriendForm, { type AddFriendData } from './components/AddFriendForm'
 import FriendList from './components/FriendList'
 
 function useGardenStore(storage: GardenStorage) {
-  const [friends, setFriends] = useState<Friend[]>(() => storage.loadFriends())
+  const [friends, setFriends] = useState<Friend[]>(() => {
+    const loaded = storage.loadFriends()
+    initIdCounters(loaded)
+    return loaded
+  })
 
   const addFriend = useCallback(
     (data: AddFriendData) => {
