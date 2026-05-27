@@ -40,12 +40,12 @@ function formatLastChatLabel(lastInteractionAt: string | undefined): string {
   const diffWeeks = Math.floor(diffDays / 7)
   const diffMonths = Math.floor(diffDays / 30)
 
-  if (diffMin < 1) return 'last chat just now'
-  if (diffMin < 60) return `last chat ${diffMin} min ago`
-  if (diffHours < 24) return `last chat ${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
-  if (diffDays < 7) return `last chat ${diffDays} day${diffDays === 1 ? '' : 's'} ago`
-  if (diffWeeks < 5) return `last chat ${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`
-  return `last chat ${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`
+  if (diffMin < 1) return 'just now'
+  if (diffMin < 60) return `${diffMin} min ago`
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`
+  if (diffWeeks < 5) return `${diffWeeks} week${diffWeeks === 1 ? '' : 's'} ago`
+  return `${diffMonths} month${diffMonths === 1 ? '' : 's'} ago`
 }
 
 function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }: FriendListProps) {
