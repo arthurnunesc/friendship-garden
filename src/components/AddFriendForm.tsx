@@ -43,7 +43,7 @@ function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
   return (
     <form className="add-friend-form" onSubmit={handleSubmit}>
       <label className="add-friend-label" htmlFor="friend-name">
-        What's their name?
+        what's their name?
       </label>
       <input
         id="friend-name"
@@ -52,14 +52,14 @@ function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
         autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Name"
+        placeholder="name"
       />
 
       <details className="add-friend-details">
-        <summary className="add-friend-summary">More details (optional)</summary>
+        <summary className="add-friend-summary">more details (optional)</summary>
 
         <label className="add-friend-optional-label" htmlFor="friend-birthday">
-          Birthday
+          birthday
         </label>
         <input
           id="friend-birthday"
@@ -70,7 +70,7 @@ function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
         />
 
         <label className="add-friend-optional-label" htmlFor="friend-cadence">
-          Contact cadence
+          contact cadence
         </label>
         <select
           id="friend-cadence"
@@ -88,10 +88,10 @@ function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
 
       <div className="add-friend-actions">
         <button className="add-friend-submit" type="submit" disabled={name.trim().length === 0}>
-          Add to garden
+          add to garden
         </button>
         <button className="add-friend-cancel" type="button" onClick={onCancel}>
-          Cancel
+          cancel
         </button>
       </div>
     </form>

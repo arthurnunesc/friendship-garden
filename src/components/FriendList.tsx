@@ -13,9 +13,9 @@ interface FriendListProps {
 
 const INTERACTION_TYPES = ['message', 'call', 'in-person'] as const
 const TYPE_LABELS: Record<string, string> = {
-  message: 'Message',
-  call: 'Call',
-  'in-person': 'In person',
+  message: 'message',
+  call: 'call',
+  'in-person': 'in person',
 }
 
 function wateringIcon(state: WateringState): string {
@@ -102,10 +102,10 @@ function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }:
           return (
         <div key={friend.id} ref={setCardRef(friend.id)}>
           {index === 0 && firstDryIndex === 0 && (
-            <p className="friend-urgency-header">Needs attention</p>
+            <p className="friend-urgency-header">needs attention</p>
           )}
           {index === firstDryIndex && firstDryIndex > 0 && (
-            <p className="friend-urgency-header">Needs attention</p>
+            <p className="friend-urgency-header">needs attention</p>
           )}
           <FriendCard
             friend={friend}
@@ -159,7 +159,7 @@ function InteractionHistory({
 
   return (
     <div className="history">
-      <h3 className="history-title">Recent chats</h3>
+      <h3 className="history-title">recent chats</h3>
       <ul className="history-list">
         {visible.map((int) => (
           <li key={int.id} className="history-item">
@@ -188,7 +188,7 @@ function InteractionHistory({
               </div>
               {confirmingId === int.id && (
                 <div className="history-delete-confirm-inline">
-                  <span className="history-delete-confirm-text">Remove?</span>
+                  <span className="history-delete-confirm-text">remove?</span>
                   <button
                     className="history-delete-yes"
                     type="button"
@@ -197,14 +197,14 @@ function InteractionHistory({
                       setConfirmingId(null)
                     }}
                   >
-                    Yes
+                    yes
                   </button>
                   <button
                     className="history-delete-no"
                     type="button"
                     onClick={() => setConfirmingId(null)}
                   >
-                    No
+                    no
                   </button>
                 </div>
               )}
@@ -219,7 +219,7 @@ function InteractionHistory({
           type="button"
           onClick={() => setShowAll((prev) => !prev)}
         >
-          {showAll ? 'collapse chat history' : 'see full chat history'}
+          {showAll ? 'collapse' : 'see all'}
         </button>
       )}
     </div>
@@ -399,12 +399,12 @@ function FriendCard({
                   setEditing(true)
                 }}
               >
-                Edit name, birthday, or cadence
+                Edit details
               </button>
             ) : (
               <div className="edit-form">
                 <label className="add-friend-optional-label" htmlFor={`edit-name-${friend.id}`}>
-                  Name
+                  name
                 </label>
                 <input
                   id={`edit-name-${friend.id}`}
@@ -415,7 +415,7 @@ function FriendCard({
                   autoFocus
                 />
                 <label className="add-friend-optional-label" htmlFor={`edit-bday-${friend.id}`}>
-                  Birthday
+                  birthday
                 </label>
                 <input
                   id={`edit-bday-${friend.id}`}
@@ -425,7 +425,7 @@ function FriendCard({
                   onChange={(e) => setEditBirthday(e.target.value)}
                 />
                 <label className="add-friend-optional-label" htmlFor={`edit-cadence-${friend.id}`}>
-                  Cadence
+                  cadence
                 </label>
                 <select
                   id={`edit-cadence-${friend.id}`}
@@ -447,14 +447,14 @@ function FriendCard({
                     onClick={handleSaveEdit}
                     disabled={editName.trim().length === 0}
                   >
-                    Save
+                    save
                   </button>
                   <button
                     className="water-cancel"
                     type="button"
                     onClick={handleCancelEdit}
                   >
-                    Cancel
+                    cancel
                   </button>
                 </div>
               </div>
@@ -468,12 +468,12 @@ function FriendCard({
                 type="button"
                 onClick={() => setConfirmRemove(true)}
               >
-                Remove from garden
+                remove from garden
               </button>
             ) : (
               <div className="remove-confirm">
                 <p className="remove-confirm-text">
-                  Remove {friend.name} and their conversation history?
+                  Remove {friend.name} and their history?
                 </p>
                 <div className="water-actions">
                   <button
@@ -481,14 +481,14 @@ function FriendCard({
                     type="button"
                     onClick={() => onRemove(friend.id)}
                   >
-                    Yes, remove
+                    yes, remove
                   </button>
                   <button
                     className="water-cancel"
                     type="button"
                     onClick={() => setConfirmRemove(false)}
                   >
-                    Cancel
+                    cancel
                   </button>
                 </div>
               </div>
@@ -503,7 +503,7 @@ function FriendCard({
               className={`water-type-button${type === '' ? ' water-type-button--active' : ''}`}
               onClick={() => setType('')}
             >
-              Any
+              any
             </button>
             {INTERACTION_TYPES.map((t) => (
               <button
@@ -520,25 +520,25 @@ function FriendCard({
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Quick note (optional)"
+            placeholder="quick note (optional)"
             aria-label="Note"
             autoFocus
           />
           <div className="water-actions">
             <button className="water-save" type="button" onClick={handleSaveChat}>
-              Save
+              save
             </button>
             <button
               className="water-cancel"
               type="button"
               onClick={() => setShowWaterPopup(false)}
             >
-              Cancel
+              cancel
             </button>
           </div>
         </div>
       )}
-      {watered && <div className="watered-toast">Chat added!</div>}
+      {watered && <div className="watered-toast">chat added!</div>}
     </div>
   )
 }

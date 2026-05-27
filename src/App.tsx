@@ -81,14 +81,14 @@ function EmptyGarden({ onAdd }: { onAdd: () => void }) {
   return (
     <>
       <p className="garden-subtitle">
-        Your garden starts empty — you choose who belongs here.
+        your garden starts empty, you choose who belongs here.
       </p>
       <div className="garden-use">
-        <p>Everything stays on your device.</p>
-        <p>Private by default.</p>
+        <p>everything stays on your device.</p>
+        <p>private by default.</p>
       </div>
       <button className="add-friend-button" type="button" onClick={onAdd}>
-        Add your first friend
+        add your first friend
       </button>
     </>
   )
@@ -106,13 +106,13 @@ interface PopulatedGardenProps {
 const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd, onWater, onEdit, onRemove, onRemoveInteraction }) => (
   <>
     <h2 className="garden-label">
-      Your garden has {friends.length} {friends.length === 1 ? 'plant' : 'plants'}
+      your garden has {friends.length} {friends.length === 1 ? 'plant' : 'plants'}
     </h2>
     <div className="garden-scroll">
       <FriendList friends={friends} onWater={onWater} onEdit={onEdit} onRemove={onRemove} onRemoveInteraction={onRemoveInteraction} />
     </div>
     <button className="add-friend-button" type="button" onClick={onAdd}>
-      Add a friend
+      add a friend
     </button>
   </>
 )
@@ -185,7 +185,7 @@ function App({ storage = localStorageStore, onImportSuccess }: AppProps) {
     a.download = `friendship-garden-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-    showFeedback('Garden exported successfully.', 'success')
+    showFeedback('garden exported.', 'success')
   }
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,12 +205,12 @@ function App({ storage = localStorageStore, onImportSuccess }: AppProps) {
           if (onImportSuccess) {
             onImportSuccess()
           } else {
-            showFeedback('Garden imported successfully.', 'success')
+            showFeedback('garden imported.', 'success')
             // Delay reload to let the user see the success message
             setTimeout(() => window.location.reload(), 200)
           }
       } catch {
-        showFeedback('Invalid JSON file. Please check the file format.', 'error')
+          showFeedback('invalid json file.', 'error')
       }
     }
     reader.readAsText(file)
@@ -236,14 +236,14 @@ function App({ storage = localStorageStore, onImportSuccess }: AppProps) {
       />
       <div className="garden-tools">
         <button className="tool-button" type="button" onClick={handleExport}>
-          Export
+          export
         </button>
         <button
           className="tool-button"
           type="button"
           onClick={() => fileInputRef.current?.click()}
         >
-          Import
+          import
         </button>
         <input
           ref={fileInputRef}
