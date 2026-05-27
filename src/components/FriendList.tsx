@@ -172,41 +172,42 @@ function InteractionHistory({
                       <span className="history-type">{TYPE_LABELS[int.type]}</span>
                     )}
                   </span>
-                    <span className="history-delete-slot">
-                      {confirmingId === int.id ? (
-                        <span className="history-delete-confirm-inline">
-                          <span className="history-delete-confirm-text">Remove?</span>
-                          <button
-                            className="history-delete-yes"
-                            type="button"
-                            onClick={() => {
-                              onRemoveInteraction(int.id)
-                              setConfirmingId(null)
-                            }}
-                          >
-                            Yes
-                          </button>
-                          <button
-                            className="history-delete-no"
-                            type="button"
-                            onClick={() => setConfirmingId(null)}
-                          >
-                            No
-                          </button>
-                        </span>
-                      ) : (
-                        <button
-                          className="history-delete-button"
-                          type="button"
-                          onClick={() => setConfirmingId(int.id)}
-                          aria-label="Delete chat"
-                        >
-                          🗑️
-                        </button>
-                      )}
-                    </span>
+                  <span className="history-delete-slot">
+                    {confirmingId !== int.id && (
+                      <button
+                        className="history-delete-button"
+                        type="button"
+                        onClick={() => setConfirmingId(int.id)}
+                        aria-label="Delete chat"
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </span>
                 </span>
               </div>
+              {confirmingId === int.id && (
+                <div className="history-delete-confirm-inline">
+                  <span className="history-delete-confirm-text">Remove?</span>
+                  <button
+                    className="history-delete-yes"
+                    type="button"
+                    onClick={() => {
+                      onRemoveInteraction(int.id)
+                      setConfirmingId(null)
+                    }}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    className="history-delete-no"
+                    type="button"
+                    onClick={() => setConfirmingId(null)}
+                  >
+                    No
+                  </button>
+                </div>
+              )}
               {int.note && <p className="history-note">{int.note}</p>}
             </div>
           </li>

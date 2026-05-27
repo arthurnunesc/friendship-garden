@@ -312,13 +312,11 @@
 }
 
 .history-delete-confirm-inline {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: inline-flex;
+  display: flex;
+  justify-content: center;
   align-items: center;
   gap: 0.25rem;
-  white-space: nowrap;
+  margin-bottom: 0.125rem;
 }
 
 .history-delete-confirm-text {
