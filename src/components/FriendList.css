@@ -14,6 +14,7 @@
 }
 
 .friend-card-wrapper {
+  position: relative;
   margin-bottom: 0.5rem;
 }
 
@@ -380,4 +381,27 @@
   color: #4a7c3f;
   background: #e8f0e4;
   border-color: #4a7c3f;
+}
+
+.watered-toast {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.92);
+  color: #4a7c3f;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  border-radius: 0.75rem;
+  z-index: 10;
+  animation: watered-toast-fade 2s ease forwards;
+  pointer-events: none;
+}
+
+@keyframes watered-toast-fade {
+  0% { opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
 }
