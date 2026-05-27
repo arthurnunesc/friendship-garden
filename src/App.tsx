@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, type FC } from 'react'
 import './App.css'
-import { createFriend, logInteraction, editFriend, exportGarden, validateAndImportGarden, initIdCounters, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
+import { createFriend, logInteraction, editFriend, deleteInteraction, exportGarden, validateAndImportGarden, initIdCounters, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
 import { localStorageStore } from './friends/storage'
 import type { GardenStorage } from './friends/storage'
 import AddFriendForm, { type AddFriendData } from './components/AddFriendForm'
@@ -61,7 +61,20 @@ function useGardenStore(storage: GardenStorage) {
     [storage],
   )
 
-  return { friends, addFriend, waterFriend, updateFriend, removeFriend }
+  const removeInteraction = useCallback(
+    (friendId: string, interactionId: string) => {
+      setFriends((prev) => {
+        const updated = prev.map((f) =>
+          f.id === friendId ? deleteInteraction(f, interactionId) : f,
+        )
+        storage.saveFriends(updated)
+        return updated
+      })
+    },
+    [storage],
+  )
+
+  return { friends, addFriend, waterFriend, updateFriend, removeFriend, removeInteraction }
 }
 
 function EmptyGarden({ onAdd }: { onAdd: () => void }) {

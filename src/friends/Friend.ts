@@ -150,6 +150,13 @@ export function hasUpcomingBirthday(
   return daysUntil > 0 && daysUntil <= UPCOMING_DAYS
 }
 
+export function deleteInteraction(friend: Friend, interactionId: string): Friend {
+  return {
+    ...friend,
+    interactions: friend.interactions.filter((i) => i.id !== interactionId),
+  }
+}
+
 export interface EditFriendInput {
   name: string
   birthday?: string
