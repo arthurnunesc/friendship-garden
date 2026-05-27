@@ -39,6 +39,7 @@ function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }:
   const sorted = sortFriendsByUrgency(friends, now)
   const cardElsRef = useRef(new Map<string, HTMLElement>())
   const prevRectsRef = useRef(new Map<string, DOMRect>())
+  const [openId, setOpenId] = useState<null | { type: 'details' | 'water'; id: string }>(null)
 
   const setCardRef = (id: string) => (el: HTMLElement | null) => {
     if (el) cardElsRef.current.set(id, el)
@@ -115,6 +116,22 @@ function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }:
             onRemoveInteraction={onRemoveInteraction}
             wateringState={state}
             hasBirthday={hasUpcomingBirthday(friend, now)}
+            open={openId?.type === 'details' && openId.id === friend.id}
+            showWaterPopup={openId?.type === 'water' && openId.id === friend.id}
+            onToggleOpen={() =>
+              setOpenId((prev) =>
+                prev?.type === 'details' && prev.id === friend.id
+                  ? null
+                  : { type: 'details', id: friend.id },
+              )
+            }
+            onToggleWater={() =>
+              setOpenId((prev) =>
+                prev?.type === 'water' && prev.id === friend.id
+                  ? null
+                  : { type: 'water', id: friend.id },
+              )
+            }
           />
         </div>
         )
@@ -234,6 +251,10 @@ function FriendCard({
   onRemoveInteraction,
   wateringState,
   hasBirthday,
+  open,
+  showWaterPopup,
+  onToggleOpen,
+  onToggleWater,
 }: {
   friend: Friend
   onWater: (friendId: string, input?: LogInteractionInput) => void
@@ -242,13 +263,15 @@ function FriendCard({
   onRemoveInteraction: (friendId: string, interactionId: string) => void
   wateringState: WateringState
   hasBirthday: boolean
+  open: boolean
+  showWaterPopup: boolean
+  onToggleOpen: () => void
+  onToggleWater: () => void
 }) {
-  const [open, setOpen] = useState(false)
   const [type, setType] = useState('')
   const [note, setNote] = useState('')
   const [editing, setEditing] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
-  const [showWaterPopup, setShowWaterPopup] = useState(false)
   const [watered, setWatered] = useState(false)
   const wateredTimer = useRef<ReturnType<typeof setTimeout>>()
   const [editName, setEditName] = useState(friend.name)
@@ -257,28 +280,20 @@ function FriendCard({
   const popupRef = useRef<HTMLDivElement>(null)
   const waterButtonRef = useRef<HTMLButtonElement>(null)
   const expandButtonRef = useRef<HTMLButtonElement>(null)
-  const popupActiveRef = useRef(false)
-
-  useEffect(() => {
-    popupActiveRef.current = showWaterPopup
-  }, [showWaterPopup])
 
   const handleWaterClick = () => {
-    if (popupActiveRef.current) {
+    if (showWaterPopup) {
       onWater(friend.id)
-      popupActiveRef.current = false
-      setShowWaterPopup(false)
+      onToggleWater()
       setWatered(true)
       clearTimeout(wateredTimer.current)
       wateredTimer.current = setTimeout(() => setWatered(false), 2000)
       return
     }
 
-    popupActiveRef.current = true
-    setOpen(false)
     setType('')
     setNote('')
-    setShowWaterPopup(true)
+    onToggleWater()
   }
 
   const handleSaveChat = () => {
@@ -286,8 +301,7 @@ function FriendCard({
     if (type) input.type = type as LogInteractionInput['type']
     if (note.trim()) input.note = note.trim()
     onWater(friend.id, input)
-    setShowWaterPopup(false)
-    popupActiveRef.current = false
+    onToggleWater()
     setType('')
     setNote('')
     setWatered(true)
@@ -306,7 +320,7 @@ function FriendCard({
         expandButtonRef.current &&
         !expandButtonRef.current.contains(e.target as Node)
       ) {
-        setShowWaterPopup(false)
+        onToggleWater()
       }
     }
     document.addEventListener('mousedown', handler)
@@ -315,7 +329,7 @@ function FriendCard({
 
   useEffect(() => {
     if (!showWaterPopup) return
-    const handler = () => setShowWaterPopup(false)
+    const handler = () => onToggleWater()
     document.addEventListener('scroll', handler, { capture: true, passive: true })
     return () => document.removeEventListener('scroll', handler, { capture: true })
   }, [showWaterPopup])
@@ -363,8 +377,7 @@ function FriendCard({
           type="button"
           ref={expandButtonRef}
           onClick={() => {
-            setShowWaterPopup(false)
-            setOpen((p) => !p)
+            onToggleOpen()
           }}
           aria-label={`Details for ${friend.name}`}
         >
@@ -531,7 +544,7 @@ function FriendCard({
             <button
               className="water-cancel"
               type="button"
-              onClick={() => setShowWaterPopup(false)}
+              onClick={onToggleWater}
             >
               cancel
             </button>
