@@ -4,6 +4,10 @@
   margin-bottom: 1.5rem;
 }
 
+.friend-card-slot {
+  position: relative;
+}
+
 .friend-urgency-header {
   font-size: 0.6875rem;
   font-weight: 500;
@@ -147,17 +151,15 @@
   background: oklch(0.99 0.003 140);
   border-radius: 0 0 0.75rem 0.75rem;
   box-shadow: 0 1px 3px oklch(0.22 0.01 140 / 0.06);
-  animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: panelFadeIn 0.18s ease-out;
 }
 
-@keyframes slideDown {
+@keyframes panelFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -551,7 +553,7 @@
   background: oklch(0.99 0.003 140);
   border-radius: 0 0 0.75rem 0.75rem;
   box-shadow: 0 1px 3px oklch(0.22 0.01 140 / 0.06);
-  animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: panelFadeIn 0.18s ease-out;
 }
 
 .water-type-buttons {

@@ -105,7 +105,12 @@ function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }:
       {sorted.map((friend, index) => {
           const state = deriveWateringState(friend, now)
           return (
-        <div key={friend.id} ref={setCardRef(friend.id)}>
+        <div
+          key={friend.id}
+          ref={setCardRef(friend.id)}
+          className="friend-card-slot"
+          style={{ zIndex: sorted.length - index }}
+        >
           {index === 0 && firstDryIndex === 0 && (
             <p className="friend-urgency-header">needs attention</p>
           )}
