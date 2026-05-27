@@ -8,6 +8,7 @@ interface FriendListProps {
   onWater: (friendId: string, input?: LogInteractionInput) => void
   onEdit: (friendId: string, input: EditFriendInput) => void
   onRemove: (friendId: string) => void
+  onRemoveInteraction: (friendId: string, interactionId: string) => void
 }
 
 const INTERACTION_TYPES = ['message', 'call', 'in-person'] as const
@@ -33,7 +34,7 @@ function daysSinceContact(lastInteractionAt: string | undefined, now: Date): num
   return Math.floor((now.getTime() - new Date(lastInteractionAt).getTime()) / 86400000)
 }
 
-function FriendList({ friends, onWater, onEdit, onRemove }: FriendListProps) {
+function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }: FriendListProps) {
   const now = new Date()
   const sorted = sortFriendsByUrgency(friends, now)
   const cardElsRef = useRef(new Map<string, HTMLElement>())
@@ -111,6 +112,7 @@ function FriendList({ friends, onWater, onEdit, onRemove }: FriendListProps) {
             onWater={onWater}
             onEdit={onEdit}
             onRemove={onRemove}
+            onRemoveInteraction={onRemoveInteraction}
             wateringState={state}
             hasBirthday={hasUpcomingBirthday(friend, now)}
           />
@@ -168,6 +170,7 @@ function FriendCard({
   onWater,
   onEdit,
   onRemove,
+  onRemoveInteraction,
   wateringState,
   hasBirthday,
 }: {
@@ -175,6 +178,7 @@ function FriendCard({
   onWater: (friendId: string, input?: LogInteractionInput) => void
   onEdit: (friendId: string, input: EditFriendInput) => void
   onRemove: (friendId: string) => void
+  onRemoveInteraction: (friendId: string, interactionId: string) => void
   wateringState: WateringState
   hasBirthday: boolean
 }) {

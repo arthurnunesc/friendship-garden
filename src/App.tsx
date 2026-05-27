@@ -100,15 +100,16 @@ interface PopulatedGardenProps {
   onWater: (friendId: string, input?: LogInteractionInput) => void
   onEdit: (friendId: string, input: EditFriendInput) => void
   onRemove: (friendId: string) => void
+  onRemoveInteraction: (friendId: string, interactionId: string) => void
 }
 
-const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd, onWater, onEdit, onRemove }) => (
+const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd, onWater, onEdit, onRemove, onRemoveInteraction }) => (
   <>
     <h2 className="garden-label">
       Your garden has {friends.length} {friends.length === 1 ? 'plant' : 'plants'}
     </h2>
     <div className="garden-scroll">
-      <FriendList friends={friends} onWater={onWater} onEdit={onEdit} onRemove={onRemove} />
+      <FriendList friends={friends} onWater={onWater} onEdit={onEdit} onRemove={onRemove} onRemoveInteraction={onRemoveInteraction} />
     </div>
     <button className="add-friend-button" type="button" onClick={onAdd}>
       Add a friend
@@ -125,6 +126,7 @@ interface GardenViewProps {
   onWater: (friendId: string, input?: LogInteractionInput) => void
   onEdit: (friendId: string, input: EditFriendInput) => void
   onRemove: (friendId: string) => void
+  onRemoveInteraction: (friendId: string, interactionId: string) => void
 }
 
 function GardenView({
@@ -136,6 +138,7 @@ function GardenView({
   onWater,
   onEdit,
   onRemove,
+  onRemoveInteraction,
 }: GardenViewProps) {
   if (isAdding) {
     return <AddFriendForm onSubmit={onAddFriend} onCancel={onCancelAdd} />
@@ -145,7 +148,7 @@ function GardenView({
     return <EmptyGarden onAdd={onStartAdd} />
   }
 
-  return <PopulatedGarden friends={friends} onAdd={onStartAdd} onWater={onWater} onEdit={onEdit} onRemove={onRemove} />
+  return <PopulatedGarden friends={friends} onAdd={onStartAdd} onWater={onWater} onEdit={onEdit} onRemove={onRemove} onRemoveInteraction={onRemoveInteraction} />
 }
 
 interface AppProps {
@@ -154,7 +157,7 @@ interface AppProps {
 }
 
 function App({ storage = localStorageStore, onImportSuccess }: AppProps) {
-  const { friends, addFriend, waterFriend, updateFriend, removeFriend } = useGardenStore(storage)
+  const { friends, addFriend, waterFriend, updateFriend, removeFriend, removeInteraction } = useGardenStore(storage)
   const [isAdding, setIsAdding] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success')
@@ -229,6 +232,7 @@ function App({ storage = localStorageStore, onImportSuccess }: AppProps) {
         onWater={waterFriend}
         onEdit={updateFriend}
         onRemove={removeFriend}
+        onRemoveInteraction={removeInteraction}
       />
       <div className="garden-tools">
         <button className="tool-button" type="button" onClick={handleExport}>
