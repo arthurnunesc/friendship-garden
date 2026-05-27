@@ -710,6 +710,15 @@
     border-radius: 0.5rem;
   }
 
+  .history-delete-slot {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .history-header-row::before {
+    display: none;
+  }
+
   .history-delete-button {
     width: 2.25rem;
     height: 2.25rem;
