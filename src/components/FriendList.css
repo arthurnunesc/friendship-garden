@@ -242,9 +242,7 @@
 }
 
 .edit-section {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid #e0dcd0;
+  margin-top: 0.5rem;
 }
 
 .edit-start-button {
@@ -295,9 +293,7 @@
 }
 
 .remove-section {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid #e0dcd0;
+  margin-top: 0.5rem;
 }
 
 .remove-start-button {
