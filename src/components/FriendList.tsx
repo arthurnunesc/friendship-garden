@@ -376,7 +376,7 @@ function FriendCard({
           onClick={handleWaterClick}
           aria-label={`Water ${friend.name}`}
         >
-          💧
+          💦
         </button>
       </div>
       {open && (
