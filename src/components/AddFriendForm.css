@@ -138,3 +138,43 @@
   background: oklch(0.95 0.004 140);
   border-color: oklch(0.82 0.005 140);
 }
+
+@media (max-width: 600px) {
+  .add-friend-form {
+    max-width: 100%;
+    margin-bottom: 1rem;
+  }
+
+  .add-friend-label {
+    font-size: 1.125rem;
+  }
+
+  .add-friend-input {
+    min-height: 3.25rem;
+    padding: 0.75rem 1rem;
+    font-size: 1.0625rem;
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .add-friend-summary {
+    font-size: 1rem;
+  }
+
+  .add-friend-optional-label {
+    font-size: 0.9375rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .add-friend-actions {
+    gap: 0.75rem;
+  }
+
+  .add-friend-submit,
+  .add-friend-cancel {
+    min-height: 3rem;
+    font-size: 1.0625rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.75rem;
+  }
+}

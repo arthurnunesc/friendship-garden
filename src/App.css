@@ -196,3 +196,75 @@ body {
   color: oklch(0.48 0.12 145);
   text-decoration: underline;
 }
+
+@media (max-width: 600px) {
+  .garden {
+    padding: 1.25rem 1rem;
+  }
+
+  .garden--populated {
+    padding-bottom: 0.5rem;
+  }
+
+  .garden-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .garden-title {
+    font-size: 2rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .garden-subtitle {
+    font-size: 1.125rem;
+    max-width: 100%;
+    margin-bottom: 1.25rem;
+  }
+
+  .garden-use {
+    font-size: 1rem;
+    max-width: 100%;
+    margin-bottom: 1.5rem;
+  }
+
+  .add-friend-button {
+    width: 100%;
+    min-height: 3.25rem;
+    font-size: 1.125rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+  }
+
+  .garden--populated .add-friend-button {
+    margin-top: 0.75rem;
+  }
+
+  .garden-label {
+    font-size: 1rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .garden-scroll {
+    padding-bottom: 0.5rem;
+  }
+
+  .garden-tools {
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  .tool-button {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    border-radius: 0.625rem;
+  }
+
+  .feedback {
+    font-size: 0.875rem;
+  }
+
+  .footer-link {
+    font-size: 0.875rem;
+  }
+}
