@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import type { Friend, Interaction, LogInteractionInput, WateringState, EditFriendInput } from '../friends/Friend'
 import { deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, DEFAULT_CADENCE_DAYS } from '../friends/Friend'
 import './FriendList.css'
@@ -36,6 +36,59 @@ function daysSinceContact(lastInteractionAt: string | undefined, now: Date): num
 function FriendList({ friends, onWater, onEdit, onRemove }: FriendListProps) {
   const now = new Date()
   const sorted = sortFriendsByUrgency(friends, now)
+  const cardElsRef = useRef(new Map<string, HTMLElement>())
+  const prevRectsRef = useRef(new Map<string, DOMRect>())
+
+  const setCardRef = (id: string) => (el: HTMLElement | null) => {
+    if (el) cardElsRef.current.set(id, el)
+    else cardElsRef.current.delete(id)
+  }
+
+  useLayoutEffect(() => {
+    let cancelled = false
+
+    cardElsRef.current.forEach((el) => {
+      el.style.transition = 'none'
+    })
+
+    const nextRects = new Map<string, DOMRect>()
+    cardElsRef.current.forEach((el, id) => {
+      nextRects.set(id, el.getBoundingClientRect())
+    })
+
+    const animatables: Array<{ el: HTMLElement; dy: number }> = []
+
+    cardElsRef.current.forEach((el, id) => {
+      const next = nextRects.get(id)!
+      const prev = prevRectsRef.current.get(id)
+      if (prev) {
+        const dy = prev.top - next.top
+        if (Math.abs(dy) > 2) animatables.push({ el, dy })
+      }
+    })
+
+    prevRectsRef.current = nextRects
+
+    if (animatables.length === 0) return
+
+    animatables.forEach(({ el, dy }) => {
+      el.style.transform = `translateY(${dy}px)`
+    })
+
+    void document.body.offsetHeight
+
+    requestAnimationFrame(() => {
+      if (cancelled) return
+      animatables.forEach(({ el }) => {
+        el.style.transition = 'transform 300ms linear'
+        el.style.transform = ''
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  })
 
   const firstDryIndex = sorted.findIndex(
     (f) => deriveWateringState(f, now) === 'dry',
@@ -46,7 +99,7 @@ function FriendList({ friends, onWater, onEdit, onRemove }: FriendListProps) {
       {sorted.map((friend, index) => {
           const state = deriveWateringState(friend, now)
           return (
-        <div key={`${friend.id}-${state}`}>
+        <div key={friend.id} ref={setCardRef(friend.id)}>
           {index === 0 && firstDryIndex === 0 && (
             <p className="friend-urgency-header">Needs attention</p>
           )}
