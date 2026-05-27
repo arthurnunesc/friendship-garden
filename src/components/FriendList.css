@@ -38,9 +38,36 @@
   transform: translateY(-1px);
 }
 
+.friend-card-wrapper:has(.water-details),
+.friend-card-wrapper:has(.water-popup) {
+  box-shadow: 0 1px 3px oklch(0.22 0.01 140 / 0.06);
+  border-radius: 0.75rem;
+}
+
 .friend-card-wrapper:has(.water-details) .friend-card,
 .friend-card-wrapper:has(.water-popup) .friend-card {
   border-radius: 0.75rem 0.75rem 0 0;
+  transform: none;
+  box-shadow: none;
+}
+
+.friend-card-wrapper:has(.water-details) .friend-card--dry,
+.friend-card-wrapper:has(.water-popup) .friend-card--dry,
+.friend-card-wrapper:has(.water-details) .friend-card--dry:hover,
+.friend-card-wrapper:has(.water-popup) .friend-card--dry:hover {
+  box-shadow: none;
+}
+
+.friend-card-wrapper:has(.water-details) .friend-card--nearing,
+.friend-card-wrapper:has(.water-popup) .friend-card--nearing,
+.friend-card-wrapper:has(.water-details) .friend-card--nearing:hover,
+.friend-card-wrapper:has(.water-popup) .friend-card--nearing:hover {
+  box-shadow: none;
+}
+
+.friend-card-wrapper:has(.water-details) .friend-card:hover,
+.friend-card-wrapper:has(.water-popup) .friend-card:hover {
+  box-shadow: none;
   transform: none;
 }
 
@@ -154,7 +181,6 @@
   padding: 0.75rem 0.875rem 0.875rem;
   background: oklch(0.99 0.003 140);
   border-radius: 0 0 0.75rem 0.75rem;
-  box-shadow: 0 1px 3px oklch(0.22 0.01 140 / 0.06);
   animation: panelFadeIn 0.18s ease-out;
 }
 
@@ -556,7 +582,6 @@
   padding: 0.75rem 0.875rem;
   background: oklch(0.99 0.003 140);
   border-radius: 0 0 0.75rem 0.75rem;
-  box-shadow: 0 1px 3px oklch(0.22 0.01 140 / 0.06);
   animation: panelFadeIn 0.18s ease-out;
 }
 
@@ -658,6 +683,16 @@
     height: 3rem;
     font-size: 1.375rem;
     border-radius: 0.75rem;
+  }
+
+  .friend-card-wrapper:has(.water-details),
+  .friend-card-wrapper:has(.water-popup) {
+    border-radius: 0.875rem;
+  }
+
+  .friend-card-wrapper:has(.water-details) .friend-card,
+  .friend-card-wrapper:has(.water-popup) .friend-card {
+    border-radius: 0.875rem 0.875rem 0 0;
   }
 
   .water-details,
