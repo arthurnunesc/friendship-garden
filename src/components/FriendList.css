@@ -190,6 +190,9 @@
 }
 
 .history {
+  border-bottom: 1px solid #e0dcd0;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .history-title {
@@ -204,19 +207,55 @@
 }
 
 .history-item {
+  position: relative;
   padding: 0.5rem 0;
-  border-bottom: 1px solid #f0ede6;
 }
 
-.history-item:last-child {
-  border-bottom: none;
+.history-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 66.67%;
+  height: 1px;
+  background: #e0dcd0;
 }
 
 .history-header {
   display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 0.125rem;
+}
+
+.history-header-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.history-header-row::before {
+  content: '';
+  width: 1.75rem;
+  flex-shrink: 0;
+}
+
+.history-header-text {
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.125rem;
+}
+
+.history-delete-slot {
+  position: relative;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+}
+
+.history-content {
+  text-align: center;
 }
 
 .history-date {
@@ -244,8 +283,8 @@
 }
 
 .history-delete-button {
-  grid-column: 3;
-  justify-self: end;
+  position: absolute;
+  inset: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -259,7 +298,6 @@
   padding: 0;
   opacity: 0;
   transition: opacity 0.15s ease;
-  flex-shrink: 0;
 }
 
 .history-item:hover .history-delete-button,
@@ -274,12 +312,13 @@
 }
 
 .history-delete-confirm-inline {
-  grid-column: 3;
-  justify-self: end;
+  position: absolute;
+  top: 0;
+  left: 0;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .history-delete-confirm-text {

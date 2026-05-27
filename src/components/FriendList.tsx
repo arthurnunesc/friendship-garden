@@ -165,43 +165,47 @@ function InteractionHistory({
           <li key={int.id} className="history-item">
             <div className="history-content">
               <div className="history-header">
-                <span className="history-header-center">
-                  <span className="history-date">{formatRelativeDate(int.date)}</span>
-                  {int.type && (
-                    <span className="history-type">{TYPE_LABELS[int.type]}</span>
-                  )}
-                </span>
-                {confirmingId === int.id ? (
-                  <span className="history-delete-confirm-inline">
-                    <span className="history-delete-confirm-text">Remove?</span>
-                    <button
-                      className="history-delete-yes"
-                      type="button"
-                      onClick={() => {
-                        onRemoveInteraction(int.id)
-                        setConfirmingId(null)
-                      }}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      className="history-delete-no"
-                      type="button"
-                      onClick={() => setConfirmingId(null)}
-                    >
-                      No
-                    </button>
+                <span className="history-header-row">
+                  <span className="history-header-text">
+                    <span className="history-date">{formatRelativeDate(int.date)}</span>
+                    {int.type && (
+                      <span className="history-type">{TYPE_LABELS[int.type]}</span>
+                    )}
                   </span>
-                ) : (
-                  <button
-                    className="history-delete-button"
-                    type="button"
-                    onClick={() => setConfirmingId(int.id)}
-                    aria-label="Delete chat"
-                  >
-                    🗑️
-                  </button>
-                )}
+                    <span className="history-delete-slot">
+                      {confirmingId === int.id ? (
+                        <span className="history-delete-confirm-inline">
+                          <span className="history-delete-confirm-text">Remove?</span>
+                          <button
+                            className="history-delete-yes"
+                            type="button"
+                            onClick={() => {
+                              onRemoveInteraction(int.id)
+                              setConfirmingId(null)
+                            }}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            className="history-delete-no"
+                            type="button"
+                            onClick={() => setConfirmingId(null)}
+                          >
+                            No
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          className="history-delete-button"
+                          type="button"
+                          onClick={() => setConfirmingId(int.id)}
+                          aria-label="Delete chat"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </span>
+                </span>
               </div>
               {int.note && <p className="history-note">{int.note}</p>}
             </div>
