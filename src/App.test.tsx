@@ -596,6 +596,240 @@ describe('App', () => {
       // Bare interaction renders without crashing
       expect(historySection!.querySelectorAll('.history-item')).toHaveLength(3)
     })
+
+    it('deletes an interaction after confirmation', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [
+              {
+                id: 'int-1',
+                date: '2025-05-20T10:00:00.000Z',
+                type: 'message' as const,
+                note: 'Funny meme',
+              },
+              {
+                id: 'int-2',
+                date: '2025-05-25T14:00:00.000Z',
+                type: 'call' as const,
+              },
+            ],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      const historySection = screen.getByText(/recent chats/i).closest('.history')!
+      const deleteButtons = within(historySection as HTMLElement).getAllByLabelText(/delete chat/i)
+      expect(deleteButtons).toHaveLength(2)
+
+      await user.click(deleteButtons[0])
+
+      await user.click(
+        within(historySection as HTMLElement).getByRole('button', { name: 'Yes' }),
+      )
+
+      expect(saved[0].interactions).toHaveLength(1)
+      expect(saved[0].interactions[0].id).toBe('int-1')
+    })
+
+    it('cancels interaction deletion', async () => {
+      const user = userEvent.setup()
+      let saved: Friend[] = []
+      const storage: GardenStorage = {
+        loadFriends: () => [
+          {
+            id: 'f-1',
+            name: 'Alice',
+            cadenceDays: 14,
+            interactions: [
+              {
+                id: 'int-1',
+                date: '2025-05-20T10:00:00.000Z',
+                type: 'message' as const,
+                note: 'Funny meme',
+              },
+            ],
+            createdAt: '2025-01-01T00:00:00.000Z',
+          },
+        ],
+        saveFriends: (f) => {
+          saved = [...f]
+        },
+      }
+
+      render(<App storage={storage} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      const historySection = screen.getByText(/recent chats/i).closest('.history')!
+      await user.click(
+        within(historySection as HTMLElement).getByLabelText(/delete chat/i),
+      )
+
+      expect(within(historySection as HTMLElement).getByText('Remove?')).toBeInTheDocument()
+
+      await user.click(
+        within(historySection as HTMLElement).getByRole('button', { name: 'No' }),
+      )
+
+      expect(within(historySection as HTMLElement).queryByText('Remove?')).toBeNull()
+      expect(saved).toHaveLength(0)
+    })
+
+    it('shows only 4 newest chats when there are more than 4', async () => {
+      const user = userEvent.setup()
+      const interactions = Array.from({ length: 6 }, (_, i) => ({
+        id: `int-${i + 1}`,
+        date: new Date(2025, 4, 10 + i).toISOString(),
+        note: `Chat ${i + 1}`,
+      }))
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      const historySection = screen.getByText(/recent chats/i).closest('.history')!
+      expect(historySection.querySelectorAll('.history-item')).toHaveLength(4)
+      expect(within(historySection as HTMLElement).getByText('see full chat history')).toBeInTheDocument()
+    })
+
+    it('expands to show all chats when clicking see full chat history', async () => {
+      const user = userEvent.setup()
+      const interactions = Array.from({ length: 6 }, (_, i) => ({
+        id: `int-${i + 1}`,
+        date: new Date(2025, 4, 10 + i).toISOString(),
+        note: `Chat ${i + 1}`,
+      }))
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      await user.click(screen.getByText('see full chat history'))
+
+      const historySection = screen.getByText(/recent chats/i).closest('.history')!
+      expect(historySection.querySelectorAll('.history-item')).toHaveLength(6)
+      expect(within(historySection as HTMLElement).getByText('collapse chat history')).toBeInTheDocument()
+    })
+
+    it('collapses back to 4 chats when clicking collapse chat history', async () => {
+      const user = userEvent.setup()
+      const interactions = Array.from({ length: 6 }, (_, i) => ({
+        id: `int-${i + 1}`,
+        date: new Date(2025, 4, 10 + i).toISOString(),
+        note: `Chat ${i + 1}`,
+      }))
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+      await user.click(screen.getByText('see full chat history'))
+
+      await user.click(screen.getByText('collapse chat history'))
+
+      const historySection = screen.getByText(/recent chats/i).closest('.history')!
+      expect(historySection.querySelectorAll('.history-item')).toHaveLength(4)
+      expect(within(historySection as HTMLElement).getByText('see full chat history')).toBeInTheDocument()
+    })
+
+    it('resets to 4 chats when closing and reopening friend card', async () => {
+      const user = userEvent.setup()
+      const interactions = Array.from({ length: 6 }, (_, i) => ({
+        id: `int-${i + 1}`,
+        date: new Date(2025, 4, 10 + i).toISOString(),
+        note: `Chat ${i + 1}`,
+      }))
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+      const detailsButton = screen.getByRole('button', { name: /details for alice/i })
+
+      await user.click(detailsButton)
+      await user.click(screen.getByText('see full chat history'))
+      expect(screen.getByText('collapse chat history')).toBeInTheDocument()
+
+      await user.click(detailsButton)
+      await user.click(detailsButton)
+
+      const historySection = screen.getByText(/recent chats/i).closest('.history')!
+      expect(historySection.querySelectorAll('.history-item')).toHaveLength(4)
+      expect(within(historySection as HTMLElement).getByText('see full chat history')).toBeInTheDocument()
+    })
+
+    it('does not show expand button when there are 4 or fewer chats', async () => {
+      const user = userEvent.setup()
+      const interactions = Array.from({ length: 4 }, (_, i) => ({
+        id: `int-${i + 1}`,
+        date: new Date(2025, 4, 10 + i).toISOString(),
+        note: `Chat ${i + 1}`,
+      }))
+      const persisted: Friend[] = [
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          interactions,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]
+      render(<App storage={createFakeStorage(persisted)} />)
+      await user.click(
+        screen.getByRole('button', { name: /details for alice/i }),
+      )
+
+      const historySection = screen.getByText(/recent chats/i).closest('.history')!
+      expect(historySection.querySelectorAll('.history-item')).toHaveLength(4)
+      expect(within(historySection as HTMLElement).queryByText(/chat history/i)).toBeNull()
+    })
   })
 
   describe('watering state', () => {
