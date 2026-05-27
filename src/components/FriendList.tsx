@@ -39,6 +39,7 @@ function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }:
   const sorted = sortFriendsByUrgency(friends, now)
   const cardElsRef = useRef(new Map<string, HTMLElement>())
   const prevRectsRef = useRef(new Map<string, DOMRect>())
+  const rafRef = useRef<number>(0)
   const [openId, setOpenId] = useState<null | { type: 'details' | 'water'; id: string }>(null)
 
   const setCardRef = (id: string) => (el: HTMLElement | null) => {
@@ -48,9 +49,11 @@ function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }:
 
   useLayoutEffect(() => {
     let cancelled = false
+    cancelAnimationFrame(rafRef.current)
 
     cardElsRef.current.forEach((el) => {
       el.style.transition = 'none'
+      el.style.transform = ''
     })
 
     const nextRects = new Map<string, DOMRect>()
@@ -61,6 +64,7 @@ function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }:
     const animatables: Array<{ el: HTMLElement; dy: number }> = []
 
     cardElsRef.current.forEach((el, id) => {
+      if (id === openId?.id) return
       const next = nextRects.get(id)!
       const prev = prevRectsRef.current.get(id)
       if (prev) {
@@ -79,7 +83,7 @@ function FriendList({ friends, onWater, onEdit, onRemove, onRemoveInteraction }:
 
     void document.body.offsetHeight
 
-    requestAnimationFrame(() => {
+    rafRef.current = requestAnimationFrame(() => {
       if (cancelled) return
       animatables.forEach(({ el }) => {
         el.style.transition = 'transform 300ms linear'
