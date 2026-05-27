@@ -296,7 +296,7 @@ function FriendCard({
   const [editing, setEditing] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [watered, setWatered] = useState(false)
-  const wateredTimer = useRef<ReturnType<typeof setTimeout>>()
+  const wateredTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [editName, setEditName] = useState(friend.name)
   const [editBirthday, setEditBirthday] = useState(friend.birthday ?? '')
   const [editCadence, setEditCadence] = useState(String(friend.cadenceDays))
