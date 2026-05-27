@@ -151,9 +151,18 @@ export function hasUpcomingBirthday(
 }
 
 export function deleteInteraction(friend: Friend, interactionId: string): Friend {
+  const remaining = friend.interactions.filter((i) => i.id !== interactionId)
+  const lastInteractionAt =
+    remaining.length > 0
+      ? remaining.reduce(
+          (latest, i) => (i.date > latest ? i.date : latest),
+          remaining[0].date,
+        )
+      : undefined
   return {
     ...friend,
-    interactions: friend.interactions.filter((i) => i.id !== interactionId),
+    interactions: remaining,
+    lastInteractionAt,
   }
 }
 
