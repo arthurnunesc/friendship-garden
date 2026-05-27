@@ -254,7 +254,7 @@
   font-family: inherit;
   color: #6b6656;
   background: transparent;
-  border: 1px dashed #d4cfc4;
+  border: 1px solid #d4cfc4;
   border-radius: 0.5rem;
   cursor: pointer;
 }
