@@ -240,6 +240,105 @@
   font-size: 0.8125rem;
   color: #6b6656;
   line-height: 1.4;
+  text-align: center;
+}
+
+.history-delete-button {
+  grid-column: 3;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.75rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+}
+
+.history-item:hover .history-delete-button,
+.history-delete-button:focus-visible {
+  opacity: 1;
+  border-color: #e0c4b8;
+}
+
+.history-delete-button:hover {
+  background: #fdf5f3;
+  border-color: #c48b7a;
+}
+
+.history-delete-confirm-inline {
+  grid-column: 3;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.history-delete-confirm-text {
+  font-size: 0.6875rem;
+  color: #7a4a3a;
+  white-space: nowrap;
+}
+
+.history-delete-yes {
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: #c07a5a;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.history-delete-yes:hover {
+  background: #a64d3a;
+}
+
+.history-delete-no {
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #6b6656;
+  background: transparent;
+  border: 1px solid #d4cfc4;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.history-delete-no:hover {
+  background: #f0ede6;
+}
+
+.history-expand-button {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.25rem 0.75rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #6b6656;
+  background: transparent;
+  border: 1px solid #d4cfc4;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.history-expand-button:hover {
+  border-color: #4a7c3f;
+  color: #4a7c3f;
+  background: #f4f9f2;
 }
 
 .edit-section {

@@ -138,29 +138,85 @@ function formatRelativeDate(iso: string): string {
   return date.toLocaleDateString()
 }
 
-function InteractionHistory({ interactions }: { interactions: Interaction[] }) {
+function InteractionHistory({
+  interactions,
+  onRemoveInteraction,
+}: {
+  interactions: Interaction[]
+  onRemoveInteraction: (interactionId: string) => void
+}) {
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
+  const [showAll, setShowAll] = useState(false)
+
   if (interactions.length === 0) return null
 
   const sorted = [...interactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   )
 
+  const hasMore = sorted.length > 4
+  const visible = showAll ? sorted : sorted.slice(0, 4)
+
   return (
     <div className="history">
       <h3 className="history-title">Recent chats</h3>
       <ul className="history-list">
-        {sorted.map((int) => (
+        {visible.map((int) => (
           <li key={int.id} className="history-item">
-            <div className="history-header">
-              <span className="history-date">{formatRelativeDate(int.date)}</span>
-              {int.type && (
-                <span className="history-type">{TYPE_LABELS[int.type]}</span>
-              )}
+            <div className="history-content">
+              <div className="history-header">
+                <span className="history-header-center">
+                  <span className="history-date">{formatRelativeDate(int.date)}</span>
+                  {int.type && (
+                    <span className="history-type">{TYPE_LABELS[int.type]}</span>
+                  )}
+                </span>
+                {confirmingId === int.id ? (
+                  <span className="history-delete-confirm-inline">
+                    <span className="history-delete-confirm-text">Remove?</span>
+                    <button
+                      className="history-delete-yes"
+                      type="button"
+                      onClick={() => {
+                        onRemoveInteraction(int.id)
+                        setConfirmingId(null)
+                      }}
+                    >
+                      Yes
+                    </button>
+                    <button
+                      className="history-delete-no"
+                      type="button"
+                      onClick={() => setConfirmingId(null)}
+                    >
+                      No
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    className="history-delete-button"
+                    type="button"
+                    onClick={() => setConfirmingId(int.id)}
+                    aria-label="Delete chat"
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
+              {int.note && <p className="history-note">{int.note}</p>}
             </div>
-            {int.note && <p className="history-note">{int.note}</p>}
           </li>
         ))}
       </ul>
+      {hasMore && (
+        <button
+          className="history-expand-button"
+          type="button"
+          onClick={() => setShowAll((prev) => !prev)}
+        >
+          {showAll ? 'collapse chat history' : 'see full chat history'}
+        </button>
+      )}
     </div>
   )
 }
@@ -321,7 +377,10 @@ function FriendCard({
       </div>
       {open && (
         <div className="water-details">
-          <InteractionHistory interactions={friend.interactions} />
+          <InteractionHistory
+            interactions={friend.interactions}
+            onRemoveInteraction={(interactionId) => onRemoveInteraction(friend.id, interactionId)}
+          />
 
           <div className="edit-section">
             {!editing ? (
