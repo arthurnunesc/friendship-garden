@@ -11,42 +11,50 @@ function useGardenStore(storage: GardenStorage) {
 
   const addFriend = useCallback(
     (data: AddFriendData) => {
-      const updated = [...friends, createFriend(data)]
-      setFriends(updated)
-      storage.saveFriends(updated)
+      setFriends((prev) => {
+        const updated = [...prev, createFriend(data)]
+        storage.saveFriends(updated)
+        return updated
+      })
     },
-    [friends, storage],
+    [storage],
   )
 
   const waterFriend = useCallback(
     (friendId: string, input?: LogInteractionInput) => {
-      const updated = friends.map((f) =>
-        f.id === friendId ? logInteraction(f, input) : f,
-      )
-      setFriends(updated)
-      storage.saveFriends(updated)
+      setFriends((prev) => {
+        const updated = prev.map((f) =>
+          f.id === friendId ? logInteraction(f, input) : f,
+        )
+        storage.saveFriends(updated)
+        return updated
+      })
     },
-    [friends, storage],
+    [storage],
   )
 
   const updateFriend = useCallback(
     (friendId: string, input: EditFriendInput) => {
-      const updated = friends.map((f) =>
-        f.id === friendId ? editFriend(f, input) : f,
-      )
-      setFriends(updated)
-      storage.saveFriends(updated)
+      setFriends((prev) => {
+        const updated = prev.map((f) =>
+          f.id === friendId ? editFriend(f, input) : f,
+        )
+        storage.saveFriends(updated)
+        return updated
+      })
     },
-    [friends, storage],
+    [storage],
   )
 
   const removeFriend = useCallback(
     (friendId: string) => {
-      const updated = friends.filter((f) => f.id !== friendId)
-      setFriends(updated)
-      storage.saveFriends(updated)
+      setFriends((prev) => {
+        const updated = prev.filter((f) => f.id !== friendId)
+        storage.saveFriends(updated)
+        return updated
+      })
     },
-    [friends, storage],
+    [storage],
   )
 
   return { friends, addFriend, waterFriend, updateFriend, removeFriend }
