@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { Friend, Interaction, LogInteractionInput, WateringState, EditFriendInput } from '../friends/Friend'
 import { deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, DEFAULT_CADENCE_DAYS } from '../friends/Friend'
 import './FriendList.css'
@@ -24,7 +24,7 @@ function wateringIcon(state: WateringState): string {
     case 'nearing':
       return '🌿'
     case 'dry':
-      return '💧'
+      return '🥀'
   }
 }
 
@@ -127,12 +127,32 @@ function FriendCard({
   const [note, setNote] = useState('')
   const [editing, setEditing] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
+  const [showWaterPopup, setShowWaterPopup] = useState(false)
   const [editName, setEditName] = useState(friend.name)
   const [editBirthday, setEditBirthday] = useState(friend.birthday ?? '')
   const [editCadence, setEditCadence] = useState(String(friend.cadenceDays))
+  const popupRef = useRef<HTMLDivElement>(null)
+  const waterButtonRef = useRef<HTMLButtonElement>(null)
+  const expandButtonRef = useRef<HTMLButtonElement>(null)
+  const popupActiveRef = useRef(false)
 
-  const handleWater = () => {
-    onWater(friend.id)
+  useEffect(() => {
+    popupActiveRef.current = showWaterPopup
+  }, [showWaterPopup])
+
+  const handleWaterClick = () => {
+    if (popupActiveRef.current) {
+      onWater(friend.id)
+      popupActiveRef.current = false
+      setShowWaterPopup(false)
+      return
+    }
+
+    popupActiveRef.current = true
+    setOpen(false)
+    setType('')
+    setNote('')
+    setShowWaterPopup(true)
   }
 
   const handleSaveChat = () => {
@@ -140,10 +160,36 @@ function FriendCard({
     if (type) input.type = type as LogInteractionInput['type']
     if (note.trim()) input.note = note.trim()
     onWater(friend.id, input)
-    setOpen(false)
+    setShowWaterPopup(false)
+    popupActiveRef.current = false
     setType('')
     setNote('')
   }
+
+  useEffect(() => {
+    if (!showWaterPopup) return
+    const handler = (e: MouseEvent) => {
+      if (
+        popupRef.current &&
+        !popupRef.current.contains(e.target as Node) &&
+        waterButtonRef.current &&
+        !waterButtonRef.current.contains(e.target as Node) &&
+        expandButtonRef.current &&
+        !expandButtonRef.current.contains(e.target as Node)
+      ) {
+        setShowWaterPopup(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showWaterPopup])
+
+  useEffect(() => {
+    if (!showWaterPopup) return
+    const handler = () => setShowWaterPopup(false)
+    document.addEventListener('scroll', handler, { capture: true, passive: true })
+    return () => document.removeEventListener('scroll', handler, { capture: true })
+  }, [showWaterPopup])
 
   const handleSaveEdit = () => {
     const trimmed = editName.trim()
@@ -181,7 +227,11 @@ function FriendCard({
         <button
           className="friend-expand-button"
           type="button"
-          onClick={() => setOpen((p) => !p)}
+          ref={expandButtonRef}
+          onClick={() => {
+            setShowWaterPopup(false)
+            setOpen((p) => !p)
+          }}
           aria-label={`Details for ${friend.name}`}
         >
           {open ? '▲' : '▼'}
@@ -189,7 +239,8 @@ function FriendCard({
         <button
           className="friend-water-button"
           type="button"
-          onClick={handleWater}
+          ref={waterButtonRef}
+          onClick={handleWaterClick}
           aria-label={`Water ${friend.name}`}
         >
           💧
@@ -197,34 +248,6 @@ function FriendCard({
       </div>
       {open && (
         <div className="water-details">
-          <h3 className="water-title">Log a chat</h3>
-          <select
-            className="water-select"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            aria-label="Interaction type"
-          >
-            <option value="">Any interaction</option>
-            {INTERACTION_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {TYPE_LABELS[t]}
-              </option>
-            ))}
-          </select>
-          <input
-            className="water-note"
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Quick note (optional)"
-            aria-label="Note"
-            autoFocus
-          />
-          <div className="water-actions">
-            <button className="water-save" type="button" onClick={handleSaveChat}>
-              Save
-            </button>
-          </div>
           <InteractionHistory interactions={friend.interactions} />
 
           <div className="edit-section">
@@ -334,6 +357,48 @@ function FriendCard({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {showWaterPopup && (
+        <div className="water-popup" ref={popupRef} data-testid="water-popup">
+          <div className="water-type-buttons">
+            <button
+              className={`water-type-button${type === '' ? ' water-type-button--active' : ''}`}
+              onClick={() => setType('')}
+            >
+              Any
+            </button>
+            {INTERACTION_TYPES.map((t) => (
+              <button
+                key={t}
+                className={`water-type-button${type === t ? ' water-type-button--active' : ''}`}
+                onClick={() => setType(type === t ? '' : t)}
+              >
+                {TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+          <input
+            className="water-note"
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Quick note (optional)"
+            aria-label="Note"
+            autoFocus
+          />
+          <div className="water-actions">
+            <button className="water-save" type="button" onClick={handleSaveChat}>
+              Save
+            </button>
+            <button
+              className="water-cancel"
+              type="button"
+              onClick={() => setShowWaterPopup(false)}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

@@ -27,7 +27,8 @@
   border-radius: 0.75rem;
 }
 
-.friend-card-wrapper:has(.water-details) .friend-card {
+.friend-card-wrapper:has(.water-details) .friend-card,
+.friend-card-wrapper:has(.water-popup) .friend-card {
   border-radius: 0.75rem 0.75rem 0 0;
   border-bottom-color: transparent;
 }
@@ -188,9 +189,6 @@
 }
 
 .history {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid #e0dcd0;
 }
 
 .history-title {
@@ -348,4 +346,42 @@
 
 .remove-confirm-button:hover {
   background: #a64d3a;
+}
+
+.water-popup {
+  padding: 0.875rem 1rem;
+  background: #fff;
+  border: 1px solid #e0dcd0;
+  border-top: none;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+.water-type-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.water-type-button {
+  flex: 1;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #6b6656;
+  background: #f9f7f4;
+  border: 1px solid #e0dcd0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.water-type-button:hover {
+  background: #f0ede6;
+}
+
+.water-type-button--active {
+  color: #4a7c3f;
+  background: #e8f0e4;
+  border-color: #4a7c3f;
 }
