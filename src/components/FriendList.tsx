@@ -131,6 +131,8 @@ function FriendCard({
   const [editing, setEditing] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showWaterPopup, setShowWaterPopup] = useState(false)
+  const [watered, setWatered] = useState(false)
+  const wateredTimer = useRef<ReturnType<typeof setTimeout>>()
   const [editName, setEditName] = useState(friend.name)
   const [editBirthday, setEditBirthday] = useState(friend.birthday ?? '')
   const [editCadence, setEditCadence] = useState(String(friend.cadenceDays))
@@ -148,6 +150,9 @@ function FriendCard({
       onWater(friend.id)
       popupActiveRef.current = false
       setShowWaterPopup(false)
+      setWatered(true)
+      clearTimeout(wateredTimer.current)
+      wateredTimer.current = setTimeout(() => setWatered(false), 2000)
       return
     }
 
@@ -167,6 +172,9 @@ function FriendCard({
     popupActiveRef.current = false
     setType('')
     setNote('')
+    setWatered(true)
+    clearTimeout(wateredTimer.current)
+    wateredTimer.current = setTimeout(() => setWatered(false), 2000)
   }
 
   useEffect(() => {
@@ -193,6 +201,11 @@ function FriendCard({
     document.addEventListener('scroll', handler, { capture: true, passive: true })
     return () => document.removeEventListener('scroll', handler, { capture: true })
   }, [showWaterPopup])
+
+  useEffect(
+    () => () => clearTimeout(wateredTimer.current),
+    [],
+  )
 
   const handleSaveEdit = () => {
     const trimmed = editName.trim()
@@ -404,6 +417,7 @@ function FriendCard({
           </div>
         </div>
       )}
+      {watered && <div className="watered-toast">Chat added!</div>}
     </div>
   )
 }
