@@ -43,8 +43,10 @@ function FriendList({ friends, onWater, onEdit, onRemove }: FriendListProps) {
 
   return (
     <div className="friend-list">
-      {sorted.map((friend, index) => (
-        <div key={friend.id}>
+      {sorted.map((friend, index) => {
+          const state = deriveWateringState(friend, now)
+          return (
+        <div key={`${friend.id}-${state}`}>
           {index === 0 && firstDryIndex === 0 && (
             <p className="friend-urgency-header">Needs attention</p>
           )}
@@ -56,11 +58,12 @@ function FriendList({ friends, onWater, onEdit, onRemove }: FriendListProps) {
             onWater={onWater}
             onEdit={onEdit}
             onRemove={onRemove}
-            wateringState={deriveWateringState(friend, now)}
+            wateringState={state}
             hasBirthday={hasUpcomingBirthday(friend, now)}
           />
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
