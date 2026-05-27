@@ -166,10 +166,10 @@ describe('App', () => {
       await user.click(summary)
 
       expect(
-        screen.getByLabelText('Birthday'),
+        screen.getByLabelText('birthday'),
       ).toBeInTheDocument()
       expect(
-        screen.getByLabelText('Contact cadence'),
+        screen.getByLabelText('contact cadence'),
       ).toBeInTheDocument()
     })
 
@@ -210,7 +210,7 @@ describe('App', () => {
       await user.type(screen.getByLabelText(/what's their name/i), 'Alice')
       await user.click(screen.getByText(/more details/i))
       await user.selectOptions(
-        screen.getByLabelText('Contact cadence'),
+        screen.getByLabelText('contact cadence'),
         '7',
       )
       await user.click(screen.getByRole('button', { name: /add to garden/i }))
@@ -234,7 +234,7 @@ describe('App', () => {
       )
       await user.type(screen.getByLabelText(/what's their name/i), 'Alice')
       await user.click(screen.getByText(/more details/i))
-      const dateInput = screen.getByLabelText('Birthday')
+      const dateInput = screen.getByLabelText('birthday')
       await user.clear(dateInput)
       await user.type(dateInput, '1990-05-14')
       await user.click(screen.getByRole('button', { name: /add to garden/i }))
@@ -590,7 +590,7 @@ describe('App', () => {
       // Type badge shows
       const historySection = screen.getByText(/recent chats/i).closest('.history')
       expect(historySection).toBeInTheDocument()
-      expect(within(historySection as HTMLElement).getByText('Call')).toBeInTheDocument()
+      expect(within(historySection as HTMLElement).getByText('call')).toBeInTheDocument()
       // Note shows
       expect(within(historySection as HTMLElement).getByText('Just a note')).toBeInTheDocument()
       // Bare interaction renders without crashing
@@ -639,7 +639,7 @@ describe('App', () => {
       await user.click(deleteButtons[0])
 
       await user.click(
-        within(historySection as HTMLElement).getByRole('button', { name: 'Yes' }),
+        within(historySection as HTMLElement).getByRole('button', { name: 'yes' }),
       )
 
       expect(saved[0].interactions).toHaveLength(1)
@@ -681,13 +681,13 @@ describe('App', () => {
         within(historySection as HTMLElement).getByLabelText(/delete chat/i),
       )
 
-      expect(within(historySection as HTMLElement).getByText('Remove?')).toBeInTheDocument()
+      expect(within(historySection as HTMLElement).getByText('remove?')).toBeInTheDocument()
 
       await user.click(
-        within(historySection as HTMLElement).getByRole('button', { name: 'No' }),
+        within(historySection as HTMLElement).getByRole('button', { name: 'no' }),
       )
 
-      expect(within(historySection as HTMLElement).queryByText('Remove?')).toBeNull()
+      expect(within(historySection as HTMLElement).queryByText('remove?')).toBeNull()
       expect(saved).toHaveLength(0)
     })
 
@@ -714,10 +714,10 @@ describe('App', () => {
 
       const historySection = screen.getByText(/recent chats/i).closest('.history')!
       expect(historySection.querySelectorAll('.history-item')).toHaveLength(4)
-      expect(within(historySection as HTMLElement).getByText('see full chat history')).toBeInTheDocument()
+      expect(within(historySection as HTMLElement).getByText('see all')).toBeInTheDocument()
     })
 
-    it('expands to show all chats when clicking see full chat history', async () => {
+    it('expands to show all chats when clicking see all', async () => {
       const user = userEvent.setup()
       const interactions = Array.from({ length: 6 }, (_, i) => ({
         id: `int-${i + 1}`,
@@ -738,14 +738,14 @@ describe('App', () => {
         screen.getByRole('button', { name: /details for alice/i }),
       )
 
-      await user.click(screen.getByText('see full chat history'))
+      await user.click(screen.getByText('see all'))
 
       const historySection = screen.getByText(/recent chats/i).closest('.history')!
       expect(historySection.querySelectorAll('.history-item')).toHaveLength(6)
-      expect(within(historySection as HTMLElement).getByText('collapse chat history')).toBeInTheDocument()
+      expect(within(historySection as HTMLElement).getByText('collapse')).toBeInTheDocument()
     })
 
-    it('collapses back to 4 chats when clicking collapse chat history', async () => {
+    it('collapses back to 4 chats when clicking collapse', async () => {
       const user = userEvent.setup()
       const interactions = Array.from({ length: 6 }, (_, i) => ({
         id: `int-${i + 1}`,
@@ -765,13 +765,13 @@ describe('App', () => {
       await user.click(
         screen.getByRole('button', { name: /details for alice/i }),
       )
-      await user.click(screen.getByText('see full chat history'))
+      await user.click(screen.getByText('see all'))
 
-      await user.click(screen.getByText('collapse chat history'))
+      await user.click(screen.getByText('collapse'))
 
       const historySection = screen.getByText(/recent chats/i).closest('.history')!
       expect(historySection.querySelectorAll('.history-item')).toHaveLength(4)
-      expect(within(historySection as HTMLElement).getByText('see full chat history')).toBeInTheDocument()
+      expect(within(historySection as HTMLElement).getByText('see all')).toBeInTheDocument()
     })
 
     it('resets to 4 chats when closing and reopening friend card', async () => {
@@ -794,15 +794,15 @@ describe('App', () => {
       const detailsButton = screen.getByRole('button', { name: /details for alice/i })
 
       await user.click(detailsButton)
-      await user.click(screen.getByText('see full chat history'))
-      expect(screen.getByText('collapse chat history')).toBeInTheDocument()
+      await user.click(screen.getByText('see all'))
+      expect(screen.getByText('collapse')).toBeInTheDocument()
 
       await user.click(detailsButton)
       await user.click(detailsButton)
 
       const historySection = screen.getByText(/recent chats/i).closest('.history')!
       expect(historySection.querySelectorAll('.history-item')).toHaveLength(4)
-      expect(within(historySection as HTMLElement).getByText('see full chat history')).toBeInTheDocument()
+      expect(within(historySection as HTMLElement).getByText('see all')).toBeInTheDocument()
     })
 
     it('does not show expand button when there are 4 or fewer chats', async () => {
@@ -950,7 +950,7 @@ describe('App', () => {
   })
 
   describe('urgency ordering', () => {
-    it('shows "Needs attention" header when dry friends exist', () => {
+    it('shows "needs attention" header when dry friends exist', () => {
       const old = new Date()
       old.setDate(old.getDate() - 30)
       const persisted: Friend[] = [
@@ -965,7 +965,7 @@ describe('App', () => {
       ]
       render(<App storage={createFakeStorage(persisted)} />)
 
-      expect(screen.getByText('Needs attention')).toBeInTheDocument()
+      expect(screen.getByText('needs attention')).toBeInTheDocument()
     })
 
     it('does not show urgency header when all friends are watered', () => {
@@ -982,7 +982,7 @@ describe('App', () => {
       ]
       render(<App storage={createFakeStorage(persisted)} />)
 
-      expect(screen.queryByText('Needs attention')).toBeNull()
+      expect(screen.queryByText('needs attention')).toBeNull()
     })
 
     it('puts dry friends above watered friends', () => {
@@ -1118,17 +1118,17 @@ describe('App', () => {
         screen.getByRole('button', { name: /details for alice/i }),
       )
       await user.click(
-        screen.getByRole('button', { name: /edit name, birthday, or cadence/i }),
+        screen.getByRole('button', { name: /edit details/i }),
       )
 
-      const nameInput: HTMLInputElement = screen.getByLabelText('Name')
+      const nameInput: HTMLInputElement = screen.getByLabelText('name')
       await user.clear(nameInput)
       await user.type(nameInput, 'Allison')
 
       // Click the edit form's Save (scoped to edit-form)
       const editForm = document.querySelector('.edit-form')!
       await user.click(
-        within(editForm as HTMLElement).getByRole('button', { name: 'Save' }),
+        within(editForm as HTMLElement).getByRole('button', { name: 'save' }),
       )
 
       expect(saved[0].name).toBe('Allison')
@@ -1157,16 +1157,16 @@ describe('App', () => {
         screen.getByRole('button', { name: /details for alice/i }),
       )
       await user.click(
-        screen.getByRole('button', { name: /edit name, birthday, or cadence/i }),
+        screen.getByRole('button', { name: /edit details/i }),
       )
 
-      const dateInput: HTMLInputElement = screen.getByLabelText('Birthday')
+      const dateInput: HTMLInputElement = screen.getByLabelText('birthday')
       await user.clear(dateInput)
       await user.type(dateInput, '1990-05-14')
 
       const editForm = document.querySelector('.edit-form')!
       await user.click(
-        within(editForm as HTMLElement).getByRole('button', { name: 'Save' }),
+        within(editForm as HTMLElement).getByRole('button', { name: 'save' }),
       )
 
       expect(saved[0].birthday).toBe('1990-05-14')
@@ -1195,15 +1195,15 @@ describe('App', () => {
         screen.getByRole('button', { name: /details for alice/i }),
       )
       await user.click(
-        screen.getByRole('button', { name: /edit name, birthday, or cadence/i }),
+        screen.getByRole('button', { name: /edit details/i }),
       )
 
-      const cadenceSelect: HTMLSelectElement = screen.getByLabelText('Cadence')
+      const cadenceSelect: HTMLSelectElement = screen.getByLabelText('cadence')
       await user.selectOptions(cadenceSelect, '7')
 
       const editForm = document.querySelector('.edit-form')!
       await user.click(
-        within(editForm as HTMLElement).getByRole('button', { name: 'Save' }),
+        within(editForm as HTMLElement).getByRole('button', { name: 'save' }),
       )
 
       expect(saved[0].cadenceDays).toBe(7)
