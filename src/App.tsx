@@ -262,6 +262,16 @@ function App({ storage = localStorageStore, onImportSuccess }: AppProps) {
           {feedback}
         </p>
       )}
+      <footer className="footer">
+        <a
+          href="https://arthurnun.es"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="footer-link"
+        >
+          made by arthur nunes
+        </a>
+      </footer>
     </main>
   )
 }
