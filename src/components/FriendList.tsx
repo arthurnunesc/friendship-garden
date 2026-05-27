@@ -254,7 +254,6 @@ function FriendCard({
           <InteractionHistory interactions={friend.interactions} />
 
           <div className="edit-section">
-            <h3 className="water-title">Edit details</h3>
             {!editing ? (
               <button
                 className="edit-start-button"
