@@ -32,7 +32,6 @@
   padding: 0.625rem 0.875rem;
   font-size: 0.9375rem;
   font-family: inherit;
-  text-transform: lowercase;
   color: oklch(0.22 0.01 140);
   background: oklch(0.99 0.003 140);
   border: 1px solid oklch(0.88 0.005 140);
