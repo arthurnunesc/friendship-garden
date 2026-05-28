@@ -91,6 +91,7 @@
   font-weight: 500;
   color: oklch(0.22 0.01 140);
   display: block;
+  text-transform: none;
   transition: color 0.2s ease;
 }
 
