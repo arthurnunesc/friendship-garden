@@ -788,7 +788,11 @@
     border-radius: 0.625rem;
   }
 
-  .edit-form .add-friend-optional-label {
+.edit-form .water-note {
+  text-transform: none;
+}
+
+.edit-form .add-friend-optional-label {
     font-size: 0.8125rem;
   }
 
