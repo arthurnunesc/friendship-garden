@@ -350,13 +350,6 @@ function FriendCard({
     return () => document.removeEventListener('mousedown', handler)
   }, [showWaterPopup])
 
-  useEffect(() => {
-    if (!showWaterPopup) return
-    const handler = () => onToggleWater()
-    document.addEventListener('scroll', handler, { capture: true, passive: true })
-    return () => document.removeEventListener('scroll', handler, { capture: true })
-  }, [showWaterPopup])
-
   useEffect(
     () => () => clearTimeout(wateredTimer.current),
     [],
