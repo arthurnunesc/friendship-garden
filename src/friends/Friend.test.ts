@@ -305,6 +305,12 @@ describe('editFriend', () => {
     expect(edited.cadenceDays).toBe(7)
   })
 
+  it('preserves the existing cadence when omitted', () => {
+    const friend = createFriend({ name: 'Alice', cadenceDays: 30 })
+    const edited = editFriend(friend, { name: 'Allison' })
+    expect(edited.cadenceDays).toBe(30)
+  })
+
   it('does not mutate the original friend', () => {
     const friend = createFriend({ name: 'Alice', cadenceDays: 14 })
     const edited = editFriend(friend, { name: 'Alice', cadenceDays: 30 })

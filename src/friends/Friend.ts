@@ -170,7 +170,7 @@ export function editFriend(friend: Friend, input: EditFriendInput): Friend {
     ...friend,
     name: input.name.trim(),
     birthday: input.birthday || undefined,
-    cadenceDays: input.cadenceDays ?? DEFAULT_CADENCE_DAYS,
+    cadenceDays: input.cadenceDays ?? friend.cadenceDays,
   }
 }
 
