@@ -1,7 +1,10 @@
+export const INTERACTION_TYPES = ['message', 'call', 'in-person'] as const
+export type InteractionType = (typeof INTERACTION_TYPES)[number]
+
 export interface Interaction {
   id: string
   date: string
-  type?: 'message' | 'call' | 'in-person'
+  type?: InteractionType
   note?: string
 }
 
@@ -17,22 +20,12 @@ export interface Friend {
   createdAt: string
 }
 
-let nextId = 1
-let nextInteractionId = 1
-
-export function initIdCounters(friends: Friend[]) {
-  let maxFriendId = 0
-  let maxInteractionId = 0
-  for (const f of friends) {
-    const match = f.id.match(/^friend-(\d+)$/)
-    if (match) maxFriendId = Math.max(maxFriendId, Number(match[1]))
-    for (const int of f.interactions) {
-      const intMatch = int.id.match(/^int-(\d+)$/)
-      if (intMatch) maxInteractionId = Math.max(maxInteractionId, Number(intMatch[1]))
-    }
+function createId(prefix: string): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}-${crypto.randomUUID()}`
   }
-  nextId = Math.max(nextId, maxFriendId + 1)
-  nextInteractionId = Math.max(nextInteractionId, maxInteractionId + 1)
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
 export interface CreateFriendInput {
@@ -44,7 +37,7 @@ export interface CreateFriendInput {
 export const DEFAULT_CADENCE_DAYS = 14
 
 export function createFriend(input: CreateFriendInput): Friend {
-  const id = `friend-${nextId++}`
+  const id = createId('friend')
   return {
     id,
     name: input.name.trim(),
@@ -56,7 +49,7 @@ export function createFriend(input: CreateFriendInput): Friend {
 }
 
 export interface LogInteractionInput {
-  type?: 'message' | 'call' | 'in-person'
+  type?: InteractionType
   note?: string
 }
 
@@ -66,7 +59,7 @@ export function logInteraction(
 ): Friend {
   const now = new Date().toISOString()
   const interaction: Interaction = {
-    id: `int-${nextInteractionId++}`,
+    id: createId('int'),
     date: now,
   }
   if (input.type) interaction.type = input.type
@@ -169,7 +162,7 @@ export function deleteInteraction(friend: Friend, interactionId: string): Friend
 export interface EditFriendInput {
   name: string
   birthday?: string
-  cadenceDays: number
+  cadenceDays?: number
 }
 
 export function editFriend(friend: Friend, input: EditFriendInput): Friend {
@@ -177,7 +170,7 @@ export function editFriend(friend: Friend, input: EditFriendInput): Friend {
     ...friend,
     name: input.name.trim(),
     birthday: input.birthday || undefined,
-    cadenceDays: input.cadenceDays,
+    cadenceDays: input.cadenceDays ?? DEFAULT_CADENCE_DAYS,
   }
 }
 
@@ -205,7 +198,18 @@ export interface ImportError {
   error: string
 }
 
-function isValidFriend(item: unknown): item is Friend {
+function isValidInteraction(item: unknown): item is Interaction {
+  if (!item || typeof item !== 'object') return false
+  const i = item as Record<string, unknown>
+  return (
+    typeof i.id === 'string' &&
+    typeof i.date === 'string' &&
+    (i.type === undefined || INTERACTION_TYPES.includes(i.type as InteractionType)) &&
+    (i.note === undefined || typeof i.note === 'string')
+  )
+}
+
+export function isValidFriend(item: unknown): item is Friend {
   if (!item || typeof item !== 'object') return false
   const f = item as Record<string, unknown>
   return (
@@ -215,7 +219,8 @@ function isValidFriend(item: unknown): item is Friend {
     typeof f.createdAt === 'string' &&
     (f.birthday === undefined || typeof f.birthday === 'string') &&
     (f.lastInteractionAt === undefined || typeof f.lastInteractionAt === 'string') &&
-    Array.isArray(f.interactions)
+    Array.isArray(f.interactions) &&
+    f.interactions.every(isValidInteraction)
   )
 }
 

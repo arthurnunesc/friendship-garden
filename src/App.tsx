@@ -1,81 +1,11 @@
-import { useState, useCallback, useRef, type FC } from 'react'
+import { useState, useRef } from 'react'
 import './App.css'
-import { createFriend, logInteraction, editFriend, deleteInteraction, exportGarden, validateAndImportGarden, initIdCounters, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
+import { exportGarden, validateAndImportGarden, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
 import { localStorageStore } from './friends/storage'
 import type { GardenStorage } from './friends/storage'
+import { useGardenStore } from './friends/useGardenStore'
 import AddFriendForm, { type AddFriendData } from './components/AddFriendForm'
 import FriendList from './components/FriendList'
-
-function useGardenStore(storage: GardenStorage) {
-  const [friends, setFriends] = useState<Friend[]>(() => {
-    const loaded = storage.loadFriends()
-    initIdCounters(loaded)
-    return loaded
-  })
-
-  const addFriend = useCallback(
-    (data: AddFriendData) => {
-      setFriends((prev) => {
-        const updated = [...prev, createFriend(data)]
-        storage.saveFriends(updated)
-        return updated
-      })
-    },
-    [storage],
-  )
-
-  const waterFriend = useCallback(
-    (friendId: string, input?: LogInteractionInput) => {
-      setFriends((prev) => {
-        const updated = prev.map((f) =>
-          f.id === friendId ? logInteraction(f, input) : f,
-        )
-        storage.saveFriends(updated)
-        return updated
-      })
-    },
-    [storage],
-  )
-
-  const updateFriend = useCallback(
-    (friendId: string, input: EditFriendInput) => {
-      setFriends((prev) => {
-        const updated = prev.map((f) =>
-          f.id === friendId ? editFriend(f, input) : f,
-        )
-        storage.saveFriends(updated)
-        return updated
-      })
-    },
-    [storage],
-  )
-
-  const removeFriend = useCallback(
-    (friendId: string) => {
-      setFriends((prev) => {
-        const updated = prev.filter((f) => f.id !== friendId)
-        storage.saveFriends(updated)
-        return updated
-      })
-    },
-    [storage],
-  )
-
-  const removeInteraction = useCallback(
-    (friendId: string, interactionId: string) => {
-      setFriends((prev) => {
-        const updated = prev.map((f) =>
-          f.id === friendId ? deleteInteraction(f, interactionId) : f,
-        )
-        storage.saveFriends(updated)
-        return updated
-      })
-    },
-    [storage],
-  )
-
-  return { friends, addFriend, waterFriend, updateFriend, removeFriend, removeInteraction }
-}
 
 function EmptyGarden({ onAdd }: { onAdd: () => void }) {
   return (
@@ -103,19 +33,21 @@ interface PopulatedGardenProps {
   onRemoveInteraction: (friendId: string, interactionId: string) => void
 }
 
-const PopulatedGarden: FC<PopulatedGardenProps> = ({ friends, onAdd, onWater, onEdit, onRemove, onRemoveInteraction }) => (
-  <>
-    <h2 className="garden-label">
-      your garden has {friends.length} {friends.length === 1 ? 'plant' : 'plants'}
-    </h2>
-    <div className="garden-scroll">
-      <FriendList friends={friends} onWater={onWater} onEdit={onEdit} onRemove={onRemove} onRemoveInteraction={onRemoveInteraction} />
-    </div>
-    <button className="add-friend-button" type="button" onClick={onAdd}>
-      add a friend
-    </button>
-  </>
-)
+function PopulatedGarden({ friends, onAdd, onWater, onEdit, onRemove, onRemoveInteraction }: PopulatedGardenProps) {
+  return (
+    <>
+      <h2 className="garden-label">
+        your garden has {friends.length} {friends.length === 1 ? 'plant' : 'plants'}
+      </h2>
+      <div className="garden-scroll">
+        <FriendList friends={friends} onWater={onWater} onEdit={onEdit} onRemove={onRemove} onRemoveInteraction={onRemoveInteraction} />
+      </div>
+      <button className="add-friend-button" type="button" onClick={onAdd}>
+        add a friend
+      </button>
+    </>
+  )
+}
 
 interface GardenViewProps {
   friends: Friend[]
@@ -153,10 +85,9 @@ function GardenView({
 
 interface AppProps {
   storage?: GardenStorage
-  onImportSuccess?: () => void
 }
 
-function App({ storage = localStorageStore, onImportSuccess }: AppProps) {
+function App({ storage = localStorageStore }: AppProps) {
   const { friends, addFriend, waterFriend, updateFriend, removeFriend, removeInteraction } = useGardenStore(storage)
   const [isAdding, setIsAdding] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
@@ -201,16 +132,12 @@ function App({ storage = localStorageStore, onImportSuccess }: AppProps) {
           showFeedback(result.error, 'error')
           return
         }
-          storage.saveFriends(result.friends)
-          if (onImportSuccess) {
-            onImportSuccess()
-          } else {
-            showFeedback('garden imported.', 'success')
-            // Delay reload to let the user see the success message
-            setTimeout(() => window.location.reload(), 200)
-          }
+        storage.saveFriends(result.friends)
+        showFeedback('garden imported.', 'success')
+        // Delay reload to let the user see the success message
+        setTimeout(() => window.location.reload(), 200)
       } catch {
-          showFeedback('invalid json file.', 'error')
+        showFeedback('invalid json file.', 'error')
       }
     }
     reader.readAsText(file)

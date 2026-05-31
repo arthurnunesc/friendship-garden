@@ -1,4 +1,4 @@
-import type { Friend } from './Friend'
+import { isValidFriend, type Friend } from './Friend'
 
 export interface GardenStorage {
   loadFriends(): Friend[]
@@ -6,6 +6,15 @@ export interface GardenStorage {
 }
 
 const KEY = 'friendship-garden:v1:friends'
+
+function normalizeStoredFriend(item: unknown): unknown {
+  if (!item || typeof item !== 'object') return item
+  const friend = item as Record<string, unknown>
+  return {
+    ...friend,
+    interactions: Array.isArray(friend.interactions) ? friend.interactions : [],
+  }
+}
 
 export const localStorageStore: GardenStorage = {
   loadFriends() {
@@ -18,23 +27,14 @@ export const localStorageStore: GardenStorage = {
         return []
       }
       return data
-        .filter(
-          (item): item is Friend => {
-            const valid =
-              typeof item.id === 'string' &&
-              typeof item.name === 'string' &&
-              typeof item.cadenceDays === 'number' &&
-              typeof item.createdAt === 'string'
-            if (!valid) {
-              console.warn('Dropping invalid friend from storage:', item)
-            }
-            return valid
-          },
-        )
-        .map((friend) => ({
-          ...friend,
-          interactions: Array.isArray(friend.interactions) ? friend.interactions : [],
-        }))
+        .map(normalizeStoredFriend)
+        .filter((item): item is Friend => {
+          const valid = isValidFriend(item)
+          if (!valid) {
+            console.warn('Dropping invalid friend from storage:', item)
+          }
+          return valid
+        })
     } catch {
       console.warn('Failed to parse stored garden data')
       return []
