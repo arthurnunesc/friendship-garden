@@ -1,26 +1,36 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Friend } from './Friend'
-import type { GardenStorage } from './storage'
+import { localStorageStore } from './storage'
 
-function createFakeStorage(): GardenStorage {
-  let data: Friend[] = []
+const KEY = 'friendship-garden:v1:friends'
+
+function createMemoryStorage(): Storage {
+  const data = new Map<string, string>()
   return {
-    loadFriends: () => data,
-    saveFriends: (friends) => {
-      data = [...friends]
+    get length() {
+      return data.size
     },
+    clear: () => data.clear(),
+    getItem: (key) => data.get(key) ?? null,
+    key: (index) => Array.from(data.keys())[index] ?? null,
+    removeItem: (key) => data.delete(key),
+    setItem: (key, value) => data.set(key, value),
   }
 }
 
-describe('GardenStorage interface', () => {
-  let storage: GardenStorage
-
+describe('localStorageStore', () => {
   beforeEach(() => {
-    storage = createFakeStorage()
+    vi.stubGlobal('localStorage', createMemoryStorage())
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('starts with no friends', () => {
-    expect(storage.loadFriends()).toEqual([])
+    expect(localStorageStore.loadFriends()).toEqual([])
   })
 
   it('persists and loads friends', () => {
@@ -33,12 +43,46 @@ describe('GardenStorage interface', () => {
         createdAt: '2025-01-01T00:00:00.000Z',
       },
     ]
-    storage.saveFriends(friends)
-    expect(storage.loadFriends()).toEqual(friends)
+
+    localStorageStore.saveFriends(friends)
+
+    expect(localStorageStore.loadFriends()).toEqual(friends)
   })
 
-  it('overwrites previously saved friends', () => {
-    const first: Friend[] = [
+  it('returns an empty garden for malformed json', () => {
+    localStorage.setItem(KEY, '{nope')
+
+    expect(localStorageStore.loadFriends()).toEqual([])
+    expect(console.warn).toHaveBeenCalledWith('Failed to parse stored garden data')
+  })
+
+  it('returns an empty garden when stored data is not an array', () => {
+    localStorage.setItem(KEY, JSON.stringify({ friends: [] }))
+
+    expect(localStorageStore.loadFriends()).toEqual([])
+    expect(console.warn).toHaveBeenCalledWith('Stored garden data is not an array')
+  })
+
+  it('drops invalid friends and normalizes missing interactions', () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify([
+        {
+          id: 'f-1',
+          name: 'Alice',
+          cadenceDays: 14,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+        {
+          id: 123,
+          name: 'Bad entry',
+          cadenceDays: 14,
+          createdAt: '2025-01-01T00:00:00.000Z',
+        },
+      ]),
+    )
+
+    expect(localStorageStore.loadFriends()).toEqual([
       {
         id: 'f-1',
         name: 'Alice',
@@ -46,18 +90,10 @@ describe('GardenStorage interface', () => {
         interactions: [],
         createdAt: '2025-01-01T00:00:00.000Z',
       },
-    ]
-    const second: Friend[] = [
-      {
-        id: 'f-2',
-        name: 'Bob',
-        cadenceDays: 14,
-        interactions: [],
-        createdAt: '2025-02-01T00:00:00.000Z',
-      },
-    ]
-    storage.saveFriends(first)
-    storage.saveFriends(second)
-    expect(storage.loadFriends()).toEqual(second)
+    ])
+    expect(console.warn).toHaveBeenCalledWith(
+      'Dropping invalid friend from storage:',
+      expect.objectContaining({ name: 'Bad entry' }),
+    )
   })
 })
