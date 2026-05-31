@@ -38,35 +38,23 @@
   transform: translateY(-1px);
 }
 
-.friend-card-wrapper:has(.water-details),
-.friend-card-wrapper:has(.water-popup) {
+.friend-card-wrapper:has(.water-panel) {
   box-shadow: 0 1px 3px oklch(0.22 0.01 140 / 0.06);
   border-radius: 0.75rem;
 }
 
-.friend-card-wrapper:has(.water-details) .friend-card,
-.friend-card-wrapper:has(.water-popup) .friend-card {
+.friend-card-wrapper:has(.water-panel) .friend-card {
   border-radius: 0.75rem 0.75rem 0 0;
   transform: none;
   box-shadow: none;
 }
 
-.friend-card-wrapper:has(.water-details) .friend-card--dry,
-.friend-card-wrapper:has(.water-popup) .friend-card--dry,
-.friend-card-wrapper:has(.water-details) .friend-card--dry:hover,
-.friend-card-wrapper:has(.water-popup) .friend-card--dry:hover {
+.friend-card-wrapper:has(.water-panel) .friend-card:is(.friend-card--dry, .friend-card--nearing),
+.friend-card-wrapper:has(.water-panel) .friend-card:is(.friend-card--dry, .friend-card--nearing):hover {
   box-shadow: none;
 }
 
-.friend-card-wrapper:has(.water-details) .friend-card--nearing,
-.friend-card-wrapper:has(.water-popup) .friend-card--nearing,
-.friend-card-wrapper:has(.water-details) .friend-card--nearing:hover,
-.friend-card-wrapper:has(.water-popup) .friend-card--nearing:hover {
-  box-shadow: none;
-}
-
-.friend-card-wrapper:has(.water-details) .friend-card:hover,
-.friend-card-wrapper:has(.water-popup) .friend-card:hover {
+.friend-card-wrapper:has(.water-panel) .friend-card:hover {
   box-shadow: none;
   transform: none;
 }
@@ -194,7 +182,6 @@
   }
 }
 
-.water-select,
 .water-note {
   width: 100%;
   min-height: 2.5rem;
@@ -211,7 +198,6 @@
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.water-select:focus,
 .water-note:focus {
   border-color: oklch(0.55 0.12 145);
   box-shadow: 0 0 0 3px oklch(0.55 0.12 145 / 0.12);
@@ -219,14 +205,6 @@
 
 .water-note::placeholder {
   color: oklch(0.7 0.005 140);
-}
-
-.water-select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236b6656' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-  padding-right: 2rem;
 }
 
 .water-actions {
@@ -256,13 +234,6 @@
 
 .water-save:active {
   transform: scale(0.98);
-}
-
-.water-title {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: oklch(0.55 0.008 140);
-  margin-bottom: 0.5rem;
 }
 
 .history {
@@ -690,13 +661,11 @@
     border-radius: 0.75rem;
   }
 
-  .friend-card-wrapper:has(.water-details),
-  .friend-card-wrapper:has(.water-popup) {
+  .friend-card-wrapper:has(.water-panel) {
     border-radius: 0.875rem;
   }
 
-  .friend-card-wrapper:has(.water-details) .friend-card,
-  .friend-card-wrapper:has(.water-popup) .friend-card {
+  .friend-card-wrapper:has(.water-panel) .friend-card {
     border-radius: 0.875rem 0.875rem 0 0;
   }
 
@@ -706,17 +675,11 @@
     border-radius: 0 0 0.875rem 0.875rem;
   }
 
-  .water-select,
   .water-note {
     min-height: 3rem;
     padding: 0.625rem 1rem;
     font-size: 1rem;
     border-radius: 0.625rem;
-  }
-
-  .water-title {
-    font-size: 0.875rem;
-    margin-bottom: 0.375rem;
   }
 
   .water-actions {
