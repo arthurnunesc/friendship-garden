@@ -1,0 +1,22 @@
+{
+  "name": "friendship-garden-mobile",
+  "private": true,
+  "version": "0.0.0",
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "ts:check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "expo": "56.0.8",
+    "expo-status-bar": "56.0.4",
+    "react": "19.2.3",
+    "react-native": "0.85.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "typescript": "~5.8.0"
+  }
+}
