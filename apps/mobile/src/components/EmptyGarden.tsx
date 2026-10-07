@@ -1,12 +1,21 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 
 interface EmptyGardenProps {
   onAddFriend: () => void;
+  onSettings: () => void;
 }
 
-export function EmptyGarden({ onAddFriend }: EmptyGardenProps) {
+export function EmptyGarden({ onAddFriend, onSettings }: EmptyGardenProps) {
   return (
     <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.settingsButton}
+        onPress={onSettings}
+        activeOpacity={0.6}
+      >
+        <Text style={styles.settingsIcon}>⚙</Text>
+      </TouchableOpacity>
+
       <Text style={styles.icon}>🌱</Text>
       <Text style={styles.title}>Friendship Garden</Text>
       <Text style={styles.subtitle}>
@@ -25,6 +34,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 32,
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: 56,
+    right: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsIcon: {
+    fontSize: 20,
+    color: '#888',
   },
   icon: {
     fontSize: 48,

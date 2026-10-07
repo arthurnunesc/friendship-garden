@@ -5,6 +5,7 @@ import { FriendList } from "./FriendList";
 interface PopulatedGardenProps {
   friends: Friend[];
   onAddFriend: () => void;
+  onSettings: () => void;
   onWater: (id: string, type?: InteractionType, note?: string) => void;
   onEdit: (id: string, name: string, birthday: string, cadenceDays: number) => void;
   onRemove: (id: string) => void;
@@ -13,6 +14,7 @@ interface PopulatedGardenProps {
 export function PopulatedGarden({
   friends,
   onAddFriend,
+  onSettings,
   onWater,
   onEdit,
   onRemove,
@@ -25,8 +27,19 @@ export function PopulatedGarden({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Friendship Garden</Text>
-        <Text style={styles.count}>{countLabel}</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextCol}>
+            <Text style={styles.title}>Friendship Garden</Text>
+            <Text style={styles.count}>{countLabel}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={onSettings}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.settingsIcon}>⚙</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FriendList
@@ -55,6 +68,27 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingHorizontal: 24,
     paddingBottom: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerTextCol: {
+    flex: 1,
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  settingsIcon: {
+    fontSize: 20,
+    color: '#888',
   },
   title: {
     fontSize: 28,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Friend, CreateFriendInput, EditFriendInput, InteractionType } from './Friend'
-import { createFriend, logInteraction, editFriend } from './Friend'
+import { createFriend, logInteraction, editFriend, validateAndImportGarden } from './Friend'
 import type { GardenStorage } from './storage'
 
 export function useGardenStore(storage: GardenStorage) {
@@ -62,6 +62,16 @@ export function useGardenStore(storage: GardenStorage) {
     [storage],
   )
 
+  // Phase 5 observes this same state boundary; the import UI comes in Phase 6.
+  const importGarden = useCallback(async (payload: unknown) => {
+    if (!loaded) throw new Error('Garden is still loading')
+    const result = validateAndImportGarden(payload)
+    if (!result.success) return result
+    await storage.saveFriends(result.friends)
+    setFriends(result.friends)
+    return result
+  }, [storage, loaded])
+
   return {
     friends,
     loaded,
@@ -69,5 +79,6 @@ export function useGardenStore(storage: GardenStorage) {
     waterFriend,
     updateFriend,
     removeFriend,
+    importGarden,
   } as const
 }
