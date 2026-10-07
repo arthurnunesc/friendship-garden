@@ -188,12 +188,27 @@ export interface ImportError {
   error: string
 }
 
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function isValidDate(value: unknown): value is string {
+  return isNonBlankString(value) && !Number.isNaN(new Date(value).getTime())
+}
+
+function isValidBirthday(value: unknown): value is string {
+  if (!isNonBlankString(value)) return false
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
 function isValidInteraction(item: unknown): item is Interaction {
   if (!item || typeof item !== 'object') return false
   const i = item as Record<string, unknown>
   return (
-    typeof i.id === 'string' &&
-    typeof i.date === 'string' &&
+    isNonBlankString(i.id) &&
+    isValidDate(i.date) &&
     (i.type === undefined || INTERACTION_TYPES.includes(i.type as InteractionType)) &&
     (i.note === undefined || typeof i.note === 'string')
   )
@@ -203,14 +218,18 @@ export function isValidFriend(item: unknown): item is Friend {
   if (!item || typeof item !== 'object') return false
   const f = item as Record<string, unknown>
   return (
-    typeof f.id === 'string' &&
-    typeof f.name === 'string' &&
+    isNonBlankString(f.id) &&
+    isNonBlankString(f.name) &&
     typeof f.cadenceDays === 'number' &&
-    typeof f.createdAt === 'string' &&
-    (f.birthday === undefined || typeof f.birthday === 'string') &&
-    (f.lastInteractionAt === undefined || typeof f.lastInteractionAt === 'string') &&
+    Number.isFinite(f.cadenceDays) &&
+    Number.isInteger(f.cadenceDays) &&
+    f.cadenceDays > 0 &&
+    isValidDate(f.createdAt) &&
+    (f.birthday === undefined || isValidBirthday(f.birthday)) &&
+    (f.lastInteractionAt === undefined || isValidDate(f.lastInteractionAt)) &&
     Array.isArray(f.interactions) &&
-    f.interactions.every(isValidInteraction)
+    f.interactions.every(isValidInteraction) &&
+    new Set(f.interactions.map((interaction) => interaction.id)).size === f.interactions.length
   )
 }
 
@@ -227,10 +246,15 @@ export function validateAndImportGarden(
   if (!Array.isArray(p.friends)) {
     return { success: false, error: 'Invalid garden backup: friends must be an array' }
   }
+  const friendIds = new Set<string>()
   for (const item of p.friends) {
     if (!isValidFriend(item)) {
-      return { success: false, error: `Invalid friend entry in backup: missing required fields` }
+      return { success: false, error: 'Invalid friend entry in backup: missing required fields or invalid values. Check names, dates, cadence, and interaction IDs.' }
     }
+    if (friendIds.has(item.id)) {
+      return { success: false, error: 'Invalid garden backup: duplicate friend id' }
+    }
+    friendIds.add(item.id)
   }
   return { success: true, friends: p.friends as Friend[] }
 }

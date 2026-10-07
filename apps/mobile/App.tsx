@@ -12,7 +12,7 @@ import { useReminders } from "./src/reminders/useReminders";
 type ViewState = "loading" | "empty" | "adding" | "populated";
 
 export default function App() {
-  const { friends, loaded, addFriend, waterFriend, updateFriend, removeFriend } =
+  const { friends, loaded, addFriend, waterFriend, updateFriend, removeFriend, importGarden } =
     useGardenStore(asyncStorageStore);
   const reminders = useReminders(friends, loaded);
 
@@ -39,6 +39,8 @@ export default function App() {
         <StatusBar style="dark" />
         <ReminderSettings
           reminders={reminders}
+          friends={friends}
+          onImport={importGarden}
           onClose={() => setShowSettings(false)}
         />
       </SafeAreaView>

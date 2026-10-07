@@ -171,3 +171,44 @@ adding remote push or custom notification assets.
   alarm fallback. The UI promises delivery “around” the selected time.
 - These limits do not require manual testing from the user to continue
   implementation; keep them as release-validation work.
+
+## Verified run: 2026-10-07 — Phase 6
+
+The existing settings screen now includes **garden backups**. Choose a JSON
+file using the native document picker, or paste JSON and review it. Validation
+runs before the replacement preview and again before persistence. Import
+replaces the garden; it does not merge it. Export uses the native share sheet
+and the existing web `version: 1` / `exportedAt` / `friends` backup shape.
+Backups do not include reminder settings or notification IDs.
+
+Added SDK 54-compatible `expo-document-picker`, `expo-file-system`, and
+`expo-sharing`. Regenerated the ignored iOS workspace without cleaning it,
+ran `pod install`, and rebuilt the Release simulator app.
+
+| Check | Result |
+| --- | --- |
+| Current web export import | Generated a sample through the actual web `exportGarden` function. Pasted it into the simulator, reviewed `Web Alice` and the history count, then explicitly confirmed replacement. |
+| Data preservation | Read persisted mobile data and compared it with the web payload: name, birthday, cadence, timestamps, interaction type, and note all matched exactly. |
+| Enabled-reminder reconciliation | OS queue contained only `friendship-garden:phase6-web-alice`, with calm copy and **2026-10-22 09:51 local** as its cadence-due time. The old friend's schedule was removed. |
+| Native export | Share sheet displayed a JSON attachment; saved it to Files. Read the saved file and confirmed version 1 and exact friend/history preservation. |
+| Native file import / round-trip | Chose that saved JSON in the document picker, saw the replacement preview, and confirmed import successfully. |
+| Malformed JSON | Pasted `{broken`; review showed a clear JSON error and no replacement action. Persisted garden data stayed unchanged. |
+| Confirmation cancellation / persistence failures | Component and store tests confirm cancellation makes no import call and failed persistence preserves existing data. |
+| Mobile checks | **137 tests passed**; typecheck passed. |
+| Web fallback | **116 web tests passed**; no web production files changed. |
+
+Mobile validation rejects blank names/IDs, invalid dates, nonpositive or
+noninteger cadence, and duplicate friend/interaction IDs. Valid backups keep
+their IDs and optional fields unchanged. Empty backups remain valid and need
+the same replacement confirmation. Temporary cached import/export files are
+removed after use; files explicitly saved through the share sheet remain.
+
+The native UI review found keyboard obstruction and singular/plural copy;
+the final pass adds drag-to-dismiss, a bounded-height JSON editor, and correct
+interaction-count wording. The section keeps the existing settings styles.
+Review was completed in the primary session because the independent worker
+hit a usage limit; no independent review pass is claimed.
+
+Android native import/export and physical-device checks remain Phase 7 work.
+No paid noqa runs were used. The simulator contains disposable `Web Alice`
+sample data; no personal garden data was replaced.

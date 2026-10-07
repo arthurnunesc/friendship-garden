@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, editFriend, exportGarden, validateAndImportGarden, DEFAULT_CADENCE_DAYS } from './Friend'
+import { exportGarden as exportWebGarden } from '../../../../src/friends/Friend'
 import type { Friend } from './Friend'
 
 describe('createFriend', () => {
@@ -406,6 +407,29 @@ describe('exportGarden', () => {
 })
 
 describe('validateAndImportGarden', () => {
+  it('imports a current web export and preserves the complete friend payload', () => {
+    const webPayload = exportWebGarden([
+      {
+        id: 'web-alice',
+        name: 'Alice',
+        birthday: '1990-05-14',
+        cadenceDays: 21,
+        lastInteractionAt: '2025-05-01T10:30:00.000Z',
+        interactions: [
+          { id: 'web-int-1', date: '2025-05-01T10:30:00.000Z', type: 'call', note: 'Long catch-up' },
+        ],
+        createdAt: '2025-01-01T00:00:00.000Z',
+      },
+    ])
+
+    const result = validateAndImportGarden(webPayload)
+
+    expect(result.success).toBe(true)
+    if (!result.success) throw new Error('Expected success')
+    expect(result.friends).toEqual(webPayload.friends)
+    expect(exportGarden(result.friends).friends).toEqual(webPayload.friends)
+  })
+
   it('returns success for a valid payload', () => {
     const payload = exportGarden([
       {
@@ -515,6 +539,59 @@ describe('validateAndImportGarden', () => {
     expect(result.success).toBe(false)
     if (result.success) throw new Error('Expected error')
     expect(result.error).toContain('missing required fields')
+  })
+
+  it.each([
+    ['blank friend id', { id: '   ' }],
+    ['blank friend name', { name: '   ' }],
+    ['zero cadence', { cadenceDays: 0 }],
+    ['negative cadence', { cadenceDays: -1 }],
+    ['non-finite cadence', { cadenceDays: Infinity }],
+    ['invalid created date', { createdAt: 'not-a-date' }],
+    ['invalid last interaction date', { lastInteractionAt: 'not-a-date' }],
+    ['invalid birthday date', { birthday: '2025-02-30' }],
+  ])('rejects a friend with %s', (_reason, changes) => {
+    const result = validateAndImportGarden({
+      version: 1,
+      friends: [{
+        id: 'f-1',
+        name: 'Alice',
+        cadenceDays: 14,
+        interactions: [],
+        createdAt: '2025-01-01T00:00:00.000Z',
+        ...changes,
+      }],
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects invalid interaction dates and duplicate ids', () => {
+    const validFriend = {
+      id: 'f-1',
+      name: 'Alice',
+      cadenceDays: 14,
+      createdAt: '2025-01-01T00:00:00.000Z',
+      interactions: [],
+    }
+    const payloads = [
+      { version: 1, friends: [{ ...validFriend, interactions: [{ id: 'int-1', date: 'not-a-date' }] }] },
+      { version: 1, friends: [validFriend, { ...validFriend, name: 'Bob' }] },
+      {
+        version: 1,
+        friends: [{
+          ...validFriend,
+          interactions: [
+            { id: 'int-1', date: '2025-02-01T00:00:00.000Z' },
+            { id: 'int-1', date: '2025-02-02T00:00:00.000Z' },
+          ],
+        }],
+      },
+    ]
+
+    for (const payload of payloads) {
+      expect(validateAndImportGarden(payload).success).toBe(false)
+    }
   })
 
   it('handles round-tripping: export then import', () => {

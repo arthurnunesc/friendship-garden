@@ -451,10 +451,13 @@ Mobile export should reuse the same backup shape if practical. If the shape chan
 
 ### Acceptance criteria
 
-- [ ] Existing web export data can be imported into mobile.
-- [ ] Invalid imports do not corrupt current mobile data.
-- [ ] Import feedback is clear.
-- [ ] Web app remains usable as fallback.
+- [x] Existing web export data can be imported into mobile.
+- [x] Invalid imports do not corrupt current mobile data.
+- [x] Import feedback is clear.
+- [x] Web app remains usable as fallback.
+
+Verified on the iOS simulator and through automated checks on 2026-10-07.
+See `plans/noqa-mobile-testing.md` for evidence and remaining platform limits.
 
 ---
 

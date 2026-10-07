@@ -11,13 +11,17 @@ import {
   View,
 } from 'react-native'
 import type { useReminders } from '../reminders/useReminders'
+import { BackupSection } from './BackupSection'
+import type { Friend, ImportError, ImportResult } from '../garden/Friend'
 
 interface ReminderSettingsProps {
   reminders: ReturnType<typeof useReminders>
   onClose: () => void
+  friends: Friend[]
+  onImport(payload: unknown): Promise<ImportResult | ImportError>
 }
 
-export function ReminderSettings({ reminders, onClose }: ReminderSettingsProps) {
+export function ReminderSettings({ reminders, onClose, friends, onImport }: ReminderSettingsProps) {
   const [timeDraft, setTimeDraft] = useState(reminders.settings.preferredTime)
   const [deviceSettingsError, setDeviceSettingsError] = useState<string | null>(null)
 
@@ -38,14 +42,14 @@ export function ReminderSettings({ reminders, onClose }: ReminderSettingsProps) 
   const controlsDisabled = !reminders.loaded || reminders.busy
 
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
       <View style={styles.header}>
-        <Text style={styles.title}>reminders</Text>
+        <Text style={styles.title}>settings</Text>
         <TouchableOpacity
           onPress={onClose}
           activeOpacity={0.6}
           accessibilityRole="button"
-          accessibilityLabel="Close reminder settings"
+          accessibilityLabel="Close settings"
           style={styles.closeTarget}
         >
           <Text style={styles.closeButton}>done</Text>
@@ -152,6 +156,7 @@ export function ReminderSettings({ reminders, onClose }: ReminderSettingsProps) 
       </View>
 
       {reminders.error && <Text style={styles.errorText} accessibilityRole="alert">{reminders.error}</Text>}
+      <BackupSection friends={friends} onImport={onImport} />
     </ScrollView>
   )
 }
