@@ -77,6 +77,68 @@ describe('useReminders', () => {
     await act(async () => { view.unmount() })
   })
 
+  it('requests Android permission only on explicit enable when denial is requestable', async () => {
+    const deps = dependencies({
+      permissions: {
+        get: vi.fn(async () => 'requestable' as const),
+        request: vi.fn(async () => 'granted' as const),
+      },
+    })
+    let reminders!: ReturnType<typeof useReminders>
+    function Harness() { reminders = useReminders(friends, true, deps); return null }
+    let view!: ReactTestRenderer
+    await act(async () => { view = create(createElement(Harness)) })
+    await act(async () => { native.activate() })
+    expect(deps.permissions.request).not.toHaveBeenCalled()
+    expect(reminders.settings.enabled).toBe(false)
+    await act(async () => { await reminders.setEnabled(true) })
+    expect(deps.permissions.request).toHaveBeenCalledTimes(1)
+    expect(reminders.permissionStatus).toBe('granted')
+    expect(reminders.settings.enabled).toBe(true)
+    expect(deps.scheduler.reconcile).toHaveBeenLastCalledWith(
+      friends, { enabled: true, preferredTime: '09:00' }, true,
+    )
+    await act(async () => { view.unmount() })
+  })
+
+  it.each(['requestable', 'denied'] as const)(
+    'does not enable or schedule after a permission request returns %s', async (result) => {
+      const deps = dependencies({
+        permissions: {
+          get: vi.fn(async () => 'requestable' as const),
+          request: vi.fn(async () => result),
+        },
+      })
+      let reminders!: ReturnType<typeof useReminders>
+      function Harness() { reminders = useReminders(friends, true, deps); return null }
+      let view!: ReactTestRenderer
+      await act(async () => { view = create(createElement(Harness)) })
+      await act(async () => { await reminders.setEnabled(true) })
+      expect(reminders.permissionStatus).toBe(result)
+      expect(reminders.settings.enabled).toBe(false)
+      expect(deps.storage.save).not.toHaveBeenCalled()
+      expect(deps.scheduler.reconcile).toHaveBeenLastCalledWith(
+        friends, { enabled: false, preferredTime: '09:00' }, false,
+      )
+      await act(async () => { view.unmount() })
+    },
+  )
+
+  it('does not request permanently denied permission on explicit enable', async () => {
+    const deps = dependencies({
+      permissions: { get: vi.fn(async () => 'denied' as const), request: vi.fn() },
+    })
+    let reminders!: ReturnType<typeof useReminders>
+    function Harness() { reminders = useReminders(friends, true, deps); return null }
+    let view!: ReactTestRenderer
+    await act(async () => { view = create(createElement(Harness)) })
+    await act(async () => { await reminders.setEnabled(true) })
+    expect(deps.permissions.request).not.toHaveBeenCalled()
+    expect(reminders.settings.enabled).toBe(false)
+    expect(deps.storage.save).not.toHaveBeenCalled()
+    await act(async () => { view.unmount() })
+  })
+
   it('refreshes a denied permission when the app becomes active', async () => {
     const get = vi.fn()
       .mockResolvedValueOnce('denied')

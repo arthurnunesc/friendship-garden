@@ -23,6 +23,18 @@ beforeEach(() => {
 })
 
 describe('notification permission adapter', () => {
+  it('preserves Android requestability without prompting during a permission read', async () => {
+    native.get.mockResolvedValue({ status: 'denied', canAskAgain: true })
+    expect(await getNotificationPermissionStatus()).toBe('requestable')
+    expect(native.request).not.toHaveBeenCalled()
+  })
+  it('keeps permanent Android denial and iOS denial distinct from requestability', async () => {
+    native.get.mockResolvedValue({ status: 'denied', canAskAgain: false })
+    expect(await getNotificationPermissionStatus()).toBe('denied')
+    native.platform.OS = 'ios'
+    native.get.mockResolvedValue({ status: 'denied', canAskAgain: true })
+    expect(await getNotificationPermissionStatus()).toBe('denied')
+  })
   it('creates the Android channel before explicitly requesting permission', async () => {
     expect(await requestNotificationPermission()).toBe('granted')
     expect(native.channel).toHaveBeenCalledWith('friendship-garden', expect.any(Object))

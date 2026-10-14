@@ -212,3 +212,110 @@ hit a usage limit; no independent review pass is claimed.
 Android native import/export and physical-device checks remain Phase 7 work.
 No paid noqa runs were used. The simulator contains disposable `Web Alice`
 sample data; no personal garden data was replaced.
+
+## Verified run: 2026-10-10 — Android emulator
+
+Tested the self-contained ARM64 Release APK on noqa's Pixel 8 emulator,
+Android 17, with UiAutomator2 4.2.8. The first build failed with “No space
+left on device.” After disk space increased to 32 GiB, the build passed:
+
+```sh
+# From apps/mobile; generate only if android/ does not exist
+npx expo prebuild --platform android --no-install
+# From apps/mobile/android
+ANDROID_HOME="$HOME/Library/Android/sdk" ./gradlew app:assembleRelease \
+  -PreactNativeArchitectures=arm64-v8a --no-daemon --max-workers=2
+# From the repository root
+adb -s emulator-5554 install apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+```
+
+The generated project signs this Release APK with its local debug key.
+This is an emulator test build, not a production-signed distribution build.
+
+| Check | Result |
+| --- | --- |
+| Fresh launch / opening settings | No automatic permission prompt. |
+| First explicit enable | **Failed:** fresh install reports denied; tapping enable does not show the Android permission prompt. See finding below. |
+| OS Settings recovery | In-app link opened app settings. Enabled notifications there; returning to the app automatically cleared the denial UI. |
+| Scheduling after OS grant | Enabling reminders created an actual OS alarm for the next preferred time. |
+| Preferred-time persistence | Selected `17:13`, later `19:06`; settings survived app restart. |
+| Native file import | Generated a sample through the real web exporter and selected its JSON from Downloads. Preview and explicit replacement succeeded. |
+| Imported fields | Name and birthday `1990-05-14` appeared correctly; the edit screen selected “every 3 weeks”; history retained call type and “Android migration sample” note. |
+| Import reconciliation | Old alarm replaced by one alarm due **2026-10-22 17:13 local**, matching the imported October 1 interaction plus 21 days. Changing preferred time moved it to `19:06`. |
+| Malformed import | `{broken` displayed a clear JSON error and offered no replacement; existing garden and alarm remained. |
+| Export | Native share sheet displayed a `.json` attachment. Cancelled without sending to an external account. Receipt by another app / Android file round-trip was not tested. |
+| Disable / restart | Disabling cleared all app alarms. Re-enabling and restarting left exactly one alarm for the single imported friend. |
+| Process-killed delivery | Scheduled a new test friend for `19:06`, backgrounded the app, then used `adb shell am kill`. `pidof` confirmed no app process. Natural delivery appeared at approximately **19:06:38** with “Android Delivery may appreciate a check-in.” No notification was injected. |
+| Notification opens app | Tapping the notification in the shade opened the garden. |
+| Logging interaction | Alarm moved to **2026-10-24 19:06 local**, 14 days after logging. |
+| Deletion | Removing the imported friend removed its October 22 alarm; removing the remaining test friend left zero app alarms. |
+| Automated checks | 137 mobile tests, mobile typecheck, and 116 web tests passed again after the Android checks. |
+
+An earlier delivery attempt was interrupted when noqa and the emulator
+closed. It is not counted as a pass. The later natural-delivery check above
+was completed while the emulator remained running.
+
+### Android permission finding — resolved on 2026-10-11
+
+On a fresh installation, Android package inspection showed
+`POST_NOTIFICATIONS` not granted, with no `USER_SET` denial flag. Expo SDK 54's
+Android permission adapter reports `denied` when notifications are not yet
+enabled, even when the runtime permission can still be requested.
+`permissions.ts` reduces this response to status alone; `useReminders` only
+requests permission for `undetermined`. This blocks the first in-app request
+and shows an incorrect “currently denied” explanation.
+
+Fix direction: preserve requestability (`canAskAgain`) at the permission
+boundary and allow an explicit Android enable action to request permission
+when permitted. Keep startup reads non-interactive and preserve Settings
+recovery for a permanent denial. Add regression coverage before changing it.
+No production source code was changed during this check.
+
+### Permission fix and retest: 2026-10-11
+
+After approval, the adapter now preserves Android `denied` plus
+`canAskAgain: true` as `requestable`. Explicit enable requests that state;
+startup and foreground reads remain non-interactive. Permanent denial and
+iOS authorization mapping remain unchanged.
+
+Rebuilt the ARM64 Release APK and tested with app data and permission state
+reset on the same Android 17 emulator:
+
+- Startup and opening settings showed no prompt or false permanent-denial hint.
+- Explicit enable opened the OS notification permission prompt.
+- “Allow” enabled the reminder switch.
+- First “Don’t allow” left reminders disabled; another explicit enable opened
+  a second prompt.
+- Second denial produced `USER_SET|USER_FIXED` permission flags, displayed
+  Settings recovery, and further enable did not prompt again.
+- Regression checks: **143 mobile tests**, mobile typecheck, and **116 web
+  tests** passed. Adapter and enable-flow regressions failed before their fixes.
+
+noqa's compact tree omitted the switch; its full tree included it. System
+dialog coordinates were clipped, so permission buttons were tapped through
+ADB using the inspected screenshot and device dimensions. No paid runs or
+vision-grounding credits were used. No friend data was added; the installed
+updated APK retains an empty garden, disabled reminders, and the final denied
+permission state. Temporary device inspection files were removed; cleanup
+traps stopped the owned emulator and `adb devices` confirmed no devices.
+OS Settings recovery was verified in the original run, not repeated here.
+
+### Timing and platform limits
+
+The APK does not request exact-alarm permission. `dumpsys alarm` showed
+inexact `RTC_WAKEUP` alarms with a one-hour window. The observed 38-second
+delay is one emulator result, not an exact-time guarantee. Android **Force
+stop** is different from killing a background process and can suppress alarms;
+force-stop delivery is not claimed. Physical Android delivery, OEM battery
+restrictions, and locked-device behavior remain unverified.
+
+### Cleanup
+
+- Used only disposable friends, removed through the app at the end.
+- Removed the exact owned file
+  `/sdcard/Download/friendship-garden-noqa-20261010.json` and verified it was gone.
+- Verified the final app alarm count was **0**.
+- Stopped the emulator started by this task; preserved the user's AVD.
+- Retained the installed test APK with an empty garden for later inspection.
+- No paid noqa runs, production services, Docker containers, or disposable
+  database volumes were used.

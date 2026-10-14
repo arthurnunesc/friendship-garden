@@ -198,7 +198,7 @@ export function useReminders(
         setPermissionStatus(nextPermission)
         setPermissionReady(true)
 
-        if (nextPermission === 'undetermined') {
+        if (nextPermission === 'undetermined' || nextPermission === 'requestable') {
           nextPermission = await dependencies.permissions.request()
           if (!mounted.current) return
           ++permissionRead.current

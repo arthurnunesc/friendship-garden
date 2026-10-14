@@ -13,13 +13,16 @@ export async function ensureReminderChannel(): Promise<void> {
   }
 }
 
-export type PermissionStatus = 'granted' | 'denied' | 'undetermined'
+export type PermissionStatus = 'granted' | 'denied' | 'undetermined' | 'requestable'
 
 function permissionStatus(permission: Notifications.NotificationPermissionsStatus): PermissionStatus {
   const ios = permission.ios?.status
   if (permission.status === 'granted' || ios === Notifications.IosAuthorizationStatus.AUTHORIZED ||
     ios === Notifications.IosAuthorizationStatus.PROVISIONAL || ios === Notifications.IosAuthorizationStatus.EPHEMERAL) {
     return 'granted'
+  }
+  if (Platform.OS === 'android' && permission.status === 'denied' && permission.canAskAgain) {
+    return 'requestable'
   }
   return permission.status === 'denied' ? 'denied' : 'undetermined'
 }
