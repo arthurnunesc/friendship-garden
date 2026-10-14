@@ -6,6 +6,11 @@ Use the local noqa CLI to check the native app. Phase 4 covers reminder
 settings and permission UX; Phase 5 adds local scheduled notifications.
 Do not use paid `noqa runs` without approval.
 
+As of 2026-10-14, the user limits this work to iPhone simulators and Android
+emulators. Do not use the personal iPhone or require Apple Development
+signing. Physical-device acceptance remains unverified and is outside this
+testing scope; emulator results must not be presented as hardware proof.
+
 ## iOS setup
 
 - Desktop app: `/Applications/noqa.app` (must stay open).
@@ -319,3 +324,45 @@ restrictions, and locked-device behavior remain unverified.
 - Retained the installed test APK with an empty garden for later inspection.
 - No paid noqa runs, production services, Docker containers, or disposable
   database volumes were used.
+
+## Verified run: 2026-10-14 — additional iPhone simulator checks
+
+Rebuilt the current Release simulator app from commit `c4c8ec3` using the
+direct Xcode command above. No Apple Development certificate was needed.
+Used fresh, disposable iPhone 17 Pro simulators on iOS 26.4; the personal
+iPhone and existing garden simulator were not used or changed.
+
+noqa drove all UI actions. Xcode tools handled builds, installs, and simulator
+lifecycle; read-only inspection of AsyncStorage and OS notification archives
+verified persistence and scheduling. No paid runs or grounding calls were used.
+
+| Check | Result |
+| --- | --- |
+| Startup / explicit permission | Fresh launch did not prompt; explicit enable opened the iOS prompt and Allow enabled reminders. |
+| Add / log | Added disposable `Simulator Alice` and logged an interaction through the UI. |
+| Cadence edit | Selected every week and saved. Persisted cadence became 7; OS pending archive held one reminder for **2026-10-21 09:00 local** (`07:00Z`), matching the October 14 interaction. |
+| Restart | Friend and cadence survived restart. Registry and OS archive still held one reminder, with the same identifier and due date. |
+| Cancel deletion | Cancel returned to the garden and retained the friend and interaction. |
+| Confirm deletion | Confirm removed the friend, emptied the persisted notification registry, and removed its OS pending record. |
+| Rename | Not verified in this run; see accessibility finding below. |
+
+### Open finding: iOS dialog accessibility grouping
+
+Both edit and delete-confirmation dialogs expose one combined accessible
+element, rather than separate fields and buttons, in noqa's compact and full
+trees. The underlying garden controls are marked `visible=false` and must not
+be mistaken for dialog controls. Screenshots show the dialog controls render;
+screenshot-grounded noqa taps verified cadence save and deletion actions.
+This is an accessibility/automation finding, not a failed reminder calculation.
+Review the nested modal `Pressable` accessibility behavior in
+`apps/mobile/src/components/FriendListItem.tsx` before calling accessibility
+verified. No source fix was made in this testing pass.
+
+Early attempts were interrupted by a first-boot system banner, dropped taps,
+or an input timeout. They are not counted as complete passes. The final run
+completed all the assertions listed above. All disposable simulator IDs were
+shut down and deleted, including the timed-out attempt; no test garden or
+owned simulator was retained. Existing Android emulator data was not changed.
+Physical-device and locked-phone delivery remain outside the user-approved
+scope and unverified. Simulator-only checks do not satisfy the plan's original
+physical-device acceptance criteria.
