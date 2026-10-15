@@ -16,6 +16,16 @@ This document is an implementation handoff for future planning. It records decis
 4. **Backend notification channels**: extend reminders beyond native local notifications through a pluggable backend notification layer, with email as the first implemented channel.
 5. **Sync refinement**: improve conflict handling, first-sign-in import flows, and cross-device UX after the foundation exists.
 
+### Active implementation — 2026-10-16
+
+The first account-sync foundation chunk is implemented: an isolated merge
+contract in `apps/api`, with 19 passing tests and typecheck. Authenticated
+storage and client integration are not implemented. See
+`plans/account-sync-foundation.md` for chunk status, invariants, and remaining
+setup questions. Native Phase 7 is committed in `89462d9`
+(fix/tests) and `e3f497b` (roadmap/evidence). No account or network sync is
+enabled by this first chunk.
+
 ## Durable Decisions
 
 - **Auth provider**: Better Auth, not Clerk.
