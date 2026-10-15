@@ -346,7 +346,10 @@ verified persistence and scheduling. No paid runs or grounding calls were used.
 | Confirm deletion | Confirm removed the friend, emptied the persisted notification registry, and removed its OS pending record. |
 | Rename | Not verified in this run; see accessibility finding below. |
 
-### Open finding: iOS dialog accessibility grouping
+### Finding: iOS dialog accessibility grouping — resolved 2026-10-16
+
+The following describes the October 14 build. See the October 16 verification
+below for the fix and retest.
 
 Both edit and delete-confirmation dialogs expose one combined accessible
 element, rather than separate fields and buttons, in noqa's compact and full
@@ -366,3 +369,56 @@ owned simulator was retained. Existing Android emulator data was not changed.
 Physical-device and locked-phone delivery remain outside the user-approved
 scope and unverified. Simulator-only checks do not satisfy the plan's original
 physical-device acceptance criteria.
+
+## Verified run: 2026-10-16 — Phase 7 dialog fix and closeout
+
+Built a self-contained Release simulator app with the source fix now committed
+as `89462d9` (`fix(mobile): expose individual dialog accessibility controls`). Both the backdrop
+and content `Pressable` containers now use `accessible={false}`, so they do not
+combine their child controls into one accessible element. Name, birthday, and
+conversation-note inputs have explicit labels. No visual layout changed.
+
+The unsigned Xcode simulator build succeeded. Local noqa actions drove a
+fresh, disposable iPhone 17 Pro simulator on iOS 26.4. Each action used bounds
+from the current accessibility tree, not hard-coded dialog coordinates or
+paid grounding. AsyncStorage and OS pending archives were inspected read-only.
+
+| Check | Result |
+| --- | --- |
+| Log dialog | Note input, individual type options, save, and cancel exposed separately. Cancel returned to the garden without adding an interaction. |
+| Edit dialog | Name, birthday, each cadence option, save, and cancel exposed separately. |
+| Rename and cadence | Changed `Simulator Alice` to `Simulator Renamed` and cadence to 7 days through the UI. Both values persisted. |
+| Reminder copy | OS pending archive contained `Simulator Renamed may appreciate a check-in.` and no old-name reminder text. One pending request and one persisted identifier remained. |
+| Reminder date | October 16 local interaction plus 7 days produced **2026-10-23 09:00 local** (`07:00Z`). |
+| Restart | Renamed friend, 7-day cadence, reminder identifier, due date, and updated text survived restart. |
+| Delete dialog | Cancel and confirm exposed separately. Cancel retained the friend and history; confirm emptied friends, schedule registry, and matching OS pending records. |
+| Regression checks | **146 mobile tests, mobile typecheck, and 116 web tests passed.** Three new component tests cover container accessibility, named-field editing/cadence/removal, and conversation save/cancel/reset/backdrop dismissal. |
+
+Two earlier attempts are not complete passes: the helper first failed because
+iOS included the note placeholder in its label; the next saved the rename but
+not the cadence change after typing. In the final run, the helper re-read and
+repeated the idempotent cadence selection after the keyboard dismissed, then
+asserted the persisted 7-day value. Successful tap responses alone were not
+used as proof that a value changed.
+
+Cleanup traps shut down and deleted all three owned simulators:
+`A0F7A442-019C-4D99-A134-1B5ED60E8D0B`,
+`205A9F69-A326-4F66-B3ED-1CA0CCB89784`, and
+`D2B22EE1-CEE8-4ABB-A152-31C6941759E2`.
+Final `simctl` inspection found no `FG-Phase7-20261016` simulator remaining.
+Existing simulator gardens and Android emulator data were not changed.
+
+### Phase 7 closeout and limits
+
+The scoped simulator/emulator reliability pass is complete, combining the
+earlier platform evidence with this fix and retest. This is **not** production
+release, signing, physical-device, locked-phone, or Android OEM battery-policy
+validation. Separate iOS controls in the accessibility tree are verified;
+a full VoiceOver/TalkBack audit is not claimed. This dialog fix was not rerun
+on Android's native UI. Android backup import and export share-sheet checks
+passed earlier; a receiving-app/file round-trip remains unverified.
+
+No paid runs, physical devices, production services, backend, authentication,
+contact import, or messaging integration were added or used. The web app
+remains the fallback. Shared-core extraction stays optional; account-sync
+planning is a separate next scope, not implemented as part of this closeout.

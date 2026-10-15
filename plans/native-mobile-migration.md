@@ -2,6 +2,59 @@
 
 > Source context: `plans/friendship-garden-prd.md`, `plans/friendship-garden-implementation.md`, and the current Vite + React web app.
 
+## Current Status — 2026-10-16
+
+**Phase 7 is complete within the agreed simulator/emulator scope.**
+The native migration is closed for this development scope, not certified for
+hardware reliability or production release. Next is a separate account-sync
+planning scope; no backend implementation has started.
+Implementation is ahead of the original unchecked phase lists. Use this
+status summary and the dated evidence in `plans/noqa-mobile-testing.md` for
+current progress; the earlier phase sections describe the original scope.
+Do not treat an unchecked historical manual check as missing implementation,
+or implemented features as proof of hardware reliability.
+
+| Phase | Current status | Evidence |
+| --- | --- | --- |
+| 0 — Web baseline | Web fallback remains working; automated baseline verified. Original human smoke checks are not claimed here. | 116 web tests pass on October 16. |
+| 1 — Isolated Expo app | Implemented; simulator/emulator builds launch independently. | `2f69fa9`, iOS and Android build reports. |
+| 2 — Domain and persistence | Implemented and tested. | Domain/storage commits through `11e8953`; mobile tests. |
+| 3 — Native core UI | Implemented; grouped dialog controls fixed and verified on the iOS simulator in Phase 7. | UI commits through `7fcdac4`; October 16 dialog and rename evidence. |
+| 4 — Reminder settings and permission UX | Implemented; Android first-request bug fixed and retested. | `3dc8fec`, `c4c8ec3`; iOS/Android permission evidence. |
+| 5 — Local scheduler | Implemented; closed/process-killed delivery and cancellation verified on simulators/emulators. Hardware delivery is not claimed. | `3dc8fec`; OS queue/alarm and natural-delivery evidence. |
+| 6 — Import/export | Implemented; iOS round-trip, Android import and export share sheet verified. Android receiving-app/file round-trip not yet verified. | `5223f03`; backup test report. |
+| 7 — Reliability pass | **Complete, simulator/emulator scope only.** | `89462d9` dialog fix and regressions; earlier platform runs plus October 16 rename/reminder-copy/persistence verification and cleanup. |
+| 8 — Shared core extraction | Optional; not started and not a prerequisite for using the native app. | Keep the copied domain modules until extraction has a clear benefit. |
+| 9 — Social layer | Deferred; not part of this migration. | No social implementation authorized. |
+
+Current automated baseline: **146 mobile tests, mobile typecheck, and 116 web
+tests pass** on October 16. Native UI evidence and remaining limits are in
+`plans/noqa-mobile-testing.md`.
+
+### Completed Phase 7 follow-up
+
+- Fixed nested modal containers and added explicit input labels; iOS exposes
+  separate edit, log, and delete controls. Regression tests preserve actions.
+- Rebuilt the unsigned Release simulator app and used noqa to verify rename,
+  cadence, persistence, reminder text updates, and deletion. No physical device
+  or paid run was used. All owned disposable simulators were removed.
+- Recorded failed helper attempts as failures, not passes. Full screen-reader
+  audits and a new Android UI run for this fix are not claimed.
+
+### Next scope
+
+Plan the account-sync foundation in
+`plans/account-sync-notifications-roadmap.md`. Resolve its open product/setup
+questions before backend implementation. Shared-core extraction (Phase 8)
+remains optional. Do not repeat full platform runs without a changed path or
+a specific missing check. No auth, backend, or social feature is part of this
+Phase 7 closeout.
+
+Physical testing is explicitly excluded by the user as of October 14. Do not
+use the personal iPhone, request signing setup, or block continued development
+on physical-device acceptance. Hardware and locked-phone reliability remain
+unverified, not passed. Keep the web fallback.
+
 ## Goal
 
 Migrate Friendship Garden toward a native mobile app that is primarily individual, local-first, minimalist, calm, and dependable for remembering to talk to friends.
@@ -463,11 +516,17 @@ See `plans/noqa-mobile-testing.md` for evidence and remaining platform limits.
 
 ## Phase 7: Device Reliability Pass
 
-**Purpose**: Verify the native app actually works on real devices.
+**Purpose**: Close native reliability gaps within the user's simulator/emulator scope.
 
 ### What to do
 
-Test the complete native workflow on physical devices where possible. Notification behavior must be manually verified because simulators and Expo Go can differ from production-like builds.
+Use self-contained native Release builds on the iPhone simulator and Android
+emulator, controlled through noqa. Preserve existing user data and clean up
+owned disposable fixtures/devices. No paid runs without approval.
+
+The original physical-device checks are deferred by the user's October 14
+scope decision. Simulator results must not be described as physical-device
+or locked-phone proof. Do not use Expo Go as delivery evidence.
 
 ### AI checks
 
@@ -478,28 +537,35 @@ Test the complete native workflow on physical devices where possible. Notificati
 - Inspect startup reconciliation.
 - Confirm no backend, auth, contact import, or message integration was added.
 
-### Manual checks for the human
+### Agent-driven simulator/emulator checks
 
-- Test on physical iPhone.
-- Test on physical Android if available.
 - Test permission granted.
 - Test permission denied.
 - Test permission re-enabled in OS settings.
 - Test app killed.
-- Test phone locked.
+- Record locked-device delivery as unverified; physical testing is out of scope.
 - Test tapping notification.
 - Test changing reminder time.
 - Test watering a friend before the reminder fires.
 - Test deleting a friend before the reminder fires.
 - Test importing data with reminders enabled.
 
-### Acceptance criteria
+### Current acceptance criteria
 
-- [ ] Human confirms reminders work on target iOS device.
-- [ ] Human confirms reminders work on target Android device if Android is supported for release.
-- [ ] Known platform caveats are documented.
-- [ ] Native app is usable as the primary app.
-- [ ] Web app still works.
+- [x] iOS simulator and Android emulator reminder delivery, permission recovery,
+  cancellation, restart reconciliation, and backup evidence are recorded.
+- [x] Known platform caveats and excluded physical/locked-device checks are documented.
+- [x] Web fallback and automated mobile/web checks still pass.
+- [x] iOS dialog controls are exposed separately; component regressions preserve actions.
+- [x] Rename is verified through the native UI, including persistence and updated reminder copy.
+- [x] Closeout records remaining limits without claiming hardware/release validation.
+
+### Deferred hardware acceptance — not required for this development scope
+
+- Physical iOS and Android notification reliability has not been verified.
+- Locked-phone delivery and Android OEM battery restrictions remain unverified.
+- Production signing/distribution and adoption as the primary app are not
+  established by the simulator checks. They are separate release decisions.
 
 ---
 

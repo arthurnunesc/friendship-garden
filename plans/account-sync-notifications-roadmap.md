@@ -11,7 +11,7 @@ This document is an implementation handoff for future planning. It records decis
 ## Current Roadmap
 
 1. **Basic web app**: done. The current Vite + React app remains the stable local-first fallback.
-2. **Native mobile migration**: in progress/planned. Move toward an Expo + React Native app for better day-to-day use and native local notifications.
+2. **Native mobile migration**: as of 2026-10-16, Phases 1–6 are implemented and Phase 7 is complete within the agreed simulator/emulator scope. See `plans/native-mobile-migration.md` for current status and `plans/noqa-mobile-testing.md` for evidence and limits. Physical testing is excluded, not claimed as passed; this is not production-release validation. Shared-core extraction remains optional.
 3. **Account-backed sync foundation**: add Better Auth, Netlify Functions, and Neon so a single user can sync their own garden across devices.
 4. **Backend notification channels**: extend reminders beyond native local notifications through a pluggable backend notification layer, with email as the first implemented channel.
 5. **Sync refinement**: improve conflict handling, first-sign-in import flows, and cross-device UX after the foundation exists.
