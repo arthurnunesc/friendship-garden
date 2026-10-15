@@ -172,8 +172,8 @@ export function FriendListItem({
         animationType="fade"
         onRequestClose={handleCancelWater}
       >
-        <Pressable style={styles.overlay} onPress={handleCancelWater}>
-          <Pressable style={styles.popup} onPress={() => {}}>
+        <Pressable accessible={false} style={styles.overlay} onPress={handleCancelWater}>
+          <Pressable accessible={false} style={styles.popup} onPress={() => {}}>
             <Text style={styles.popupTitle}>log a conversation</Text>
             <Text style={styles.popupSubtitle}>with {friend.name}</Text>
 
@@ -219,6 +219,7 @@ export function FriendListItem({
             <Text style={styles.popupLabel}>note (optional)</Text>
             <TextInput
               style={styles.noteInput}
+              accessibilityLabel="Conversation note"
               value={interactionNote}
               onChangeText={setInteractionNote}
               placeholder="what did you talk about?"
@@ -251,15 +252,17 @@ export function FriendListItem({
         onRequestClose={() => setShowEdit(false)}
       >
         <Pressable
+          accessible={false}
           style={styles.overlay}
           onPress={() => setShowEdit(false)}
         >
-          <Pressable style={styles.popup} onPress={() => {}}>
+          <Pressable accessible={false} style={styles.popup} onPress={() => {}}>
             <Text style={styles.popupTitle}>edit {friend.name}</Text>
 
             <Text style={styles.popupLabel}>name</Text>
             <TextInput
               style={styles.input}
+              accessibilityLabel="Friend name"
               value={editName}
               onChangeText={setEditName}
               placeholder="name"
@@ -269,6 +272,7 @@ export function FriendListItem({
             <Text style={styles.popupLabel}>birthday</Text>
             <TextInput
               style={styles.input}
+              accessibilityLabel="Birthday, YYYY-MM-DD"
               value={editBirthday}
               onChangeText={setEditBirthday}
               placeholder="YYYY-MM-DD"
@@ -326,10 +330,11 @@ export function FriendListItem({
         onRequestClose={() => setShowRemoveConfirm(false)}
       >
         <Pressable
+          accessible={false}
           style={styles.overlay}
           onPress={() => setShowRemoveConfirm(false)}
         >
-          <Pressable style={styles.popup} onPress={() => {}}>
+          <Pressable accessible={false} style={styles.popup} onPress={() => {}}>
             <Text style={styles.popupTitle}>
               remove {friend.name} from your garden?
             </Text>
