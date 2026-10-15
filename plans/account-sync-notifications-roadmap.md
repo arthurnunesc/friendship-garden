@@ -19,8 +19,10 @@ This document is an implementation handoff for future planning. It records decis
 ### Active implementation — 2026-10-16
 
 The first account-sync foundation chunk is implemented: an isolated merge
-contract in `apps/api`, with 19 passing tests and typecheck. Authenticated
-storage and client integration are not implemented. See
+contract in `apps/api`, committed as `4be7258`. Authentication bootstrap now
+adds Google + Resend magic links and a fail-closed Netlify handler, with
+**63 API tests** passing. Live provider setup, PostgreSQL migrations,
+account-scoped garden storage, and client integration are not complete. See
 `plans/account-sync-foundation.md` for chunk status, invariants, and remaining
 setup questions. Native Phase 7 is committed in `89462d9`
 (fix/tests) and `e3f497b` (roadmap/evidence). No account or network sync is
@@ -29,7 +31,7 @@ enabled by this first chunk.
 ## Durable Decisions
 
 - **Auth provider**: Better Auth, not Clerk.
-- **Initial auth methods**: Google OAuth, Apple OAuth, and passwordless email fallback.
+- **Auth rollout**: Google OAuth and passwordless email through Resend first. Apple OAuth remains planned but was explicitly deferred on 2026-10-16.
 - **Backend runtime**: Netlify Functions.
 - **Database**: Neon Postgres.
 - **Sync scope**: single-user account sync only.
@@ -90,8 +92,8 @@ Encrypted sync may be revisited later, but it should not block the first useful 
 
 ## Open Questions For The Next Planning Session
 
-- Which passwordless email provider should Better Auth use?
-- Should Apple OAuth be implemented immediately, or deferred until native distribution setup is in place?
+- Resend is selected for passwordless email; domain verification and credentials remain to be set up.
+- Apple OAuth is deferred from the first auth chunk; its later provider setup and HTTPS return URL remain to be arranged.
 - What user-facing copy explains the privacy change when enabling sync?
 - What reminder preferences belong locally only versus synced across devices?
 - What is the minimum useful backend notification channel after email?

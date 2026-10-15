@@ -1,0 +1,10 @@
+[build]
+  command = "npm --prefix apps/api ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  directory = "apps/api/netlify/functions"
+  node_bundler = "esbuild"

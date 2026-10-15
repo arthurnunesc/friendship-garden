@@ -7,8 +7,9 @@
 **Phase 7 is complete within the agreed simulator/emulator scope.**
 The native migration is closed for this development scope, not certified for
 hardware reliability or production release. The next account-sync foundation
-scope has started with an isolated merge module; no authentication, hosted
-backend, or client network sync is enabled. See `plans/account-sync-foundation.md`.
+scope has started with an isolated merge module and authentication scaffold;
+no live sign-in, deployed backend, or client network sync has been verified.
+See `plans/account-sync-foundation.md`.
 Implementation is ahead of the original unchecked phase lists. Use this
 status summary and the dated evidence in `plans/noqa-mobile-testing.md` for
 current progress; the earlier phase sections describe the original scope.
@@ -45,9 +46,9 @@ tests pass** on October 16. Native UI evidence and remaining limits are in
 ### Next scope
 
 Continue the account-sync foundation tracked in
-`plans/account-sync-foundation.md`. Its merge module is implemented; resolve
-the relevant open product/setup questions before enabling authentication and
-hosted storage. Shared-core extraction (Phase 8)
+`plans/account-sync-foundation.md`. Its merge module and authentication
+bootstrap are implemented; provider setup, PostgreSQL verification, and
+authenticated garden storage remain. Shared-core extraction (Phase 8)
 remains optional. Do not repeat full platform runs without a changed path or
 a specific missing check. No auth, backend, or social feature is part of this
 Phase 7 closeout.
