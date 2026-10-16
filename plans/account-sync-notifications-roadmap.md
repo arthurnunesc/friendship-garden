@@ -28,6 +28,13 @@ setup questions. Native Phase 7 is committed in `89462d9`
 (fix/tests) and `e3f497b` (roadmap/evidence). No account or network sync is
 enabled by this first chunk.
 
+The approved feature-branch preview is now live at
+<https://feature-mobile-app-creation--friendship-garden.netlify.app>.
+Resend domain `auth.friendship-garden.arthurnun.es` and its DNS records are
+verified; no email has been sent. The preview's auth handler returns the
+expected uncached 503 until server credentials and database setup are ready.
+Production remains on its previous `main` deployment.
+
 ## Durable Decisions
 
 - **Auth provider**: Better Auth, not Clerk.
@@ -92,7 +99,7 @@ Encrypted sync may be revisited later, but it should not block the first useful 
 
 ## Open Questions For The Next Planning Session
 
-- Resend is selected for passwordless email; domain verification and credentials remain to be set up.
+- Resend's app-specific sending domain is verified; the app-scoped sending key, live delivery, Google OAuth, and development database setup remain.
 - Apple OAuth is deferred from the first auth chunk; its later provider setup and HTTPS return URL remain to be arranged.
 - What user-facing copy explains the privacy change when enabling sync?
 - What reminder preferences belong locally only versus synced across devices?

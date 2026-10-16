@@ -80,11 +80,12 @@ Local environment files and Netlify artifacts are ignored by Git.
 
 ### Next gates
 
-1. Create an isolated branch preview and app-specific sender from the proposed
-   configuration below, after approval for the external changes.
+1. The approved branch preview and Resend sender domain are now provisioned
+   and verified as recorded below. Configure branch-specific server settings
+   before live sign-in; do not use production settings or data for testing.
    Keep credentials in the server environment, not chat or committed files.
-   Resend domain verification, Google OAuth setup, and a separate development
-   Neon project have not been performed.
+   Google OAuth setup, an app-scoped sending key, and a separate development
+   Neon project have not been configured by this task.
 2. Add and verify PostgreSQL migrations in an owned disposable database, then
    verify Google OAuth and real Resend delivery with development credentials.
    No schema migration runs on an incoming authentication request.
@@ -92,7 +93,7 @@ Local environment files and Netlify artifacts are ignored by Git.
    Authentication scaffolding alone is not account isolation or live sync.
 4. Only then wire opt-in web/mobile clients and explicit local-import consent.
 
-No deployment or production migration has been run. Manual JSON backups,
+No production deployment or database migration has been run. Manual JSON backups,
 local storage, offline use, and native reminder behavior stay unchanged.
 
 ### Hosting and sender discovery — 2026-10-16
@@ -115,7 +116,7 @@ CLIs found:
 - Resend reports **1 of 3 domain slots used**. A new app-specific domain fits
   the current domain quota; no plan upgrade was requested or performed.
 
-Recommended configuration, **not yet provisioned or verified**:
+The configuration proposed at this discovery checkpoint was:
 
 - Use a Netlify branch deployment for `feature/mobile-app-creation`, with
   branch-specific authentication settings and a separate development database.
@@ -125,12 +126,65 @@ Recommended configuration, **not yet provisioned or verified**:
 - Keep sign-in link tracking disabled and use an app-scoped sending key in
   the server environment, not the broad CLI credential or a public variable.
 
-This can use the existing CLI logins; the user need not invent domain names
-or paste secrets into chat. Creating the Resend domain/DNS records and enabling
-or publishing a branch deployment are external changes that still require
-approval. No DNS, provider, deployment, key, or Git remote change was made
-during discovery. Google OAuth and development database credentials remain
-separate setup tasks. Browser access was not needed for these findings.
+No DNS, provider, deployment, key, or Git remote change was made during that
+discovery. The user then explicitly approved the branch push, preview, and
+sender domain/DNS changes below. Existing CLI logins handled these steps;
+the user did not need to invent names or paste secrets into chat.
+
+### Approved preview and sender provisioning — 2026-10-16
+
+- Pushed `feature/mobile-app-creation` through discovery commit `de339e1`.
+  Netlify's allowed branches now include only the previous `main` plus this
+  feature branch. Production still uses `main`.
+- **Preview:** <https://feature-mobile-app-creation--friendship-garden.netlify.app>.
+  Initial branch deploy `6ad1dcd1dd12ebe8bed9e576` is **ready**, context
+  `branch-deploy`, source `de339e1`. The runtime source is auth commit
+  `d60d231`; later documentation pushes can replace the branch preview.
+- Browser verification: the garden loads with its local-only empty state and
+  add/export/import controls. `GET /api/auth/get-session` returns the expected
+  generic **503** JSON with `Cache-Control: no-store`. Live sign-in is still
+  disabled until configuration, database migrations, and provider checks pass.
+  A first browser wait used the wrong heading capitalization and timed out;
+  the fresh snapshot and explicit response assertions passed. Both owned
+  browser sessions were closed; no persistent browser test data is required.
+- **Sender domain:** `auth.friendship-garden.arthurnun.es`, Resend ID
+  `067a9e69-d114-45f0-b20c-42672b2de241`, region `eu-west-1`, **verified**.
+  Sending is enabled; receiving, open tracking, and click tracking are disabled.
+  The enforced-TLS update was accepted, but the GET response omits that setting,
+  so it is not independently read-back verified.
+- **Sender address:** `Friendship Garden <sign-in@auth.friendship-garden.arthurnun.es>`.
+  Domain verification permits this address; no email was sent and no inbox or
+  actual delivery was tested.
+- All four required DNS records resolve on an authoritative nameserver and
+  have Resend status **verified**. The parent already has DMARC `p=none`; no
+  DMARC policy was changed. Enforce a stronger policy only after delivery checks.
+- The site's stored DNS zone ID was stale and returned 404. Account DNS lookup
+  found the active `arthurnun.es` zone **`6a1decc110ba17c7557ddaac`**; public
+  NS records match `dns1`–`dns4.p05.nsone.net`. No stale zone was recreated.
+- Production deploy **`6a1df450234f820008eea876`**, commit
+  `1e3b28c21fb2d4fa3ef2a0e33f49da70fd5a1112`, remained published after setup.
+  All pre-existing DNS record IDs remain present. The existing read-later
+  Resend domain is still verified and was not modified.
+
+New DNS records in the active zone (TTL 300):
+
+| Record ID | Type | Hostname relative to `arthurnun.es` | Purpose |
+| --- | --- | --- | --- |
+| `6ad1dcfd8aac4db75ca53302` | TXT | `resend._domainkey.auth.friendship-garden` | Provider DKIM public key |
+| `6ad1dcff588522b86b8c5afc` | MX | `send.auth.friendship-garden` | `feedback-smtp.eu-west-1.amazonses.com`, priority 10 |
+| `6ad1dd01495951a9cf05a799` | TXT | `send.auth.friendship-garden` | `v=spf1 include:amazonses.com ~all` |
+| `6ad1dd0247c5a766b3247ad1` | CNAME | `rsend.auth.friendship-garden` | `send.forge.rmta.net` |
+
+These are **approved retained development resources**, owned by this project,
+not disposable test resources. No plan upgrade, database, sending key, or
+production environment variable was created or changed. Removal, if later
+approved: remove only this feature branch from the site's allowed branches
+(preserve all other entries); delete only the four record IDs above with
+`netlify api deleteDnsRecord --data '{"zone_id":"6a1decc110ba17c7557ddaac","dns_record_id":"<record-id>"}'`;
+delete only the new Resend domain with
+`resend domains delete 067a9e69-d114-45f0-b20c-42672b2de241`.
+Do not run those removal commands during normal setup or alter the other app's
+sender. Stop future branch deployments before removing their supporting setup.
 
 ## First chunk: merge contract
 
