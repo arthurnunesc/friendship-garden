@@ -7,7 +7,9 @@
     "node": "^22.13.0 || >=24.0.0"
   },
   "scripts": {
+    "db:migrate:dev": "node --experimental-strip-types --env-file=.env.local scripts/migrate-auth.mts",
     "test": "vitest run",
+    "test:postgres": "node --experimental-strip-types scripts/test-auth-postgres.mts --run",
     "ts:check": "tsc --noEmit"
   },
   "devDependencies": {

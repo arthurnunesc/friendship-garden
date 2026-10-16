@@ -7,16 +7,16 @@ Source: `plans/account-sync-notifications-roadmap.md`.
 Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
 (roadmap/evidence). The isolated merge module below is implemented in
 `apps/api/src/gardenSync.ts`, committed together with this status update.
-Accounts and network sync are not enabled.
+Client account controls and garden network sync are not enabled.
 
 ## Work order
 
 1. **Merge contract** — complete. A tested, side-effect-free module under
    `apps/api` implements structured, entity-level last-write-wins sync.
 2. **Authenticated storage** — in progress. Authentication bootstrap is
-   implemented and tested locally. Neon schema/migrations and account-scoped
-   garden reads/writes are still pending. Test with an isolated database,
-   never production credentials or data.
+   implemented, and PostgreSQL migrations are verified and applied to a separate
+   development project. Account-scoped garden reads/writes are still pending.
+   Test with an isolated database, never production credentials or data.
 3. **Opt-in client sync** — pending. Explicitly confirm local-data import;
    keep local persistence and offline use working. Do not upload on sign-in.
 4. **Recovery and verification** — pending. Test account switching/sign-out,
@@ -39,11 +39,10 @@ linking. Never log tokens, URLs, email bodies, or configuration secrets. The
 Netlify handler must overwrite the auth IP header from trusted `context.ip`,
 not trust client-supplied forwarding headers. No migrations run on requests.
 
-Tests use disposable, in-memory SQLite through Better Auth's supported Node
-adapter and captured test-only email delivery. Docker is not running; do not
-use Neon credentials or claim PostgreSQL integration from these tests. Live
-PostgreSQL migrations, OAuth, email delivery, and deployment remain setup and
-verification gates.
+The initial tests below use disposable in-memory SQLite through Better Auth's
+supported Node adapter and captured email. Separate real PostgreSQL checks now
+also pass, as recorded in the development setup section. Do not treat SQLite
+tests as PostgreSQL or live-provider evidence.
 
 ### Authentication verification — 2026-10-16
 
@@ -80,20 +79,16 @@ Local environment files and Netlify artifacts are ignored by Git.
 
 ### Next gates
 
-1. The approved branch preview and Resend sender domain are now provisioned
-   and verified as recorded below. Configure branch-specific server settings
-   before live sign-in; do not use production settings or data for testing.
-   Keep credentials in the server environment, not chat or committed files.
-   Google OAuth setup, an app-scoped sending key, and a separate development
-   Neon project have not been configured by this task.
-2. Add and verify PostgreSQL migrations in an owned disposable database, then
-   verify Google OAuth and real Resend delivery with development credentials.
-   No schema migration runs on an incoming authentication request.
+1. Redeploy and verify the configured preview with development credentials.
+   Google client/redirect checks pass; completed Google consent and its token
+   exchange still require verification. Keep secrets out of chat and Git.
+2. Verify real Resend delivery and hosted sessions against a disposable
+   development test database. No schema migration runs on an incoming request.
 3. Add authenticated, account-scoped garden storage and transactional merges.
    Authentication scaffolding alone is not account isolation or live sync.
 4. Only then wire opt-in web/mobile clients and explicit local-import consent.
 
-No production deployment or database migration has been run. Manual JSON backups,
+No production deployment or production database migration has been run. Manual JSON backups,
 local storage, offline use, and native reminder behavior stay unchanged.
 
 ### Hosting and sender discovery — 2026-10-16
@@ -213,6 +208,61 @@ Full sign-in verification is blocked until the dedicated development database,
 app-restricted Resend sending key, random authentication secret, branch-only
 server configuration, and PostgreSQL migrations are ready. No cloud resource
 or provider configuration was changed during these checks.
+
+### Development database and secret setup — 2026-10-16
+
+The user approved creating the missing development resources, with no plan
+upgrade. This section supersedes the missing-configuration checkpoint above.
+
+- Created **`friendship-garden-development`**, Neon project
+  **`mute-wave-82809907`**, PostgreSQL 17 in `aws-eu-central-1`, fixed 0.25 CU.
+  Its retained branch is `br-morning-pine-ba055d1b`, endpoint
+  `ep-silent-leaf-batw3dyz`, database `neondb`. No unrelated project was changed.
+- `apps/api/development-database.json` pins the non-secret migration target.
+  Reviewed SQL `migrations/0001_auth.sql` matches Better Auth 1.6.23's PostgreSQL
+  schema: five auth tables and three indexes, plus the migration runner's ledger.
+- Added `npm --prefix apps/api run db:migrate:dev -- --dry-run` and `--apply`.
+  The runner rejects other hosts/databases, non-development targets, nonstandard
+  ports, and schema/search-path overrides before connecting. It uses verified
+  TLS, a transaction advisory lock, a fixed search path, and a checksum ledger.
+  A failed rollback discards the connection rather than returning it to the pool.
+- The retained development database reported **pending → applied → already-applied**.
+  No request handler runs migrations and no production database was migrated.
+- Added `npm --prefix apps/api run test:postgres`: owns a fresh schema-only
+  Neon test branch, verifies its identity/endpoint, uses synthetic credentials
+  and captured email, then deletes and confirms removal of that exact branch.
+  Cleanup is registered before creation, includes interruption handling, and
+  branch expiry is a one-hour fallback. It never loads `.env.local`.
+- Real PostgreSQL checks pass: concurrent/idempotent migration, checksum mismatch
+  rejection, no Better Auth schema drift, hashed/single-use/expired magic links,
+  secure sessions, sign-out, and database-backed request limits.
+- Temporary branches `br-misty-lake-baz4pav6`, `br-red-butterfly-bawkfcng`,
+  `br-divine-voice-bayal04i`, and `br-crimson-wind-bak6i7cm` were all deleted.
+  The first two stopped at an overstrict test ancestry assertion: Neon schema-only
+  branches are independent roots, not child forks. The corrected checks pass.
+- Created Resend key **`c16c1cce-f81e-40f0-8bfd-777c635c7618`**, `sending_access`
+  restricted to domain `067a9e69-d114-45f0-b20c-42672b2de241`. Its value and a
+  fresh random auth secret are stored only in ignored local/server configuration.
+  User-entered Google credential lines were preserved.
+- Configured all seven auth variables only for Netlify branch
+  `feature/mobile-app-creation`. The four private values are marked secret.
+  Netlify **Free** does not support Functions-only scopes. The user explicitly
+  chose to stay on Free and allow branch build access; secret scopes are
+  `builds`, `functions`, and `runtime`, not post-processing. This replaces the
+  earlier Functions-only setup intention. No public-prefixed variable was added.
+- Verified the production environment fingerprint is unchanged. The local CLI
+  is linked to the existing site in ignored `.netlify` state. No plan was upgraded.
+- Current checks: **75 API tests**, API typecheck, **0 API audit findings**,
+  **116 web tests** and web build, **146 mobile tests** and mobile typecheck pass.
+  Hosted sign-in verification is the next step; these checks alone do not claim
+  completed Google consent, actual inbox delivery, or client garden sync.
+
+Approved retained resources belong to this project's development environment,
+not to the test lifecycle. If later removal is approved, first remove their
+branch-only Netlify values, then revoke only the new key with
+`resend api-keys delete c16c1cce-f81e-40f0-8bfd-777c635c7618` and remove only the
+new project with `neon projects delete mute-wave-82809907`. Do not run these
+commands as routine test cleanup. Keep the user-owned local credentials private.
 
 ## First chunk: merge contract
 
