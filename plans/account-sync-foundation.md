@@ -80,7 +80,8 @@ Local environment files and Netlify artifacts are ignored by Git.
 
 ### Next gates
 
-1. Choose the development HTTPS domain and a Resend sender address/domain.
+1. Create an isolated branch preview and app-specific sender from the proposed
+   configuration below, after approval for the external changes.
    Keep credentials in the server environment, not chat or committed files.
    Resend domain verification, Google OAuth setup, and a separate development
    Neon project have not been performed.
@@ -93,6 +94,43 @@ Local environment files and Netlify artifacts are ignored by Git.
 
 No deployment or production migration has been run. Manual JSON backups,
 local storage, offline use, and native reminder behavior stay unchanged.
+
+### Hosting and sender discovery — 2026-10-16
+
+Read-only inspection through the existing authenticated Netlify and Resend
+CLIs found:
+
+- Netlify project `friendship-garden`, connected to
+  `github.com/arthurnunesc/friendship-garden`.
+- Existing **production** URL: `https://friendship-garden.arthurnun.es`.
+  Its Netlify hostname is `friendship-garden.netlify.app`.
+- Production branch is `main`; branch deployment settings currently allow
+  only `main`. The deployment list contains a ready production deployment,
+  not an isolated development preview. The `main--` alias also targets that
+  production deployment and must not be treated as a test environment.
+- The custom domain has an associated Netlify DNS zone.
+- Resend has one verified sending domain:
+  `read-later-digest.arthurnun.es` (EU West). It belongs to another app and
+  should not be reused as this app's sender without an explicit decision.
+- Resend reports **1 of 3 domain slots used**. A new app-specific domain fits
+  the current domain quota; no plan upgrade was requested or performed.
+
+Recommended configuration, **not yet provisioned or verified**:
+
+- Use a Netlify branch deployment for `feature/mobile-app-creation`, with
+  branch-specific authentication settings and a separate development database.
+  Obtain and verify its actual HTTPS URL from Netlify after provisioning.
+- Verify the sending domain `auth.friendship-garden.arthurnun.es` and use
+  `Friendship Garden <sign-in@auth.friendship-garden.arthurnun.es>`.
+- Keep sign-in link tracking disabled and use an app-scoped sending key in
+  the server environment, not the broad CLI credential or a public variable.
+
+This can use the existing CLI logins; the user need not invent domain names
+or paste secrets into chat. Creating the Resend domain/DNS records and enabling
+or publishing a branch deployment are external changes that still require
+approval. No DNS, provider, deployment, key, or Git remote change was made
+during discovery. Google OAuth and development database credentials remain
+separate setup tasks. Browser access was not needed for these findings.
 
 ## First chunk: merge contract
 
