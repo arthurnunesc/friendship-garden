@@ -79,11 +79,12 @@ Local environment files and Netlify artifacts are ignored by Git.
 
 ### Next gates
 
-1. Redeploy and verify the configured preview with development credentials.
-   Google client/redirect checks pass; completed Google consent and its token
-   exchange still require verification. Keep secrets out of chat and Git.
-2. Verify real Resend delivery and hosted sessions against a disposable
-   development test database. No schema migration runs on an incoming request.
+1. Complete a real Google account consent and callback exchange. Authorization
+   initiation and the preview redirect pass; an interactive Google login has
+   not been performed. Keep secrets out of chat and Git.
+2. Hosted passwordless sessions and real Resend delivery to the provider test
+   inbox now pass, as recorded below. Personal inbox delivery remains unverified.
+   No schema migration runs on an incoming request.
 3. Add authenticated, account-scoped garden storage and transactional merges.
    Authentication scaffolding alone is not account isolation or live sync.
 4. Only then wire opt-in web/mobile clients and explicit local-import consent.
@@ -263,6 +264,48 @@ branch-only Netlify values, then revoke only the new key with
 `resend api-keys delete c16c1cce-f81e-40f0-8bfd-777c635c7618` and remove only the
 new project with `neon projects delete mute-wave-82809907`. Do not run these
 commands as routine test cleanup. Keep the user-owned local credentials private.
+
+### Hosted authentication verification — 2026-10-16
+
+Runtime and migration source is committed as **`1be237f`**. The configured
+development preview now serves authentication rather than the earlier
+missing-configuration 503. There is still no client sign-in UI or garden sync.
+
+- Created owned schema-only test branch **`br-patient-cake-ba0eaq14`** in the
+  development project. Verified its endpoint, applied the reviewed migration,
+  and temporarily pointed only the feature preview at it. No test account was
+  written to the retained development branch or another app's database.
+- Branch deploy **`6ad2484eb17dfd9c76919820`** passed hosted checks:
+  unauthenticated session returns **200/null**; Google sign-in initiation
+  returns the Google authorization URL with the exact preview callback.
+- The real restricted Resend key sent one sign-in email to a uniquely labelled
+  **provider-owned `delivered+…@resend.dev` test address**, not a human inbox.
+  Message **`01a1456a-eb05-75d2-953d-e0cee1a52abd`** reached **`delivered`**.
+  Its sign-in URL and all cookie/token values stayed in process memory and
+  were not printed or committed.
+- The delivered link created a **Secure, HttpOnly** session. A session read
+  returned the synthetic test user; reuse of the same link was rejected.
+  Sign-out revoked the session and left zero sessions in the test database.
+- Restored the retained development database URL, then redeployed as
+  **`6ad2487d7a8cf49bb7db142c`** from `1be237f`. Session reads on that restored
+  target return **200/null**. Deleted the test branch and verified absence.
+  Cleanup was registered before creation, including interruption handling
+  and a one-hour expiry fallback.
+- Final Neon branch listing contains only the approved retained branch
+  **`br-morning-pine-ba055d1b`**. No owned test branch remains. The provider's
+  test message remains as delivery evidence; its magic link was consumed and
+  its test database deleted, so it cannot provide a usable session.
+- Preview HTML, JavaScript, and CSS load. A literal-value check found none of
+  the four private configuration values in those served assets. This is a
+  focused check, not a general secret-scanning guarantee.
+- Production deploy **`6a1df450234f820008eea876`**, its `main` branch, and its
+  environment fingerprint remain unchanged. Netlify remains on **Free**.
+
+**Limits:** Google authorization initiation is not a completed Google login;
+its client-secret exchange, consent audience, and test-user access still need
+interactive verification. Delivery to Resend's test inbox is not proof of
+delivery to the user's personal inbox. Account-backed garden storage, client
+sign-in/import controls, and cross-device sync remain separate implementation.
 
 ## First chunk: merge contract
 

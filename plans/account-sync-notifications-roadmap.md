@@ -23,8 +23,9 @@ contract in `apps/api`, committed as `4be7258`. Authentication bootstrap now
 adds Google + Resend magic links and a fail-closed Netlify handler, with
 **75 API tests** passing. PostgreSQL migrations now pass real isolated tests
 and are applied to the separate development project. Branch-only credentials
-are configured; hosted sign-in verification, account-scoped garden storage,
-and client integration are not complete. See
+are configured; hosted passwordless sign-in and real Resend test-inbox delivery
+pass. Completed Google consent, account-scoped garden storage, and client
+integration are not complete. See
 `plans/account-sync-foundation.md` for chunk status, invariants, and remaining
 setup questions. Native Phase 7 is committed in `89462d9`
 (fix/tests) and `e3f497b` (roadmap/evidence). No account or network sync is
@@ -33,8 +34,10 @@ enabled by this first chunk.
 The approved feature-branch preview is now live at
 <https://feature-mobile-app-creation--friendship-garden.netlify.app>.
 Resend domain `auth.friendship-garden.arthurnun.es` and its DNS records are
-verified. Server configuration and development database setup are now present;
-a branch redeploy and hosted sign-in checks are next. The user approved masked
+verified. Server configuration and development database setup are present;
+hosted passwordless session creation, replay rejection, and sign-out pass on
+an owned disposable test database, since deleted. The preview is restored to
+its retained development database. The user approved masked
 branch-only secrets with build access to stay on Netlify Free. Production
 remains on its previous `main` deployment.
 
@@ -102,7 +105,7 @@ Encrypted sync may be revisited later, but it should not block the first useful 
 
 ## Open Questions For The Next Planning Session
 
-- Resend's domain and restricted sending key, branch configuration, and development database schema are set up; hosted delivery and completed Google consent remain to be verified.
+- Resend's domain/key, branch configuration, and development schema are set up. Hosted delivery to the provider test inbox and passwordless sessions pass; completed Google consent and personal inbox delivery remain unverified.
 - Apple OAuth is deferred from the first auth chunk; its later provider setup and HTTPS return URL remain to be arranged.
 - What user-facing copy explains the privacy change when enabling sync?
 - What reminder preferences belong locally only versus synced across devices?
