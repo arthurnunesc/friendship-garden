@@ -186,6 +186,34 @@ delete only the new Resend domain with
 Do not run those removal commands during normal setup or alter the other app's
 sender. Stop future branch deployments before removing their supporting setup.
 
+### User credential checks — 2026-10-16
+
+After the user completed Google setup and Neon login:
+
+- Google client ID and secret are present in the ignored local handoff file.
+  Values were not printed, committed, or passed into the unit-test environment.
+- A fresh browser reached Google's sign-in page using that client ID and
+  `https://feature-mobile-app-creation--friendship-garden.netlify.app/api/auth/callback/google`.
+  There was no invalid-client or redirect-mismatch screen. No Google account
+  login was performed; the client-secret exchange, consent/test-user access,
+  and completed session remain **unverified**.
+- Neon CLI authentication works. Project discovery requires an explicit
+  organization selection; the earlier unqualified lookup failure was not
+  evidence of a failed login. No dedicated Friendship Garden development
+  project was found. Unrelated projects were not modified or used for tests.
+- Local `DATABASE_URL` and `RESEND_API_KEY` are still example placeholders;
+  `BETTER_AUTH_SECRET` is unset. No connection was made using those placeholders.
+  These are remaining setup tasks, not a failure of the Google credential entry.
+- The preview still returns the expected uncached **503** for session reads.
+  Google variables have not yet been uploaded to Netlify by this check.
+- API tests were rerun without loading the local credentials: **63 passed**,
+  and API typecheck passed. The owned browser session was closed in `finally`.
+
+Full sign-in verification is blocked until the dedicated development database,
+app-restricted Resend sending key, random authentication secret, branch-only
+server configuration, and PostgreSQL migrations are ready. No cloud resource
+or provider configuration was changed during these checks.
+
 ## First chunk: merge contract
 
 Current web/mobile friends have creation and conversation dates, but no edit
