@@ -8,7 +8,7 @@ const snapshot = { version: 1 as const, friends: [], interactions: [] }
 const ip = '192.0.2.1'
 const request = (options: RequestInit = {}, path = '/api/garden') => new Request(baseURL + path, {
   ...options,
-  headers: { origin: baseURL, 'content-type': 'application/json', cookie: 'session=valid', ...options.headers },
+  headers: { origin: baseURL, 'content-type': 'application/json', cookie: 'session=valid', 'x-garden-account': 'owner-from-session', ...options.headers },
 })
 function setup(overrides: Partial<GardenRuntime> = {}) {
   const getUserId = vi.fn(async (_headers: Headers) => 'owner-from-session')
@@ -36,6 +36,7 @@ describe('account garden HTTP interface', () => {
     expect(headers?.has('x-user-id')).toBe(false)
     expect(headers?.has('x-forwarded-for')).toBe(false)
     expect(headers?.has('x-real-ip')).toBe(false)
+    expect(headers?.has('x-garden-account')).toBe(false)
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(response.headers.get('vary')).toBe('Cookie')
     expect(response.headers.has('access-control-allow-origin')).toBe(false)
@@ -45,6 +46,34 @@ describe('account garden HTTP interface', () => {
     const f = setup()
     expect((await f.handler(request({ method: 'POST', body: JSON.stringify(snapshot) }), ip)).status).toBe(200)
     expect(f.merge).toHaveBeenCalledExactlyOnceWith('owner-from-session', snapshot)
+  })
+
+  it.each(['GET', 'POST'])('requires the account header for authenticated %s before storage', async (method) => {
+    const f = setup()
+    const response = await f.handler(request({
+      method,
+      headers: { 'x-garden-account': '' },
+      ...(method === 'POST' ? { body: 'invalid JSON' } : {}),
+    }), ip)
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'A garden account is required.' })
+    expect(f.read).not.toHaveBeenCalled()
+    expect(f.merge).not.toHaveBeenCalled()
+  })
+
+  it.each(['GET', 'POST'])('rejects a changed account on authenticated %s before storage', async (method) => {
+    const f = setup()
+    const response = await f.handler(request({
+      method,
+      headers: { 'x-garden-account': 'owner-from-queued-client' },
+      ...(method === 'POST' ? { body: JSON.stringify(snapshot) } : {}),
+    }), ip)
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: 'Your account changed. Reconnect before syncing.', code: 'ACCOUNT_CHANGED',
+    })
+    expect(f.read).not.toHaveBeenCalled()
+    expect(f.merge).not.toHaveBeenCalled()
   })
 
   it.each(['GET', 'POST'])('rejects anonymous %s without accessing garden storage', async (method) => {
@@ -129,7 +158,9 @@ describe('account garden HTTP interface', () => {
     const response = await f.handler(request({ method: 'POST', body: JSON.stringify(snapshot) }), ip)
     expect(response.status).toBe(status)
     expect(response.headers.get('cache-control')).toBe('no-store')
-    expect(await response.text()).not.toMatch(/private|postgresql|payload/)
+    const body = await response.text()
+    if (error instanceof SyncCollisionError) expect(JSON.parse(body)).toMatchObject({ code: 'SYNC_COLLISION' })
+    expect(body).not.toMatch(/private|postgresql|payload/)
   })
 
   it('fails closed when configuration or session verification fails', async () => {

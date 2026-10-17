@@ -80,6 +80,13 @@ export function createGardenHandler(loadRuntime: () => GardenRuntime) {
       if (cookie) sessionHeaders.set('cookie', cookie)
       const userId = await runtime.getUserId(sessionHeaders)
       if (!userId) return json({ error: 'Sign in to sync your garden.' }, 401)
+      const account = request.headers.get('x-garden-account')
+      if (account === null || account.trim() === '') {
+        return json({ error: 'A garden account is required.' }, 400)
+      }
+      if (account !== userId) {
+        return json({ error: 'Your account changed. Reconnect before syncing.', code: 'ACCOUNT_CHANGED' }, 409)
+      }
       if (request.method === 'GET') return json(await runtime.gardens.read(userId))
       const contentType = request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
       if (contentType !== 'application/json'
@@ -92,7 +99,7 @@ export function createGardenHandler(loadRuntime: () => GardenRuntime) {
         return json({ error: 'Invalid sync snapshot.' }, 400)
       }
       if (error instanceof SyncCollisionError) {
-        return json({ error: 'Conflicting sync version. Keep local changes and retry with a new change ID.' }, 409)
+        return json({ error: 'Conflicting sync version. Keep local changes and retry with a new change ID.', code: 'SYNC_COLLISION' }, 409)
       }
       if (error instanceof GardenStorageLimitError) {
         return json({ error: 'Garden sync exceeds the 1 MiB snapshot limit.' }, 413)

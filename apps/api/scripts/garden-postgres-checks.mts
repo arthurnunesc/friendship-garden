@@ -19,6 +19,8 @@ export async function checkGardenPostgres(
     value: { name, cadenceDays: 7, createdAt: '2026-01-01T00:00:00.000Z' },
   }] })
   const store = createGardenStore(pool)
+  let secondCookie = ''
+  let secondUserId = ''
   // A real session lookup against the disposable Better Auth PostgreSQL database.
   const runtime = {
     baseURL, gardens: store,
@@ -27,9 +29,9 @@ export async function checkGardenPostgres(
     }))?.user.id ?? null,
   }
   const garden = createGardenHandler(() => runtime)
-  const request = (cookie: string, method = 'GET', incoming?: unknown, path = '/api/garden') => garden(
+  const request = (cookie: string, method = 'GET', incoming?: unknown, path = '/api/garden', account = cookie === secondCookie && secondCookie ? secondUserId : firstUserId) => garden(
     new Request(baseURL + path, {
-      method, headers: { cookie, origin: baseURL, 'content-type': 'application/json' },
+      method, headers: { cookie, origin: baseURL, 'content-type': 'application/json', 'x-garden-account': account },
       ...(incoming !== undefined ? { body: JSON.stringify(incoming) } : {}),
     }), '192.0.2.1',
   )
@@ -48,10 +50,10 @@ export async function checkGardenPostgres(
   assert(link)
   const verification = await auth.handler(new Request(link))
   assert.equal(verification.status, 302)
-  const secondCookie = verification.headers.getSetCookie().map((cookie) => cookie.split(';')[0]).join('; ')
+  secondCookie = verification.headers.getSetCookie().map((cookie) => cookie.split(';')[0]).join('; ')
   const secondSession = await auth.api.getSession({ headers: new Headers({ cookie: secondCookie }) })
   assert(secondSession)
-  const secondUserId = secondSession.user.id
+  secondUserId = secondSession.user.id
   assert.notEqual(firstUserId, secondUserId)
   const parallel = await Promise.all([
     request(firstCookie, 'POST', friend('one')),
@@ -61,6 +63,13 @@ export async function checkGardenPostgres(
   let current = mergeGardenSnapshots(friend('one'), friend('two'))
   assert.deepEqual(await store.read(firstUserId), current, 'Concurrent initial writers must not lose records.')
   assert.equal((await request(secondCookie, 'POST', friend('one', 'different account'))).status, 200)
+  const switchedAccount = await request(secondCookie, 'POST', friend('must-not-write', 'A secret'), '/api/garden', firstUserId)
+  assert.equal(switchedAccount.status, 409)
+  assert.deepEqual(await switchedAccount.json(), {
+    error: 'Your account changed. Reconnect before syncing.', code: 'ACCOUNT_CHANGED',
+  })
+  assert.equal((await request(secondCookie, 'GET', undefined, '/api/garden', firstUserId)).status, 409)
+  assert.deepEqual(await store.read(secondUserId), friend('one', 'different account'))
   assert.deepEqual(await (await request(secondCookie)).json(), friend('one', 'different account'))
   assert.deepEqual(await (await request(firstCookie)).json(), current)
   assert.equal((await request(firstCookie, 'GET', undefined, `/api/garden?userId=${secondUserId}`)).status, 400)

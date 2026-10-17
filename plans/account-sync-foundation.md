@@ -410,6 +410,32 @@ Automated evidence:
 Client sign-in, import consent, persisted sync metadata, and cross-device offline
 recovery are next. The final user-run verification checklist above remains pending.
 
+### Client protocol preparation — 2026-10-17
+
+- Moved the dependency-free merge/validation/materialization implementation to
+  `packages/garden-sync/src/snapshot.ts`. The original API module re-exports it,
+  preserving existing callers. Web and native code can use the same contract
+  without importing server authentication, database libraries, or secrets.
+- Added a pure client record-diff module: unchanged versions stay stable;
+  changed/deleted entities get new versions/tombstones. Timestamps advance
+  beyond the previous entity version even if the device clock goes backwards.
+  Legacy last-interaction dates are preserved as deterministic interactions.
+  Invalid legacy data is rejected for sync rather than silently changing it.
+- Garden requests now require **`x-garden-account`**, compared with the validated
+  cookie-session user **before reading or writing data**. It never selects the
+  owner. Missing headers return **400**; a session-account mismatch returns
+  **409 / `ACCOUNT_CHANGED`**. Version collisions return **409 / `SYNC_COLLISION`**.
+  This stops queued account-A data from being uploaded into account B when
+  browser cookies change between session lookup and the sync request.
+- **126 API tests** and API typecheck pass. The isolated PostgreSQL suite also
+  passes the account-header GET/POST mismatch checks, including proof that B's
+  garden is unchanged. Owned test branch **`br-jolly-sunset-bag8q7ps`** was deleted
+  and its absence verified. Six client-diff tests pass, including birthday
+  idempotence, clock rollback, deletions, legacy data, and duplicate rejection.
+
+Web integration follows this preparation; native integration and all user-run
+verification remain pending. No new schema migration or server secret is needed.
+
 ## First chunk: merge contract
 
 Current web/mobile friends have creation and conversation dates, but no edit
