@@ -21,13 +21,15 @@ This document is an implementation handoff for future planning. It records decis
 The first account-sync foundation chunk is implemented: an isolated merge
 contract in `apps/api`, committed as `4be7258`. Authentication bootstrap now
 adds Google + Resend magic links and a fail-closed Netlify handler, with
-**122 API tests** passing. PostgreSQL migrations now pass real isolated tests
+**126 API tests** passing. PostgreSQL migrations now pass real isolated tests
 and are applied to the separate development project. Branch-only credentials
 are configured; hosted passwordless sign-in and real Resend test-inbox delivery
 pass. Account-scoped storage and transactional garden merges now also pass
 real PostgreSQL checks, including concurrent writes and account isolation.
-Client sign-in/import/sync integration remains next. Completed Google consent
-is deferred to the final user-run verification pass. See
+Web sign-in, explicit import consent, account-isolated offline queues, and
+sync controls now pass **154 web tests** and synthetic browser checks. Native
+sign-in/sync integration remains next. Completed Google consent is deferred
+to the final user-run verification pass. See
 `plans/account-sync-foundation.md` for chunk status, invariants, and remaining
 setup questions. Native Phase 7 is committed in `89462d9`
 (fix/tests) and `e3f497b` (roadmap/evidence). No account or network sync is

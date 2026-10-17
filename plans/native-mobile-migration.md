@@ -9,7 +9,8 @@ The native migration is closed for this development scope, not certified for
 hardware reliability or production release. The next account-sync foundation
 scope now includes an isolated merge module and a development auth backend.
 Hosted passwordless sign-in is verified against a disposable test database;
-client sign-in controls and garden network sync are not implemented.
+the web client now has consent-gated sign-in/sync. Native sign-in and garden
+network sync remain to be integrated; no cross-device pass is claimed.
 See `plans/account-sync-foundation.md`.
 Implementation is ahead of the original unchecked phase lists. Use this
 status summary and the dated evidence in `plans/noqa-mobile-testing.md` for
@@ -50,7 +51,8 @@ Continue the account-sync foundation tracked in
 `plans/account-sync-foundation.md`. Its merge module and authentication
 bootstrap are implemented. Development PostgreSQL and hosted passwordless
 checks pass. Account-scoped backend storage and transactional sync are now
-implemented and automatically checked; client integration remains next.
+implemented and automatically checked. Web integration is implemented and
+automatically checked; native client integration remains next.
 Google consent and hands-on device checks are deferred to final verification.
 Shared-core extraction (Phase 8)
 remains optional. Do not repeat full platform runs without a changed path or

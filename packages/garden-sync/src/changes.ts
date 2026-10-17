@@ -125,7 +125,8 @@ export function recordGardenChanges(
   for (let index = 0; index < interactionRecords.length; index += 1) {
     const old = interactionRecords[index]!
     const identity = JSON.stringify([old.friendId, old.id])
-    if (!old.deleted && !seenInteractions.has(identity)) {
+    const knownParent = seenFriends.has(old.friendId) || oldFriends.has(old.friendId)
+    if (!old.deleted && knownParent && !seenInteractions.has(identity)) {
       interactionRecords[index] = { friendId: old.friendId, id: old.id, ...nextVersion(old, clock), deleted: true }
     }
   }

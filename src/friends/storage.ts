@@ -3,6 +3,7 @@ import { isValidFriend, type Friend } from './Friend'
 export interface GardenStorage {
   loadFriends(): Friend[]
   saveFriends(friends: Friend[]): void
+  subscribe?(listener: () => void): () => void
 }
 
 const KEY = 'friendship-garden:v1:friends'

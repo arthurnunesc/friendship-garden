@@ -50,6 +50,16 @@ describe('recordGardenChanges', () => {
     expect(result.interactions[0]).toMatchObject({ id: 'legacy-last-2025-02-01T00:00:00.000Z', value: { date: '2025-02-01T00:00:00.000Z' } })
   })
 
+  it('does not delete an unseen orphan interaction before its friend record arrives', () => {
+    const previous: SyncSnapshot = { ...empty, interactions: [{
+      friendId: 'not-yet-received', id: 'interaction', deleted: false,
+      updatedAt: date, changeId: 'remote-change', value: { date },
+    }] }
+    const clock = clockAt()
+    expect(recordGardenChanges(previous, [], clock)).toEqual(previous)
+    expect(clock).not.toHaveBeenCalled()
+  })
+
   it('rejects duplicate identities and invalid previous snapshots or clocks', () => {
     expect(() => recordGardenChanges(empty, [friend(), friend()], clockAt())).toThrow(InvalidSyncSnapshotError)
     expect(() => recordGardenChanges(empty, [friend({ interactions: [{ id: 'i', date }, { id: 'i', date }] })], clockAt())).toThrow(InvalidSyncSnapshotError)

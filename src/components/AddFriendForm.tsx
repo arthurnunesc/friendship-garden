@@ -8,7 +8,7 @@ export interface AddFriendData {
 }
 
 interface AddFriendFormProps {
-  onSubmit: (data: AddFriendData) => void
+  onSubmit: (data: AddFriendData) => boolean | void
   onCancel: () => void
 }
 
@@ -30,11 +30,12 @@ function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
     e.preventDefault()
     const trimmed = name.trim()
     if (trimmed.length === 0) return
-    onSubmit({
+    const saved = onSubmit({
       name: trimmed,
       birthday: birthday || undefined,
       cadenceDays: cadence ? Number(cadence) : undefined,
     })
+    if (saved === false) return
     setName('')
     setBirthday('')
     setCadence('')

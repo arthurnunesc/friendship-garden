@@ -7,8 +7,9 @@ Source: `plans/account-sync-notifications-roadmap.md`.
 Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
 (roadmap/evidence). The isolated merge module below is implemented in
 `apps/api/src/gardenSync.ts`, committed together with this status update.
-Account-scoped backend storage and transactional sync are implemented and
-automatically checked. Client sign-in controls and network sync are not wired yet.
+Account-scoped backend storage, transactional sync, and the first web client
+integration are implemented and automatically checked. Native sign-in/sync
+integration is next; hands-on verification remains deferred.
 
 ## Work order
 
@@ -18,8 +19,9 @@ automatically checked. Client sign-in controls and network sync are not wired ye
    sessions select account-scoped garden reads and transactional merges. Both
    PostgreSQL migrations are verified and applied to the separate development
    project. Test with an isolated database, never production credentials or data.
-3. **Opt-in client sync** — pending. Explicitly confirm local-data import;
-   keep local persistence and offline use working. Do not upload on sign-in.
+3. **Opt-in client sync** — web implemented and automatically checked; native
+   pending. Explicitly confirm local-data import; keep local persistence and
+   offline use working. Do not upload the local garden on sign-in.
 4. **Recovery and verification** — pending. Test account switching/sign-out,
    retries, deletions, concurrent edits, backup compatibility, and reminders.
 
@@ -121,8 +123,9 @@ Local environment files and Netlify artifacts are ignored by Git.
    No schema migration runs on an incoming request.
 3. Account-scoped storage and transactional merges now pass automated checks
    below. This backend evidence alone is not client or cross-device sync.
-4. **Next implementation:** wire opt-in web/mobile clients and explicit
-   local-import consent without waiting for the deferred manual checks.
+4. **Next implementation:** native sign-in transport and opt-in sync using the
+   shared contract, plus cross-client recovery checks. Web integration below
+   does not wait for or replace the deferred manual checks.
 
 No production deployment or production database migration has been run. Manual JSON backups,
 local storage, offline use, and native reminder behavior stay unchanged.
@@ -435,6 +438,74 @@ recovery are next. The final user-run verification checklist above remains pendi
 
 Web integration follows this preparation; native integration and all user-run
 verification remain pending. No new schema migration or server secret is needed.
+
+### Web sign-in and opt-in sync — 2026-10-17
+
+The existing garden now has a compact **account & sync** disclosure; its visual
+identity and local-first fallback remain intact. This is the web slice, not
+completion of native or physical-device integration.
+
+- Added same-origin Google/email sign-in, session checks, sign-out, retry/status,
+  and explicit **merge local garden & sync** / **use account garden only** actions.
+  Merely signing in checks identity but does not read/upload the local garden.
+  Closing the section without choosing keeps local use unchanged.
+- The original guest garden keeps its existing storage key. Account gardens,
+  consent, pending state, record versions, and tombstones live in a separate
+  atomic local envelope, isolated by user ID. Switching accounts or signing out
+  never copies account A into B or overwrites the guest garden. Sign-out pauses
+  the saved account's sync and returns to the guest copy; cached account copies
+  remain on this device and can be opened explicitly while offline.
+- On startup, account data is not displayed until a matching session is checked
+  or the user explicitly opens a saved offline copy. Previously enabled account
+  queues resume only for the same user. New guest data is never included without
+  a new explicit import choice. Online/focus events and **sync now** retry sync;
+  this first slice does not poll continuously or use live subscriptions.
+- Account writes persist before visible success or upload. Changes made during
+  a request are merged with its response and sent in a later pass. Quota,
+  network, conflict, and acknowledgement-persistence failures retain local data.
+  Request epochs and account-scoped storage bindings reject stale responses and
+  stale UI actions after sign-out/account changes. No auth token is persisted in
+  the account envelope or exposed in errors.
+- Each garden request sends the expected-account header from the checked
+  identity. `ACCOUNT_CHANGED`/expired sessions stop the old account's sync rather
+  than retry its payload into another account. Server ownership still comes
+  only from the validated cookie, not this header.
+- An origin-scoped **Web Locks** lease allows only one browser tab to write the
+  account cache. Another tab retains local-only use with close/reload guidance;
+  unsupported locking disables account sync, not the local garden. A tab reads
+  fresh account state only after it owns the lease. Cleanup releases the lease
+  and prevents late writes; Strict Mode cannot leave a competing writer behind.
+  This is deliberate single-writer protection, not simultaneous tab editing.
+- Web mutations now persist outside React state updaters. Failed add/edit/chat
+  saves keep the previous garden, preserve the form draft, and do not display
+  success. JSON import uses this same active-storage boundary without a reload;
+  export remains compatible with the existing manual backup shape.
+- The shared diff also preserves unseen orphan interactions until their friend
+  arrives, instead of treating data the client could not display as a deletion.
+
+Evidence and limits:
+
+- **154 web tests** and web build pass, including 7 pure diff, 6 transport,
+  12 account-controller, 4 writer-lease, and 9 account/UI regressions.
+  **126 API tests**, API typecheck/audit (**0 findings**), **146 mobile tests**,
+  and mobile typecheck also pass. No native behavior changed in this slice.
+- Owned Chromium checks with **synthetic network fixtures** confirmed no POST
+  before consent, expected-account GET/POST after consent, separate guest and
+  account copies, sign-out restoration, and a blocked second writer tab. These
+  are UI/transport checks, not real provider or cross-device authentication.
+- Desktop **1280×900** and mobile web **390×844** captures were reviewed in two
+  bounded rounds. The available independent review agent replaced the absent
+  named design reviewer. It found one material fix (the disclosure touch target);
+  the target now measures **44px**, and the follow-up scored that fix resolved.
+  The mechanical UI detector returned no findings. No redesign or new visual
+  system was introduced; no whole-app visual certification is claimed.
+- The browser session was closed. Owned Vite PID **7821**, its PID file, and
+  port **5197** were removed/closed. Synthetic review images were moved out of
+  the repo to the approved temporary directory `fg-web-sync-review-20261017`.
+- Real Google consent/token exchange, personal inbox delivery, real hosted web
+  client round trips, and Android/iPhone client sync remain **unverified**.
+  The user does not need to perform those checks now. Native integration and
+  the consolidated final manual pass remain the next work.
 
 ## First chunk: merge contract
 

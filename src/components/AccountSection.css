@@ -1,0 +1,57 @@
+.account-section {
+  flex-shrink: 0;
+  width: min(100%, 20rem);
+  margin-top: 0.75rem;
+  color: oklch(0.4 0.02 140);
+  font-size: 0.8125rem;
+  text-align: left;
+}
+
+.account-section summary {
+  min-height: 2.75rem;
+  padding: 0.75rem 0;
+  cursor: pointer;
+  text-align: center;
+}
+
+.account-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 45dvh;
+  overflow-y: auto;
+  padding: 0.75rem 0.25rem;
+  border-top: 1px solid oklch(0.88 0.005 140);
+  scrollbar-color: oklch(0.55 0.08 145) transparent;
+}
+
+.account-content .tool-button {
+  min-height: 2.75rem;
+  color: oklch(0.38 0.06 145);
+  white-space: normal;
+}
+
+.account-content .tool-button:disabled { opacity: 0.6; cursor: wait; }
+.account-content form, .account-actions { display: grid; gap: 0.5rem; }
+.account-email { text-transform: none; overflow-wrap: anywhere; }
+.account-error { color: oklch(0.43 0.12 35); }
+
+.account-content input {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid oklch(0.7 0.02 140);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  background: oklch(0.99 0.003 140);
+  color: inherit;
+  caret-color: oklch(0.38 0.06 145);
+}
+
+.account-section :focus-visible, .account-section:focus-visible {
+  outline: 2px solid oklch(0.4 0.1 145);
+  outline-offset: 3px;
+}
+
+.garden--populated:has(.account-section[open]) { overflow-y: auto; }
+.garden--populated:has(.account-section[open]) .garden-scroll { min-height: 8rem; }

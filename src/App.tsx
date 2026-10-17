@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef, useSyncExternalStore } from 'react'
 import './App.css'
 import { exportGarden, validateAndImportGarden, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
 import { localStorageStore } from './friends/storage'
@@ -6,15 +6,21 @@ import type { GardenStorage } from './friends/storage'
 import { useGardenStore } from './friends/useGardenStore'
 import AddFriendForm, { type AddFriendData } from './components/AddFriendForm'
 import FriendList from './components/FriendList'
+import AccountSection from './components/AccountSection'
+import type { GardenAccount } from './sync/gardenAccount'
+import { useBrowserAccount } from './sync/useBrowserAccount'
 
-function EmptyGarden({ onAdd }: { onAdd: () => void }) {
+const subscribeNothing = () => () => {}
+const noAccount = () => null
+
+function EmptyGarden({ onAdd, accountGarden }: { onAdd: () => void, accountGarden: boolean }) {
   return (
     <>
       <p className="garden-subtitle">
         your garden starts empty, you choose who belongs here.
       </p>
       <div className="garden-use">
-        <p>everything stays on your device.</p>
+        <p>{accountGarden ? 'this is your account garden.' : 'this garden stays on your device.'}</p>
         <p>private by default.</p>
       </div>
       <button className="add-friend-button" type="button" onClick={onAdd}>
@@ -27,8 +33,8 @@ function EmptyGarden({ onAdd }: { onAdd: () => void }) {
 interface PopulatedGardenProps {
   friends: Friend[]
   onAdd: () => void
-  onWater: (friendId: string, input?: LogInteractionInput) => void
-  onEdit: (friendId: string, input: EditFriendInput) => void
+  onWater: (friendId: string, input?: LogInteractionInput) => boolean | void
+  onEdit: (friendId: string, input: EditFriendInput) => boolean | void
   onRemove: (friendId: string) => void
   onRemoveInteraction: (friendId: string, interactionId: string) => void
 }
@@ -50,18 +56,20 @@ function PopulatedGarden({ friends, onAdd, onWater, onEdit, onRemove, onRemoveIn
 }
 
 interface GardenViewProps {
+  accountGarden: boolean
   friends: Friend[]
   isAdding: boolean
   onStartAdd: () => void
   onCancelAdd: () => void
-  onAddFriend: (data: AddFriendData) => void
-  onWater: (friendId: string, input?: LogInteractionInput) => void
-  onEdit: (friendId: string, input: EditFriendInput) => void
+  onAddFriend: (data: AddFriendData) => boolean | void
+  onWater: (friendId: string, input?: LogInteractionInput) => boolean | void
+  onEdit: (friendId: string, input: EditFriendInput) => boolean | void
   onRemove: (friendId: string) => void
   onRemoveInteraction: (friendId: string, interactionId: string) => void
 }
 
 function GardenView({
+  accountGarden,
   friends,
   isAdding,
   onStartAdd,
@@ -77,7 +85,7 @@ function GardenView({
   }
 
   if (friends.length === 0) {
-    return <EmptyGarden onAdd={onStartAdd} />
+    return <EmptyGarden onAdd={onStartAdd} accountGarden={accountGarden} />
   }
 
   return <PopulatedGarden friends={friends} onAdd={onStartAdd} onWater={onWater} onEdit={onEdit} onRemove={onRemove} onRemoveInteraction={onRemoveInteraction} />
@@ -85,14 +93,33 @@ function GardenView({
 
 interface AppProps {
   storage?: GardenStorage
+  account?: GardenAccount
 }
 
-function App({ storage = localStorageStore }: AppProps) {
-  const { friends, addFriend, waterFriend, updateFriend, removeFriend, removeInteraction } = useGardenStore(storage)
+function App({ storage = localStorageStore, account: injectedAccount }: AppProps) {
+  const { account, issue: accountIssue } = useBrowserAccount(storage, injectedAccount)
+  const accountState = useSyncExternalStore(account?.subscribe ?? subscribeNothing, account?.getSnapshot ?? noAccount, noAccount)
+  const activeStorage = accountState?.storage ?? storage
+  const { friends, addFriend, waterFriend, updateFriend, removeFriend, removeInteraction, replaceGarden, error: saveError } = useGardenStore(activeStorage)
   const [isAdding, setIsAdding] = useState(false)
-  const [feedback, setFeedback] = useState<string | null>(null)
-  const [feedbackType, setFeedbackType] = useState<'success' | 'error'>('success')
+  const signInFailed = new URLSearchParams(window.location.search).has('sign-in-error')
+  const [feedback, setFeedback] = useState<string | null>(signInFailed
+    ? 'Sign-in did not finish. Open account & sync and try again. Your local garden is unchanged.' : null)
+  const [feedbackType, setFeedbackType] = useState<'success' | 'error'>(signInFailed ? 'error' : 'success')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!account) return
+    const refresh = () => { void account.refresh() }
+    refresh()
+    window.addEventListener('online', refresh)
+    window.addEventListener('focus', refresh)
+    return () => {
+      window.removeEventListener('online', refresh)
+      window.removeEventListener('focus', refresh)
+      account.pause()
+    }
+  }, [account])
 
   const showFeedback = (msg: string, type: 'success' | 'error') => {
     setFeedback(msg)
@@ -101,8 +128,9 @@ function App({ storage = localStorageStore }: AppProps) {
   }
 
   const handleAddFriend = (data: AddFriendData) => {
-    addFriend(data)
-    setIsAdding(false)
+    const saved = addFriend(data)
+    if (saved) setIsAdding(false)
+    return saved
   }
 
   const handleExport = () => {
@@ -132,10 +160,8 @@ function App({ storage = localStorageStore }: AppProps) {
           showFeedback(result.error, 'error')
           return
         }
-        storage.saveFriends(result.friends)
+        if (!replaceGarden(result.friends)) return
         showFeedback('garden imported.', 'success')
-        // Delay reload to let the user see the success message
-        setTimeout(() => window.location.reload(), 200)
       } catch {
         showFeedback('invalid json file.', 'error')
       }
@@ -151,6 +177,8 @@ function App({ storage = localStorageStore }: AppProps) {
       <div className="garden-icon">🌱</div>
       <h1 className="garden-title">Friendship Garden</h1>
       <GardenView
+        key={accountState?.viewAccount?.id ?? 'local-garden'}
+        accountGarden={Boolean(accountState?.viewAccount)}
         friends={friends}
         isAdding={isAdding}
         onStartAdd={() => setIsAdding(true)}
@@ -181,6 +209,9 @@ function App({ storage = localStorageStore }: AppProps) {
           data-testid="import-input"
         />
       </div>
+      {account && accountState && <AccountSection account={account} state={accountState} />}
+      {accountIssue && <p className="feedback" role="status">{accountIssue}</p>}
+      {saveError && <p role="status" className="feedback feedback--error">{saveError}</p>}
       {feedback && (
         <p
           className={`feedback feedback--${feedbackType}`}
