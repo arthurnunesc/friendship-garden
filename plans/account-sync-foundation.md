@@ -396,6 +396,16 @@ Automated evidence:
 - That branch was deleted and its absence verified. Tests use synthetic users
   and captured email only, never local credentials or retained account data.
   Cleanup now still attempts branch deletion if closing the test pool fails.
+- Source and this stage's roadmap update are committed in **`44537c6`**.
+  Feature deploy **`6ad3925a5e730a29775677be`** is ready from that commit.
+  Hosted checks confirmed anonymous garden GET/POST **401**, owner-query
+  rejection **400**, unsupported DELETE **405**, and auth-session **200/null**;
+  all responses are `no-store`. These are deployed negative checks, not a
+  completed hosted authenticated-garden or cross-device test. The real
+  authenticated-garden checks above ran against the isolated PostgreSQL branch.
+- Production's published deployment remains unchanged. Final Neon listing
+  contains only the approved retained development branch; no owned test branch
+  remains. No user-run verification or physical-device test was requested.
 
 Client sign-in, import consent, persisted sync metadata, and cross-device offline
 recovery are next. The final user-run verification checklist above remains pending.
