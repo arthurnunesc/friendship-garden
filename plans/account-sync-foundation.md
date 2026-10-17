@@ -507,6 +507,27 @@ Evidence and limits:
   The user does not need to perform those checks now. Native integration and
   the consolidated final manual pass remain the next work.
 
+### Web client deployment evidence — 2026-10-17
+
+- Protocol preparation is committed/pushed as **`70cd28b`**; the web client
+  integration is committed/pushed as **`871a46f`** on
+  `feature/mobile-app-creation`.
+- Netlify source deploy **`6ad39ad747f7889188006c86`** is **ready** for
+  `871a46f`. The branch preview serves the new consent controls and account-cache
+  locking code; its HTML, JavaScript, and CSS return **200**.
+- Hosted session lookup returns **200 / null** and anonymous garden access
+  returns **401**, both with **`Cache-Control: no-store`**. These checks do not
+  establish an authenticated hosted garden round trip.
+- None of the four private runtime configuration values were found as literal
+  values in the served HTML/JavaScript/CSS. No secret values were printed.
+- All seven authentication variables remain feature-branch-only. Published
+  production deploy **`6a1df450234f820008eea876`** is unchanged. The retained
+  development Neon branch is still the only branch in the approved project;
+  no owned disposable database branch remains.
+
+This documentation update does not change runtime code. Native integration and
+the deferred provider/inbox/physical-device checks remain pending.
+
 ## First chunk: merge contract
 
 Current web/mobile friends have creation and conversation dates, but no edit
