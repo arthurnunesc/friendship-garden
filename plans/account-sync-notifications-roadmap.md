@@ -43,6 +43,7 @@ remains on its previous `main` deployment.
 
 ## Durable Decisions
 
+- **Verification timing** (2026-10-17): continue implementation with agent-run automated checks; defer user-run Google/inbox/device verification until the integrated flow is ready. The user will then test Android and iPhone. Track pending manual checks explicitly and fix failures before closing that pass; do not block independent implementation on those checks now.
 - **Auth provider**: Better Auth, not Clerk.
 - **Auth rollout**: Google OAuth and passwordless email through Resend first. Apple OAuth remains planned but was explicitly deferred on 2026-10-16.
 - **Backend runtime**: Netlify Functions.

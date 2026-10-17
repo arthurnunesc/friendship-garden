@@ -24,6 +24,39 @@ Client account controls and garden network sync are not enabled.
 
 Backend reminder delivery remains a later scope. Do not introduce it here.
 
+### Verification workflow — 2026-10-17
+
+The user wants implementation to proceed without user-run tests now. Batch
+hands-on verification into the final integration pass, then fix any failures.
+Pending Google consent or personal-inbox checks do not block independent
+storage, client authentication, or sync implementation.
+
+- Keep agent-run automated checks with each implementation chunk: account
+  isolation, transactions, conflict/deletion handling, offline state, and
+  existing web/mobile regressions. Keep isolated test-resource cleanup.
+- Keep small verified commits and roadmap updates. Distinguish **implemented**,
+  **automatically checked**, and **manually verified**; do not mark deferred
+  checks as passed or claim production readiness.
+- The user plans to test their own Android phone and iPhone thoroughly once
+  the integrated flow is ready. This does not authorize agent use of either
+  physical phone now. No paid device-testing runs are requested.
+
+Final user-run verification checklist (all **pending**, not requested now):
+
+- [ ] Google consent/callback and email-link delivery to a personal inbox.
+- [ ] Explicit local-garden import consent; cancellation uploads nothing.
+- [ ] Same account on web, Android, and iPhone sees the expected garden.
+- [ ] Offline edits reconnect safely; concurrent edits/deletions converge.
+- [ ] Restart, retry, sign-out, and account switching do not expose another
+  account's data or lose the user's local garden.
+- [ ] Manual backups and import/export still work on both phones.
+- [ ] Reminder permissions, scheduling, edits/deletions, and delivery work
+  on both phones, including relevant background/battery restrictions.
+
+Fix reported failures and rerun the affected checks before closing that pass.
+Apple sign-in and backend reminder email remain deferred; neither belongs
+to the acceptance checklist for this implementation scope.
+
 ### Authentication bootstrap — implemented 2026-10-16
 
 The user selected **Resend** for passwordless sign-in and **deferred Apple
