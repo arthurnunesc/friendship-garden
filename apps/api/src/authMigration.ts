@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 
 export const AUTH_MIGRATION_VERSION = '0001_auth'
+export type MigrationVersion = typeof AUTH_MIGRATION_VERSION | '0002_gardens'
+const migrationVersions: readonly MigrationVersion[] = [AUTH_MIGRATION_VERSION, '0002_gardens']
 
 const advisoryLockKey = 713_941_518
 const migrationsTable = 'public.friendship_garden_migrations'
@@ -28,12 +30,13 @@ export interface AuthMigrationOptions {
   databaseURL: string
   target: DevelopmentMigrationTarget
   sql: string
+  version?: MigrationVersion
   dryRun?: boolean
 }
 
 export interface AuthMigrationResult {
   status: 'applied' | 'already-applied' | 'pending'
-  version: typeof AUTH_MIGRATION_VERSION
+  version: MigrationVersion
 }
 
 type ExistingMigration = { checksum: string }
@@ -79,37 +82,42 @@ function validateTarget(databaseURL: string, target: DevelopmentMigrationTarget)
   }
 }
 
-function assertChecksum(existing: ExistingMigration | undefined, checksum: string) {
+function assertChecksum(existing: ExistingMigration | undefined, checksum: string, version: MigrationVersion) {
   if (existing && existing.checksum !== checksum) {
-    throw new Error(`Authentication migration ${AUTH_MIGRATION_VERSION} checksum does not match.`)
+    throw new Error(`Authentication migration ${version} checksum does not match.`)
   }
 }
 
-async function inspectMigration(client: Client, checksum: string): Promise<AuthMigrationResult> {
+async function inspectMigration(client: Client, checksum: string, version: MigrationVersion): Promise<AuthMigrationResult> {
   const relation = await client.query<Relation>('SELECT to_regclass($1) AS relation', [migrationsTable])
   if (!relation.rows[0]?.relation) {
-    return { status: 'pending', version: AUTH_MIGRATION_VERSION }
+    return { status: 'pending', version }
   }
 
   const existing = await client.query<ExistingMigration>(
     `SELECT checksum FROM ${migrationsTable} WHERE version = $1`,
-    [AUTH_MIGRATION_VERSION],
+    [version],
   )
-  assertChecksum(existing.rows[0], checksum)
+  assertChecksum(existing.rows[0], checksum, version)
   return {
     status: existing.rows[0] ? 'already-applied' : 'pending',
-    version: AUTH_MIGRATION_VERSION,
+    version,
   }
 }
 
 export async function applyAuthMigration(pool: Pool, options: AuthMigrationOptions): Promise<AuthMigrationResult> {
+  const version: unknown = options.version ?? AUTH_MIGRATION_VERSION
+  if (!migrationVersions.includes(version as MigrationVersion)) {
+    throw new Error('Unknown authentication migration version.')
+  }
+  const migrationVersion = version as MigrationVersion
   validateTarget(options.databaseURL, options.target)
   const checksum = migrationChecksum(options.sql)
   const client = await pool.connect()
 
   if (options.dryRun) {
     try {
-      return await inspectMigration(client, checksum)
+      return await inspectMigration(client, checksum, migrationVersion)
     } finally {
       client.release()
     }
@@ -130,23 +138,23 @@ export async function applyAuthMigration(pool: Pool, options: AuthMigrationOptio
 
     const existing = await client.query<ExistingMigration>(
       `SELECT checksum FROM ${migrationsTable} WHERE version = $1`,
-      [AUTH_MIGRATION_VERSION],
+      [migrationVersion],
     )
-    assertChecksum(existing.rows[0], checksum)
+    assertChecksum(existing.rows[0], checksum, migrationVersion)
     if (existing.rows[0]) {
       await client.query('COMMIT')
       transactionStarted = false
-      return { status: 'already-applied', version: AUTH_MIGRATION_VERSION }
+      return { status: 'already-applied', version: migrationVersion }
     }
 
     await client.query(options.sql)
     await client.query(
       `INSERT INTO ${migrationsTable} (version, checksum) VALUES ($1, $2)`,
-      [AUTH_MIGRATION_VERSION, checksum],
+      [migrationVersion, checksum],
     )
     await client.query('COMMIT')
     transactionStarted = false
-    return { status: 'applied', version: AUTH_MIGRATION_VERSION }
+    return { status: 'applied', version: migrationVersion }
   } catch (error) {
     if (!transactionStarted) throw error
 

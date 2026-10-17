@@ -7,11 +7,12 @@ import { getMigrations } from 'better-auth/db/migration'
 import { createAuth } from '../src/auth/auth.ts'
 import { authPoolConfig } from '../src/authDatabase.ts'
 import { applyAuthMigration } from '../src/authMigration.ts'
+import { checkGardenPostgres } from './garden-postgres-checks.mts'
 
 const usage = `Usage: node --experimental-strip-types scripts/test-auth-postgres.mts --run
 
 Creates a schema-only test branch in the pinned development project, runs
-PostgreSQL authentication checks, then deletes only that owned branch.
+PostgreSQL authentication and garden sync checks, then deletes only that owned branch.
 Requires an authenticated Neon CLI. Does not load .env files or send email.
 
 Examples:
@@ -44,21 +45,28 @@ async function main() {
   let pool: Pool | undefined
   let cleanupPromise: Promise<void> | undefined
   const cleanup = () => cleanupPromise ??= (async () => {
-    await pool?.end()
-    if (!creationAttempted) return
-    const before = neon(['branches', 'list', '--project-id', manifest.projectId, '--output', 'json']) as
-      { branches?: { id: string, name: string }[] } | { id: string, name: string }[]
-    const candidates = Array.isArray(before) ? before : before.branches
-    assert(candidates)
-    const owned = candidates.find((branch) => branch.name === name)
-    if (!owned) { console.log(`No owned test branch remains: ${name}`); return }
-    assert.notEqual(owned.id, manifest.branchId)
-    neon(['branches', 'delete', owned.id, '--project-id', manifest.projectId, '--output', 'json'])
-    const remaining = neon(['branches', 'list', '--project-id', manifest.projectId, '--output', 'json']) as
-      { branches?: { id: string, name: string }[] } | { id: string, name: string }[]
-    const branches = Array.isArray(remaining) ? remaining : remaining.branches
-    assert(branches && !branches.some((branch) => branch.id === owned.id || branch.name === name))
-    console.log(`Removed owned test branch: ${owned.id}`)
+    try {
+      await pool?.end()
+    } finally {
+      if (creationAttempted) {
+        const before = neon(['branches', 'list', '--project-id', manifest.projectId, '--output', 'json']) as
+          { branches?: { id: string, name: string }[] } | { id: string, name: string }[]
+        const candidates = Array.isArray(before) ? before : before.branches
+        assert(candidates)
+        const owned = candidates.find((branch) => branch.name === name)
+        if (owned) {
+          assert.notEqual(owned.id, manifest.branchId)
+          neon(['branches', 'delete', owned.id, '--project-id', manifest.projectId, '--output', 'json'])
+          const remaining = neon(['branches', 'list', '--project-id', manifest.projectId, '--output', 'json']) as
+            { branches?: { id: string, name: string }[] } | { id: string, name: string }[]
+          const branches = Array.isArray(remaining) ? remaining : remaining.branches
+          assert(branches && !branches.some((branch) => branch.id === owned.id || branch.name === name))
+          console.log(`Removed owned test branch: ${owned.id}`)
+        } else {
+          console.log(`No owned test branch remains: ${name}`)
+        }
+      }
+    }
   })()
   const interrupt = () => { void cleanup().finally(() => process.exit(130)) }
   process.once('SIGINT', interrupt)
@@ -107,6 +115,13 @@ async function main() {
     assert.deepEqual(migrations.map((r) => r.status).sort(), ['already-applied', 'applied'])
     assert.equal((await applyAuthMigration(pool, { ...options, dryRun: true })).status, 'already-applied')
     await assert.rejects(applyAuthMigration(pool, { ...options, sql: sql + '\n-- changed' }), /checksum/)
+    verificationStage = 'garden migration'
+    const gardenSQL = await readFile(new URL('../migrations/0002_gardens.sql', import.meta.url), 'utf8')
+    const gardenOptions = { ...options, sql: gardenSQL, version: '0002_gardens' as const }
+    assert.equal((await applyAuthMigration(pool, { ...gardenOptions, dryRun: true })).status, 'pending')
+    const gardenMigrations = await Promise.all([applyAuthMigration(pool, gardenOptions), applyAuthMigration(pool, gardenOptions)])
+    assert.deepEqual(gardenMigrations.map((r) => r.status).sort(), ['already-applied', 'applied'])
+    assert.equal((await applyAuthMigration(pool, { ...gardenOptions, dryRun: true })).status, 'already-applied')
     verificationStage = 'schema drift'
     const emails: { email: string, url: string }[] = []
     const baseURL = 'https://garden.example'
@@ -142,9 +157,12 @@ async function main() {
     assert(cookies.some((cookie) => cookie.includes('HttpOnly') && cookie.includes('Secure')))
     const cookie = cookies.map((value) => value.split(';')[0]).join('; ')
     const session = await auth.handler(request('/get-session', { headers: { cookie } }))
-    assert.equal(((await session.json()) as { user: { email: string } }).user.email, email)
+    const sessionData = (await session.json()) as { user: { id: string, email: string } }
+    assert.equal(sessionData.user.email, email)
     const replay = await auth.handler(new Request(link))
     assert(replay.headers.get('location')?.includes('INVALID_TOKEN'))
+    verificationStage = 'account-isolated garden storage and HTTP'
+    await checkGardenPostgres(pool, auth, baseURL, sessionData.user.id, cookie, emails)
     assert.equal((await auth.handler(request('/sign-out', { method: 'POST', headers: { cookie } }))).status, 200)
     assert.equal(await (await auth.handler(request('/get-session', { headers: { cookie } }))).json(), null)
     verificationStage = 'expiry and rate limit'

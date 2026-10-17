@@ -71,11 +71,14 @@ export interface GardenFriend {
 
 type UnknownRecord = Record<string, unknown>
 
+export class InvalidSyncSnapshotError extends Error {}
+export class SyncCollisionError extends Error {}
+
 const hasOwn = (value: UnknownRecord, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(value, key)
 
 function fail(message: string): never {
-  throw new Error(`Invalid sync snapshot: ${message}`)
+  throw new InvalidSyncSnapshotError(`Invalid sync snapshot: ${message}`)
 }
 
 function isRecord(value: unknown): value is UnknownRecord {
@@ -233,7 +236,7 @@ function chooseNewer<T extends SyncFriendRecord | SyncInteractionRecord>(left: T
   const changeOrder = compareCodePoints(left.changeId, right.changeId)
   if (changeOrder !== 0) return changeOrder > 0 ? left : right
   if (canonicalRecord(left) !== canonicalRecord(right)) {
-    throw new Error('Sync snapshot collision: same identity/version has different payloads')
+    throw new SyncCollisionError('Sync snapshot collision: same identity/version has different payloads')
   }
   return left
 }

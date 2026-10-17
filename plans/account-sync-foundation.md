@@ -2,21 +2,22 @@
 
 Source: `plans/account-sync-notifications-roadmap.md`.
 
-## Status — 2026-10-16
+## Status — 2026-10-17
 
 Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
 (roadmap/evidence). The isolated merge module below is implemented in
 `apps/api/src/gardenSync.ts`, committed together with this status update.
-Client account controls and garden network sync are not enabled.
+Account-scoped backend storage and transactional sync are implemented and
+automatically checked. Client sign-in controls and network sync are not wired yet.
 
 ## Work order
 
 1. **Merge contract** — complete. A tested, side-effect-free module under
    `apps/api` implements structured, entity-level last-write-wins sync.
-2. **Authenticated storage** — in progress. Authentication bootstrap is
-   implemented, and PostgreSQL migrations are verified and applied to a separate
-   development project. Account-scoped garden reads/writes are still pending.
-   Test with an isolated database, never production credentials or data.
+2. **Authenticated storage** — implemented and automatically checked. Cookie
+   sessions select account-scoped garden reads and transactional merges. Both
+   PostgreSQL migrations are verified and applied to the separate development
+   project. Test with an isolated database, never production credentials or data.
 3. **Opt-in client sync** — pending. Explicitly confirm local-data import;
    keep local persistence and offline use working. Do not upload on sign-in.
 4. **Recovery and verification** — pending. Test account switching/sign-out,
@@ -112,15 +113,16 @@ Local environment files and Netlify artifacts are ignored by Git.
 
 ### Next gates
 
-1. Complete a real Google account consent and callback exchange. Authorization
+1. **Final manual pass, deferred:** complete Google consent/callback exchange. Authorization
    initiation and the preview redirect pass; an interactive Google login has
    not been performed. Keep secrets out of chat and Git.
 2. Hosted passwordless sessions and real Resend delivery to the provider test
    inbox now pass, as recorded below. Personal inbox delivery remains unverified.
    No schema migration runs on an incoming request.
-3. Add authenticated, account-scoped garden storage and transactional merges.
-   Authentication scaffolding alone is not account isolation or live sync.
-4. Only then wire opt-in web/mobile clients and explicit local-import consent.
+3. Account-scoped storage and transactional merges now pass automated checks
+   below. This backend evidence alone is not client or cross-device sync.
+4. **Next implementation:** wire opt-in web/mobile clients and explicit
+   local-import consent without waiting for the deferred manual checks.
 
 No production deployment or production database migration has been run. Manual JSON backups,
 local storage, offline use, and native reminder behavior stay unchanged.
@@ -338,7 +340,65 @@ missing-configuration 503. There is still no client sign-in UI or garden sync.
 its client-secret exchange, consent audience, and test-user access still need
 interactive verification. Delivery to Resend's test inbox is not proof of
 delivery to the user's personal inbox. Account-backed garden storage, client
-sign-in/import controls, and cross-device sync remain separate implementation.
+sign-in/import controls, and cross-device sync remained separate implementation
+at that checkpoint. The following section records the next backend slice.
+
+### Account-scoped garden backend — 2026-10-17
+
+Implemented the next backend slice without enabling client uploads:
+
+- `GET /api/garden` returns the signed-in user's canonical version-1 snapshot,
+  or an empty snapshot without creating a database row. `POST /api/garden`
+  accepts that snapshot directly and returns its transactional entity-level
+  merge with the account's current records. Omissions never delete records;
+  deletions remain tombstones. Retried/stale snapshots do not replace history.
+- The owner comes **only** from a server-validated Better Auth cookie session.
+  Database session lookup bypasses cookie caching and refresh. Query parameters
+  and extra top-level body fields (including user IDs) are rejected. Caller
+  identity, bearer, and forwarded-IP headers do not select an account.
+- The request URL must match the configured origin. POST requires its exact
+  `Origin`; foreign/opaque origins and cross-site Fetch Metadata are rejected
+  before session lookup. No cross-origin access is granted. Native transport
+  must send the configured origin; native sign-in/cookie plumbing is still pending.
+- Responses are uncached and errors are generic: **400** invalid snapshots,
+  **401** missing/revoked sessions, **403** invalid origin, **409** conflicting
+  versions, **413** size limit, **415** unsupported encoding, **503** internal
+  failure. Unsupported methods return **405**. No account data enters errors/logs.
+- New `0002_gardens.sql` stores a **structured JSONB snapshot per user**, with
+  a user foreign key and deletion cascade. SQL shape checks complement the
+  module's record validation. This is not an encrypted opaque client backup.
+  No sharing or client-selected ownership is introduced.
+- Parameterized account queries, an insert followed by `SELECT … FOR UPDATE`,
+  and one checked-out transaction serialize concurrent initial and later merges.
+  Failed writes roll back; failed rollback discards the connection. Five-second
+  lock/statement timeouts bound database work. Invalid stored data fails closed.
+- The initial **1 MiB UTF-8 JSON limit** applies to requests and canonical stored
+  snapshots, including merged history. Streamed bytes are checked even with a
+  misleading/missing Content-Length. Oversize merges roll back, never truncate
+  records or tombstones. Invalid PostgreSQL Unicode text is rejected before DB
+  access. Later clients must keep local edits on quota/conflict/network errors.
+- The guarded migration runner now allows only `0001_auth` and `0002_gardens`;
+  the CLI reads both files first, then checks/applies them in order. The applied
+  `0001_auth.sql` and its checksum are unchanged. Development dry-run/application
+  reported **0001 already-applied; 0002 pending → applied → already-applied**.
+  No migrations run in an HTTP request; production configuration is untouched.
+
+Automated evidence:
+
+- **122 API tests**, API typecheck, and API audit (**0 findings**) pass.
+- **116 web tests**, web build, **146 mobile tests**, and mobile typecheck pass.
+- Real PostgreSQL checks passed on owned disposable schema-only branch
+  **`br-weathered-cloud-bat4j8rr`**: both migration versions, real cookie-authenticated
+  users, account isolation with overlapping entity IDs, concurrent first writers,
+  independent edits, tombstones/stale retries, collision rollback, injected SQL
+  write-failure rollback, owner FK/shape constraints, session revocation, and
+  account deletion cascade without changing the other user's garden.
+- That branch was deleted and its absence verified. Tests use synthetic users
+  and captured email only, never local credentials or retained account data.
+  Cleanup now still attempts branch deletion if closing the test pool fails.
+
+Client sign-in, import consent, persisted sync metadata, and cross-device offline
+recovery are next. The final user-run verification checklist above remains pending.
 
 ## First chunk: merge contract
 

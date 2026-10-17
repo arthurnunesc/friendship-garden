@@ -16,16 +16,18 @@ This document is an implementation handoff for future planning. It records decis
 4. **Backend notification channels**: extend reminders beyond native local notifications through a pluggable backend notification layer, with email as the first implemented channel.
 5. **Sync refinement**: improve conflict handling, first-sign-in import flows, and cross-device UX after the foundation exists.
 
-### Active implementation — 2026-10-16
+### Active implementation — 2026-10-17
 
 The first account-sync foundation chunk is implemented: an isolated merge
 contract in `apps/api`, committed as `4be7258`. Authentication bootstrap now
 adds Google + Resend magic links and a fail-closed Netlify handler, with
-**75 API tests** passing. PostgreSQL migrations now pass real isolated tests
+**122 API tests** passing. PostgreSQL migrations now pass real isolated tests
 and are applied to the separate development project. Branch-only credentials
 are configured; hosted passwordless sign-in and real Resend test-inbox delivery
-pass. Completed Google consent, account-scoped garden storage, and client
-integration are not complete. See
+pass. Account-scoped storage and transactional garden merges now also pass
+real PostgreSQL checks, including concurrent writes and account isolation.
+Client sign-in/import/sync integration remains next. Completed Google consent
+is deferred to the final user-run verification pass. See
 `plans/account-sync-foundation.md` for chunk status, invariants, and remaining
 setup questions. Native Phase 7 is committed in `89462d9`
 (fix/tests) and `e3f497b` (roadmap/evidence). No account or network sync is

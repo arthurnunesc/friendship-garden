@@ -49,8 +49,10 @@ tests pass** on October 16. Native UI evidence and remaining limits are in
 Continue the account-sync foundation tracked in
 `plans/account-sync-foundation.md`. Its merge module and authentication
 bootstrap are implemented. Development PostgreSQL and hosted passwordless
-checks pass; completed Google consent, authenticated garden storage, and
-client integration remain. Shared-core extraction (Phase 8)
+checks pass. Account-scoped backend storage and transactional sync are now
+implemented and automatically checked; client integration remains next.
+Google consent and hands-on device checks are deferred to final verification.
+Shared-core extraction (Phase 8)
 remains optional. Do not repeat full platform runs without a changed path or
 a specific missing check. No auth, backend, or social feature is part of this
 Phase 7 closeout.

@@ -132,4 +132,38 @@ describe('applyAuthMigration', () => {
       'SELECT checksum FROM public.friendship_garden_migrations WHERE version = $1',
     ])
   })
+
+  it('applies and inspects gardens migration using its own ledger version', async () => {
+    const gardensSQL = 'CREATE TABLE public.gardens (id integer);'
+    const applied = fakePool([{}, {}, {}, {}, { rows: [] }, {}, {}])
+    await expect(applyAuthMigration(applied.pool, {
+      databaseURL: directURL, target, sql: gardensSQL, version: '0002_gardens',
+    })).resolves.toEqual({ status: 'applied', version: '0002_gardens' })
+    expect(applied.transcript[4]).toEqual({
+      text: 'SELECT checksum FROM public.friendship_garden_migrations WHERE version = $1',
+      values: ['0002_gardens'],
+    })
+    expect(applied.transcript.at(-2)).toEqual({
+      text: 'INSERT INTO public.friendship_garden_migrations (version, checksum) VALUES ($1, $2)',
+      values: ['0002_gardens', expect.any(String)],
+    })
+
+    const inspection = fakePool([
+      { rows: [{ relation: 'friendship_garden_migrations' }] },
+      { rows: [{ checksum: 'different' }] },
+    ])
+    await expect(applyAuthMigration(inspection.pool, {
+      databaseURL: directURL, target, sql: gardensSQL, version: '0002_gardens', dryRun: true,
+    })).rejects.toThrow('0002_gardens checksum')
+    expect(inspection.transcript[1]?.values).toEqual(['0002_gardens'])
+  })
+
+  it('rejects unknown runtime migration versions before connecting', async () => {
+    const fake = fakePool()
+    await expect(applyAuthMigration(fake.pool, {
+      databaseURL: directURL, target, sql,
+      version: '0003_unknown' as never,
+    })).rejects.toThrow('Unknown authentication migration version')
+    expect(fake.connects).toBe(0)
+  })
 })
