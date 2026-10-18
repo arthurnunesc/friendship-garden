@@ -49,6 +49,29 @@ Xcode 27 rejects AsyncStorage's generated iOS 13.4 resource target.
 Build only the active simulator architecture; the dual-architecture attempt
 failed with Swift and asset-catalog errors on this machine.
 
+### Account-auth simulator signing — 2026-10-18
+
+Unsigned builds above can render the local UI but Keychain access returns
+**OSStatus -34018**. For disposable simulator account tests only, ad-hoc sign
+the built `.app` with an entitlement plist containing only:
+
+```xml
+<plist version="1.0"><dict>
+  <key>com.apple.application-identifier</key>
+  <string>FGSIMTEST1.com.friendshipgarden.app</string>
+</dict></plist>
+```
+
+Run `codesign --force --sign - --entitlements <temporary-plist> <built-app>`
+before reinstalling that owned simulator. No Apple certificate is required.
+Do not add this test identifier to `app.json` or physical-device signing.
+The iOS-style `application-identifier` and `keychain-access-groups` keys instead
+caused macOS AMFI to reject the ad-hoc app as restricted (**-424**); Xcode's
+default simulator ad-hoc signing produced an empty entitlement set.
+The corrected simulator binary launched and completed the initial secure-store
+read without showing the earlier auth failure. This is not proof of a real
+Google login, email handoff, or physical-phone Keychain behavior.
+
 ## Device checks
 
 ```sh

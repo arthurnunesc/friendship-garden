@@ -45,7 +45,8 @@ storage, client authentication, or sync implementation.
   the integrated flow is ready. This does not authorize agent use of either
   physical phone now. No paid device-testing runs are requested.
 
-Final user-run verification checklist (all **pending**, not requested now):
+Final user-run verification checklist (all **pending**; use configured native
+builds for the consolidated pass, not earlier local-only binaries):
 
 - [ ] Google consent/callback and email-link delivery to a personal inbox.
 - [ ] Explicit local-garden import consent; cancellation uploads nothing.
@@ -656,6 +657,44 @@ recovery. Preserve the final consolidated user-run checks for that integration.
 Next: verify the deployed native initiation/cancellation boundary and finish the
 single consolidated user-run Google/inbox/web/Android/iPhone acceptance pass.
 No physical phone, personal inbox, production data, or paid test run was used.
+
+### Native integration deployment and verification — 2026-10-18
+
+- Implementation is committed/pushed as **`bdc1d91`**. Feature source deploy
+  **`6ad536187102deb2e398b867`** is **ready** for that exact commit. Previous
+  documentation deploy **`6ad4da54fb10db3a5e2d9c7f`** also reached ready.
+- Hosted home **200**, session **200/null**, anonymous garden **401**, and
+  malformed native email callback **403** pass. API responses are `no-store`.
+  The malformed callback is rejected before mail delivery. No test account or
+  garden was created on the retained preview database for these checks.
+- The real PostgreSQL suite passes again with the Expo plugin enabled: zero
+  auth-schema drift, guarded migrations, cookie sessions/revocation, rate limits,
+  account isolation, concurrent merges, tombstones, and rollback. Owned branch
+  **`br-steep-unit-ba41gjsx`** was deleted and its absence checked by the runner.
+- Final self-contained Android and iOS ARM64 Release builds pass. On the owned
+  simulator/emulator, the local garden opens and the account disclosure expands
+  with Google, email, and retry controls without requesting a notification
+  permission or uploading garden data. Initial iOS Keychain reads work after
+  the simulator-only signing correction in `plans/noqa-mobile-testing.md`.
+- Normal-state account UI screenshots were inspected together on both platforms;
+  controls and consent copy remain readable and scrollable. Existing Android
+  OS-denied reminder status was not changed. No paid grounding/run was used.
+  This was a bounded surface check, not new whole-app visual certification.
+- Real device-to-provider initiation/cancellation, full Google consent/token
+  exchange, email delivery/return to the app, authenticated hosted garden round
+  trips, and physical-phone behavior remain **unverified**. Unit/integration
+  coverage is not a substitute for the pending consolidated checklist above.
+- Test artifacts (logs, audit comparison, UI images, simulator entitlements,
+  and exact resource journal) are outside the repo under the approved temporary
+  directory **`fg-nativeauth-20261018`**. No native build certificate, production
+  setting, existing AVD, or unrelated application's resource was changed.
+- Cleanup is complete and independently checked: owned simulator
+  **`5B6FB74A-C86F-46C9-8AB5-D6F8C25448E1`** is deleted; wrapper **`80727`**,
+  Android process **`83515`**, and **`emulator-5586`** are absent. No Gradle build
+  daemon remains. No test server/container/volume was created. The final Neon
+  listing contains only approved retained branch **`br-morning-pine-ba055d1b`**.
+  Noqa balance remains **$5.00**. Production's published deploy is still
+  **`6a1df450234f820008eea876`**.
 
 ## First chunk: merge contract
 

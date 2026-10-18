@@ -2,16 +2,16 @@
 
 > Source context: `plans/friendship-garden-prd.md`, `plans/friendship-garden-implementation.md`, and the current Vite + React web app.
 
-## Current Status — 2026-10-16
+## Current Status — 2026-10-18
 
 **Phase 7 is complete within the agreed simulator/emulator scope.**
 The native migration is closed for this development scope, not certified for
 hardware reliability or production release. The next account-sync foundation
 scope now includes an isolated merge module and a development auth backend.
 Hosted passwordless sign-in is verified against a disposable test database;
-the web client now has consent-gated sign-in/sync. Native sign-in and garden
-network sync remain to be integrated. The native async queue/transport foundation
-and durable-save boundary are implemented; no cross-device pass is claimed.
+web and native clients now have consent-gated sign-in/sync. Native secure
+callbacks, async queues/transport, and the durable-save boundary are integrated;
+no real-provider, personal-inbox, or cross-device acceptance pass is claimed.
 See `plans/account-sync-foundation.md`.
 Implementation is ahead of the original unchecked phase lists. Use this
 status summary and the dated evidence in `plans/noqa-mobile-testing.md` for
@@ -32,8 +32,8 @@ or implemented features as proof of hardware reliability.
 | 8 — Shared core extraction | Optional; not started and not a prerequisite for using the native app. | Keep the copied domain modules until extraction has a clear benefit. |
 | 9 — Social layer | Deferred; not part of this migration. | No social implementation authorized. |
 
-Current automated baseline: **146 mobile tests, mobile typecheck, and 116 web
-tests pass** on October 16. Native UI evidence and remaining limits are in
+Current automated baseline: **226 mobile tests/typecheck, 154 web tests/build,
+and 138 API tests/typecheck pass** on October 18. Native UI evidence and remaining limits are in
 `plans/noqa-mobile-testing.md`.
 
 ### Completed Phase 7 follow-up
@@ -53,8 +53,9 @@ Continue the account-sync foundation tracked in
 bootstrap are implemented. Development PostgreSQL and hosted passwordless
 checks pass. Account-scoped backend storage and transactional sync are now
 implemented and automatically checked. Web integration is implemented and
-automatically checked; native client integration remains next.
-Google consent and hands-on device checks are deferred to final verification.
+automatically checked; native client integration is committed as `bdc1d91`
+with both Release builds passing. Google consent, personal-inbox delivery, and
+hands-on phone checks remain in the consolidated final verification checklist.
 Shared-core extraction (Phase 8)
 remains optional. Do not repeat full platform runs without a changed path or
 a specific missing check. No auth, backend, or social feature is part of this
