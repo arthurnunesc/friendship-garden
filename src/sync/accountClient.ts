@@ -1,25 +1,7 @@
 import { mergeGardenSnapshots, type SyncSnapshot } from '../../packages/garden-sync/src/snapshot'
 
-export interface AccountUser { id: string, email: string }
-export interface AccountClient {
-  session(): Promise<AccountUser | null>
-  google(): Promise<void>
-  email(email: string): Promise<void>
-  signOut(): Promise<void>
-  read(userId: string): Promise<SyncSnapshot>
-  merge(userId: string, snapshot: SyncSnapshot): Promise<SyncSnapshot>
-}
-
-export class AccountRequestError extends Error {
-  constructor(public readonly status: number, public readonly code?: string) {
-    super(status === 401 ? 'Your session ended. Sign in again; your changes are kept on this device.'
-      : code === 'ACCOUNT_CHANGED' ? 'Your account changed. Reconnect before syncing.'
-      : status === 409 ? 'Two changes have the same sync version. Your local changes are kept.'
-      : status === 413 ? 'This garden is too large to sync. Your changes are kept on this device.'
-      : status === 429 ? 'Too many sign-in attempts. Try again in a minute.'
-      : 'Cannot connect right now. Your garden is safe on this device. Try again.')
-  }
-}
+import { AccountRequestError, type AccountClient, type AccountUser } from '../../packages/garden-sync/src/account'
+export { AccountRequestError, type AccountClient, type AccountUser } from '../../packages/garden-sync/src/account'
 
 const empty = (): SyncSnapshot => ({ version: 1, friends: [], interactions: [] })
 

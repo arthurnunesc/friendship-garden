@@ -65,23 +65,21 @@ describe('asyncStorageStore', () => {
     expect(loaded).toEqual(friends)
   })
 
-  it('returns an empty garden for malformed json', async () => {
+  it('rejects malformed JSON without changing the saved bytes', async () => {
     await getMemoryStorage().setItem(KEY, '{nope')
 
-    const friends = await asyncStorageStore.loadFriends()
-    expect(friends).toEqual([])
-    expect(console.warn).toHaveBeenCalledWith('Failed to parse stored garden data')
+    await expect(asyncStorageStore.loadFriends()).rejects.toThrow('stored data has not been replaced')
+    expect(await getMemoryStorage().getItem(KEY)).toBe('{nope')
   })
 
-  it('returns an empty garden when stored data is not an array', async () => {
+  it('rejects non-array stored data instead of acknowledging an empty garden', async () => {
     await getMemoryStorage().setItem(KEY, JSON.stringify({ friends: [] }))
 
-    const friends = await asyncStorageStore.loadFriends()
-    expect(friends).toEqual([])
-    expect(console.warn).toHaveBeenCalledWith('Stored garden data is not an array')
+    await expect(asyncStorageStore.loadFriends()).rejects.toThrow('Could not read')
+    expect(await getMemoryStorage().getItem(KEY)).toBe(JSON.stringify({ friends: [] }))
   })
 
-  it('drops invalid friends and normalizes missing interactions', async () => {
+  it('retains the complete original payload if any friend is invalid', async () => {
     await getMemoryStorage().setItem(
       KEY,
       JSON.stringify([
@@ -100,19 +98,23 @@ describe('asyncStorageStore', () => {
       ]),
     )
 
-    const loaded = await asyncStorageStore.loadFriends()
-    expect(loaded).toEqual([
-      {
-        id: 'f-1',
-        name: 'Alice',
-        cadenceDays: 14,
-        interactions: [],
-        createdAt: '2025-01-01T00:00:00.000Z',
-      },
-    ])
-    expect(console.warn).toHaveBeenCalledWith(
-      'Dropping invalid friend from storage:',
-      expect.objectContaining({ name: 'Bad entry' }),
-    )
+    const before = await getMemoryStorage().getItem(KEY)
+    await expect(asyncStorageStore.loadFriends()).rejects.toThrow('Could not read')
+    expect(await getMemoryStorage().getItem(KEY)).toBe(before)
+    expect(console.warn).not.toHaveBeenCalled()
+  })
+
+  it('normalizes supported legacy friends without changing the stored copy', async () => {
+    const original = [{ id: 'legacy', name: 'Alice', cadenceDays: 14, createdAt: '2025-01-01T00:00:00.000Z' }]
+    await getMemoryStorage().setItem(KEY, JSON.stringify(original))
+    expect(await asyncStorageStore.loadFriends()).toEqual([{ ...original[0], interactions: [] }])
+    expect(await getMemoryStorage().getItem(KEY)).toBe(JSON.stringify(original))
+  })
+
+  it('redacts read failures and never treats them as an empty garden', async () => {
+    vi.spyOn(getMemoryStorage(), 'getItem').mockRejectedValueOnce(new Error('private storage path'))
+    await expect(asyncStorageStore.loadFriends()).rejects.not.toThrow('private')
+    await getMemoryStorage().setItem(KEY, '')
+    await expect(asyncStorageStore.loadFriends()).rejects.toThrow('Could not read')
   })
 })

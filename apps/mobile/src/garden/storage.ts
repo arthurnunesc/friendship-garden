@@ -4,6 +4,8 @@ import { isValidFriend, type Friend } from './Friend'
 export interface GardenStorage {
   loadFriends(): Promise<Friend[]>
   saveFriends(friends: Friend[]): Promise<void>
+  updateFriends?(change: (friends: Friend[]) => Friend[]): Promise<Friend[]>
+  subscribe?(listener: () => void): () => void
 }
 
 const KEY = 'friendship-garden:v1:friends'
@@ -13,7 +15,7 @@ function normalizeStoredFriend(item: unknown): unknown {
   const friend = item as Record<string, unknown>
   return {
     ...friend,
-    interactions: Array.isArray(friend.interactions) ? friend.interactions : [],
+    interactions: friend.interactions === undefined ? [] : friend.interactions,
   }
 }
 
@@ -21,24 +23,14 @@ export const asyncStorageStore: GardenStorage = {
   async loadFriends() {
     try {
       const raw = await AsyncStorage.getItem(KEY)
-      if (!raw) return []
+      if (raw === null) return []
       const data = JSON.parse(raw)
-      if (!Array.isArray(data)) {
-        console.warn('Stored garden data is not an array')
-        return []
-      }
-      return data
-        .map(normalizeStoredFriend)
-        .filter((item): item is Friend => {
-          const valid = isValidFriend(item)
-          if (!valid) {
-            console.warn('Dropping invalid friend from storage:', item)
-          }
-          return valid
-        })
+      if (!Array.isArray(data)) throw new Error()
+      const friends = data.map(normalizeStoredFriend)
+      if (!friends.every(isValidFriend)) throw new Error()
+      return friends
     } catch {
-      console.warn('Failed to parse stored garden data')
-      return []
+      throw new Error('Could not read the saved garden. The stored data has not been replaced.')
     }
   },
   async saveFriends(friends: Friend[]) {

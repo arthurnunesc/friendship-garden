@@ -9,9 +9,9 @@ import { FriendListItem } from "./FriendListItem";
 
 interface FriendListProps {
   friends: Friend[];
-  onWater: (id: string, type?: InteractionType, note?: string) => void;
-  onEdit: (id: string, name: string, birthday: string, cadenceDays: number) => void;
-  onRemove: (id: string) => void;
+  onWater: (id: string, type?: InteractionType, note?: string) => Promise<boolean> | boolean | void;
+  onEdit: (id: string, name: string, birthday: string, cadenceDays: number) => Promise<boolean> | boolean | void;
+  onRemove: (id: string) => Promise<boolean> | boolean | void;
 }
 
 function getDaysSince(friend: Friend, now: Date): number {

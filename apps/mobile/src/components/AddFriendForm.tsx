@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -12,7 +12,7 @@ import {
 import { DEFAULT_CADENCE_DAYS } from "../garden/Friend";
 
 interface AddFriendFormProps {
-  onSubmit: (data: { name: string; birthday?: string; cadenceDays?: number }) => void;
+  onSubmit: (data: { name: string; birthday?: string; cadenceDays?: number }) => Promise<boolean> | boolean | void;
   onCancel: () => void;
 }
 
@@ -30,17 +30,31 @@ export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
   const [cadenceDays, setCadenceDays] = useState(DEFAULT_CADENCE_DAYS);
   const [showDetails, setShowDetails] = useState(false);
   const [cadenceIndex, setCadenceIndex] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const submitting = useRef(false);
 
   const trimmed = name.trim();
   const isValid = trimmed.length > 0;
 
-  const handleSubmit = () => {
-    if (!isValid) return;
-    onSubmit({
-      name: trimmed,
-      birthday: birthday || undefined,
-      cadenceDays,
-    });
+  const handleSubmit = async () => {
+    if (!isValid || submitting.current) return;
+    submitting.current = true;
+    setSaving(true);
+    setSaveError(false);
+    try {
+      const result = await onSubmit({
+        name: trimmed,
+        birthday: birthday || undefined,
+        cadenceDays,
+      });
+      if (result === false) setSaveError(true);
+    } catch {
+      setSaveError(true);
+    } finally {
+      submitting.current = false;
+      setSaving(false);
+    }
   };
 
   const handleCadenceChange = (index: number) => {
@@ -64,6 +78,7 @@ export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
         <TextInput
           style={styles.input}
           value={name}
+          editable={!saving}
           onChangeText={setName}
           placeholder="friend's name"
           placeholderTextColor="#aaa"
@@ -75,6 +90,7 @@ export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
         <TouchableOpacity
           style={styles.detailsToggle}
           onPress={() => setShowDetails(!showDetails)}
+          disabled={saving}
         >
           <Text style={styles.detailsToggleText}>
             {showDetails ? "▾ less options" : "▸ more options"}
@@ -87,6 +103,7 @@ export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
             <TextInput
               style={styles.input}
               value={birthday}
+              editable={!saving}
               onChangeText={setBirthday}
               placeholder="YYYY-MM-DD"
               placeholderTextColor="#aaa"
@@ -104,6 +121,7 @@ export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
                     index === cadenceIndex && styles.cadenceChipActive,
                   ]}
                   onPress={() => handleCadenceChange(index)}
+                  disabled={saving}
                 >
                   <Text
                     style={[
@@ -121,17 +139,19 @@ export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
 
         <View style={styles.actions}>
           <TouchableOpacity
-            style={[styles.submitButton, !isValid && styles.submitButtonDisabled]}
+            style={[styles.submitButton, (!isValid || saving) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={!isValid}
+            disabled={!isValid || saving}
             activeOpacity={0.7}
           >
-            <Text style={styles.submitText}>add to garden</Text>
+            <Text style={styles.submitText}>{saving ? "saving…" : "add to garden"}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
+          <TouchableOpacity style={styles.cancelButton} disabled={saving}
+            onPress={() => { if (!submitting.current) onCancel(); }}>
             <Text style={styles.cancelText}>cancel</Text>
           </TouchableOpacity>
         </View>
+        {saveError && <Text accessibilityRole="alert" style={styles.errorText}>could not save. please try again.</Text>}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -233,5 +253,10 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 15,
     color: "#999",
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#d9744a",
+    marginTop: 12,
   },
 });

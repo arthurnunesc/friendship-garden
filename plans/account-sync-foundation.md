@@ -528,6 +528,73 @@ Evidence and limits:
 This documentation update does not change runtime code. Native integration and
 the deferred provider/inbox/physical-device checks remain pending.
 
+### Native persistence and queue foundation — 2026-10-18
+
+Implemented the asynchronous client boundary needed before native sign-in can
+be connected. **This is not native account-sync completion:** the provider
+adapter, deep-link/cookie handoff, and account controls are not wired into the
+mobile app yet. Opening the current mobile app still uses the local garden.
+
+- Shared the dependency-free account identity/client/error contract between
+  web and native. The web transport keeps its existing public exports.
+- Added a native garden transport with injected authentication and fetch
+  dependencies. It sends the current secure-store adapter cookie, exact
+  configured HTTPS `Origin`, and `x-garden-account`; `credentials: omit` prevents
+  ambient native cookie jars from selecting a different session. Invalid
+  configuration, missing identity/cookies, malformed snapshots, and transport
+  failures fail closed with generic errors. The secure auth adapter itself is
+  still pending; no session token is stored in garden metadata.
+- Added native consent-gated per-account snapshots, pending state, versions,
+  tombstones, explicit offline-cache opening, and restart/retry support.
+  The original guest garden remains separate. A single asynchronous writer
+  serializes metadata, guest/account edits, and merge acknowledgements.
+- An optional atomic storage mutation callback computes local edits against
+  the latest committed account snapshot, not a stale rendered friend array.
+  This preserves remote friends that arrive before a queued local edit.
+  Changes made during an upload trigger another pass. Completed old-account
+  writes remain in that account's cache but cannot publish into a new account
+  or report success to a stale view after sign-out.
+- Ordinary native edits now wait for persistence outside React state updaters.
+  Add/edit/conversation/removal controls prevent duplicate submission, await
+  the result, and retain their draft or dialog on failure. The app closes the
+  add form only after a successful save. Notifications and manual backup imports
+  continue to observe committed garden state, not optimistic edits.
+- Failed, corrupt, or partly invalid local reads no longer become a valid empty
+  garden or silently discard entries. They retain the original saved bytes and
+  block startup edits/reminder reconciliation until a retry succeeds. Supported
+  legacy records missing the interaction array still load without rewriting
+  storage. Errors no longer log invalid friend payloads.
+- Storage subscriptions received during a save/import are replayed after the
+  write; switching storage or unmounting rejects stale loads/actions/results.
+- **190 mobile tests** and mobile typecheck pass: 15 account-queue, 10 native
+  transport, 14 garden-boundary, 7 storage, and 6 asynchronous form regressions,
+  plus existing domain/backup/reminder checks. **154 web tests/build** and
+  **126 API tests/typecheck/audit (0 findings)** pass. No database migration,
+  runtime secret, server trust-origin change, or paid test run is needed here.
+- Both self-contained native **Release builds** pass: unsigned ARM64 iPhone
+  simulator build and ARM64 Android APK (local development signing only).
+  These builds exercise the current local mobile UI, not a connected account
+  flow. Native provider and real cross-device sync remain unverified.
+- Local iPhone simulator and Pixel 8 emulator checks confirmed that a new
+  synthetic friend survives process termination and restart. Android removal
+  restored the pre-test empty garden; the disposable iPhone simulator was
+  deleted. No paid runs were used (noqa balance stayed at **$5.00**). Android
+  device control used local ADB after the noqa connection timed out.
+- The finish review found that pending forms could still be dismissed through
+  cancel, backdrop, or system back. Those paths now stay blocked until the save
+  completes; six component tests cover pending saves, drafts, and failures.
+  Both Release builds were repeated after the fix. The review scored these
+  fixes as resolved based on source/tests; injected storage-failure states were
+  **not** verified on a device. Normal-state screenshots predate this final fix.
+- Owned test simulator **`D8397A85-16FC-41F7-86E3-977B9B98E6C6`** was removed;
+  owned Android process **`15506`** / **`emulator-5584`**, resource wrapper
+  **`13627`**, and build daemon **`11811`** are absent. The existing Android AVD
+  was retained without resetting its data. No test server/database was created.
+
+Next: connect the secure provider adapter and narrowly trusted native callback,
+then integrate account controls and the native writer with foreground/offline
+recovery. Preserve the final consolidated user-run checks for that integration.
+
 ## First chunk: merge contract
 
 Current web/mobile friends have creation and conversation dates, but no edit

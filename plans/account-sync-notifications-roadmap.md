@@ -27,8 +27,10 @@ are configured; hosted passwordless sign-in and real Resend test-inbox delivery
 pass. Account-scoped storage and transactional garden merges now also pass
 real PostgreSQL checks, including concurrent writes and account isolation.
 Web sign-in, explicit import consent, account-isolated offline queues, and
-sync controls now pass **154 web tests** and synthetic browser checks. Native
-sign-in/sync integration remains next. Completed Google consent is deferred
+sync controls now pass **154 web tests** and synthetic browser checks. The native
+async persistence/queue/transport foundation passes **190 mobile tests** and
+both Release builds; native provider/account controls are not connected yet.
+Native sign-in/sync integration remains next. Completed Google consent is deferred
 to the final user-run verification pass. See
 `plans/account-sync-foundation.md` for chunk status, invariants, and remaining
 setup questions. Native Phase 7 is committed in `89462d9`

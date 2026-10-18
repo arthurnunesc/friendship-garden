@@ -6,9 +6,9 @@ interface PopulatedGardenProps {
   friends: Friend[];
   onAddFriend: () => void;
   onSettings: () => void;
-  onWater: (id: string, type?: InteractionType, note?: string) => void;
-  onEdit: (id: string, name: string, birthday: string, cadenceDays: number) => void;
-  onRemove: (id: string) => void;
+  onWater: (id: string, type?: InteractionType, note?: string) => Promise<boolean> | boolean | void;
+  onEdit: (id: string, name: string, birthday: string, cadenceDays: number) => Promise<boolean> | boolean | void;
+  onRemove: (id: string) => Promise<boolean> | boolean | void;
 }
 
 export function PopulatedGarden({

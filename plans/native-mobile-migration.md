@@ -10,7 +10,8 @@ hardware reliability or production release. The next account-sync foundation
 scope now includes an isolated merge module and a development auth backend.
 Hosted passwordless sign-in is verified against a disposable test database;
 the web client now has consent-gated sign-in/sync. Native sign-in and garden
-network sync remain to be integrated; no cross-device pass is claimed.
+network sync remain to be integrated. The native async queue/transport foundation
+and durable-save boundary are implemented; no cross-device pass is claimed.
 See `plans/account-sync-foundation.md`.
 Implementation is ahead of the original unchecked phase lists. Use this
 status summary and the dated evidence in `plans/noqa-mobile-testing.md` for

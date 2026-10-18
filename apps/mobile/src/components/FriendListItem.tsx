@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -20,9 +20,9 @@ interface FriendListItemProps {
   wateringState: WateringState;
   daysSince: number;
   hasBirthday: boolean;
-  onWater: (id: string, type?: InteractionType, note?: string) => void;
-  onEdit: (id: string, name: string, birthday: string, cadenceDays: number) => void;
-  onRemove: (id: string) => void;
+  onWater: (id: string, type?: InteractionType, note?: string) => Promise<boolean> | boolean | void;
+  onEdit: (id: string, name: string, birthday: string, cadenceDays: number) => Promise<boolean> | boolean | void;
+  onRemove: (id: string) => Promise<boolean> | boolean | void;
 }
 
 export function FriendListItem({
@@ -49,44 +49,67 @@ export function FriendListItem({
   });
 
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const savingRef = useRef(false);
 
   const emoji = getWateringEmoji(wateringState);
   const stateLabel = getWateringLabel(wateringState);
 
+  const runSave = useCallback(async (save: () => Promise<boolean> | boolean | void, onSuccess: () => void) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError(false);
+    try {
+      if (await save() !== false) onSuccess();
+      else setSaveError(true);
+    } catch {
+      setSaveError(true);
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
+  }, []);
+
   const handleWater = useCallback(() => {
-    onWater(friend.id, interactionType, interactionNote || undefined);
-    setShowWaterPopup(false);
-    setInteractionType(undefined);
-    setInteractionNote("");
-    setExpanded(false);
-  }, [friend.id, interactionType, interactionNote, onWater]);
+    void runSave(
+      () => onWater(friend.id, interactionType, interactionNote || undefined),
+      () => {
+        setShowWaterPopup(false);
+        setInteractionType(undefined);
+        setInteractionNote("");
+        setExpanded(false);
+      },
+    );
+  }, [friend.id, interactionType, interactionNote, onWater, runSave]);
 
   const handleQuickWater = useCallback(() => {
-    onWater(friend.id);
-  }, [friend.id, onWater]);
+    void runSave(() => onWater(friend.id), () => {});
+  }, [friend.id, onWater, runSave]);
 
   const handleCancelWater = useCallback(() => {
+    if (savingRef.current) return;
     setShowWaterPopup(false);
     setInteractionType(undefined);
     setInteractionNote("");
   }, []);
 
+  const closeEdit = () => { if (!savingRef.current) setShowEdit(false); };
+  const closeRemove = () => { if (!savingRef.current) setShowRemoveConfirm(false); };
+
   const handleEditSave = useCallback(() => {
     const trimmed = editName.trim();
     if (!trimmed) return;
-    onEdit(
-      friend.id,
-      trimmed,
-      editBirthday || undefined as unknown as string,
-      CADENCE_VALUES[editCadenceIndex],
+    void runSave(
+      () => onEdit(friend.id, trimmed, editBirthday || undefined as unknown as string, CADENCE_VALUES[editCadenceIndex]),
+      () => setShowEdit(false),
     );
-    setShowEdit(false);
-  }, [friend.id, editName, editBirthday, editCadenceIndex, onEdit]);
+  }, [friend.id, editName, editBirthday, editCadenceIndex, onEdit, runSave]);
 
   const handleRemove = useCallback(() => {
-    onRemove(friend.id);
-    setShowRemoveConfirm(false);
-  }, [friend.id, onRemove]);
+    void runSave(() => onRemove(friend.id), () => setShowRemoveConfirm(false));
+  }, [friend.id, onRemove, runSave]);
 
   const waterColor =
     wateringState === "dry"
@@ -118,6 +141,7 @@ export function FriendListItem({
             <TouchableOpacity
               style={styles.iconButton}
               onPress={handleQuickWater}
+              disabled={saving}
               activeOpacity={0.6}
             >
               <Text style={styles.waterIcon}>💦</Text>
@@ -125,6 +149,7 @@ export function FriendListItem({
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => setShowWaterPopup(true)}
+              disabled={saving}
               activeOpacity={0.6}
             >
               <Text style={styles.noteIcon}>+</Text>
@@ -185,6 +210,7 @@ export function FriendListItem({
                   !interactionType && styles.typeChipActive,
                 ]}
                 onPress={() => setInteractionType(undefined)}
+                disabled={saving}
               >
                 <Text
                   style={[
@@ -203,6 +229,7 @@ export function FriendListItem({
                     interactionType === t && styles.typeChipActive,
                   ]}
                   onPress={() => setInteractionType(t)}
+                  disabled={saving}
                 >
                   <Text
                     style={[
@@ -221,6 +248,7 @@ export function FriendListItem({
               style={styles.noteInput}
               accessibilityLabel="Conversation note"
               value={interactionNote}
+              editable={!saving}
               onChangeText={setInteractionNote}
               placeholder="what did you talk about?"
               placeholderTextColor="#aaa"
@@ -231,16 +259,18 @@ export function FriendListItem({
 
             <View style={styles.popupActions}>
               <TouchableOpacity
-                style={styles.saveButton}
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
                 onPress={handleWater}
+                disabled={saving}
                 activeOpacity={0.7}
               >
-                <Text style={styles.saveButtonText}>save</Text>
+                <Text style={styles.saveButtonText}>{saving ? "saving…" : "save"}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleCancelWater}>
+              <TouchableOpacity onPress={handleCancelWater} disabled={saving}>
                 <Text style={styles.cancelText}>cancel</Text>
               </TouchableOpacity>
             </View>
+            {saveError && <Text accessibilityRole="alert" style={styles.saveError}>could not save. please try again.</Text>}
           </Pressable>
         </Pressable>
       </Modal>
@@ -249,12 +279,12 @@ export function FriendListItem({
         visible={showEdit}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowEdit(false)}
+        onRequestClose={closeEdit}
       >
         <Pressable
           accessible={false}
           style={styles.overlay}
-          onPress={() => setShowEdit(false)}
+          onPress={closeEdit}
         >
           <Pressable accessible={false} style={styles.popup} onPress={() => {}}>
             <Text style={styles.popupTitle}>edit {friend.name}</Text>
@@ -264,6 +294,7 @@ export function FriendListItem({
               style={styles.input}
               accessibilityLabel="Friend name"
               value={editName}
+              editable={!saving}
               onChangeText={setEditName}
               placeholder="name"
               placeholderTextColor="#aaa"
@@ -274,6 +305,7 @@ export function FriendListItem({
               style={styles.input}
               accessibilityLabel="Birthday, YYYY-MM-DD"
               value={editBirthday}
+              editable={!saving}
               onChangeText={setEditBirthday}
               placeholder="YYYY-MM-DD"
               placeholderTextColor="#aaa"
@@ -290,6 +322,7 @@ export function FriendListItem({
                     index === editCadenceIndex && styles.typeChipActive,
                   ]}
                   onPress={() => setEditCadenceIndex(index)}
+                  disabled={saving}
                 >
                   <Text
                     style={[
@@ -308,17 +341,19 @@ export function FriendListItem({
                 style={[
                   styles.saveButton,
                   !editName.trim() && styles.saveButtonDisabled,
+                  saving && styles.saveButtonDisabled,
                 ]}
                 onPress={handleEditSave}
-                disabled={!editName.trim()}
+                disabled={!editName.trim() || saving}
                 activeOpacity={0.7}
               >
-                <Text style={styles.saveButtonText}>save</Text>
+                <Text style={styles.saveButtonText}>{saving ? "saving…" : "save"}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowEdit(false)}>
+              <TouchableOpacity onPress={closeEdit} disabled={saving}>
                 <Text style={styles.cancelText}>cancel</Text>
               </TouchableOpacity>
             </View>
+            {saveError && <Text accessibilityRole="alert" style={styles.saveError}>could not save. please try again.</Text>}
           </Pressable>
         </Pressable>
       </Modal>
@@ -327,12 +362,12 @@ export function FriendListItem({
         visible={showRemoveConfirm}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowRemoveConfirm(false)}
+        onRequestClose={closeRemove}
       >
         <Pressable
           accessible={false}
           style={styles.overlay}
-          onPress={() => setShowRemoveConfirm(false)}
+          onPress={closeRemove}
         >
           <Pressable accessible={false} style={styles.popup} onPress={() => {}}>
             <Text style={styles.popupTitle}>
@@ -345,16 +380,19 @@ export function FriendListItem({
               <TouchableOpacity
                 style={styles.removeConfirmButton}
                 onPress={handleRemove}
+                disabled={saving}
                 activeOpacity={0.7}
               >
-                <Text style={styles.removeConfirmText}>yes, remove</Text>
+                <Text style={styles.removeConfirmText}>{saving ? "saving…" : "yes, remove"}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setShowRemoveConfirm(false)}
+                onPress={closeRemove}
+                disabled={saving}
               >
                 <Text style={styles.cancelText}>cancel</Text>
               </TouchableOpacity>
             </View>
+            {saveError && <Text accessibilityRole="alert" style={styles.saveError}>could not save. please try again.</Text>}
           </Pressable>
         </Pressable>
       </Modal>
@@ -571,6 +609,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#fff",
+  },
+  saveError: {
+    fontSize: 14,
+    color: "#d9744a",
+    marginTop: 12,
   },
   cancelText: {
     fontSize: 15,
