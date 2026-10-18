@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   Linking,
   Platform,
@@ -19,9 +20,10 @@ interface ReminderSettingsProps {
   onClose: () => void
   friends: Friend[]
   onImport(payload: unknown): Promise<ImportResult | ImportError>
+  accountSection?: ReactNode
 }
 
-export function ReminderSettings({ reminders, onClose, friends, onImport }: ReminderSettingsProps) {
+export function ReminderSettings({ reminders, onClose, friends, onImport, accountSection }: ReminderSettingsProps) {
   const [timeDraft, setTimeDraft] = useState(reminders.settings.preferredTime)
   const [deviceSettingsError, setDeviceSettingsError] = useState<string | null>(null)
 
@@ -156,6 +158,7 @@ export function ReminderSettings({ reminders, onClose, friends, onImport }: Remi
       </View>
 
       {reminders.error && <Text style={styles.errorText} accessibilityRole="alert">{reminders.error}</Text>}
+      {accountSection}
       <BackupSection friends={friends} onImport={onImport} />
     </ScrollView>
   )

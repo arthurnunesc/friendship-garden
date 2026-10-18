@@ -3,6 +3,12 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { getMigrations } from 'better-auth/db/migration'
 import { createAuth } from './auth.js'
 import type { AuthConfig } from './config.js'
+import { NATIVE_AUTH_CALLBACK } from '../../../../packages/garden-sync/src/nativeAuth.ts'
+import { createNativeAuth } from '../../../mobile/src/sync/nativeAuth.ts'
+import { createNativeAccountClient } from '../../../mobile/src/sync/accountClient.ts'
+import { createGardenAccount } from '../../../mobile/src/sync/gardenAccount.ts'
+import { createGardenHandler } from '../gardenHandler.js'
+import { mergeGardenSnapshots, type SyncSnapshot } from '../gardenSync.js'
 
 const config: AuthConfig = {
   baseURL: 'https://garden.example',
@@ -54,6 +60,131 @@ async function requestMagicLink(testAuth: TestAuth, extra: Record<string, string
 }
 
 describe('createAuth', () => {
+  it('round-trips the native email adapter, explicit consent, garden transport and sign-out against real auth', async () => {
+    const testAuth = await createTestAuth()
+    const data = new Map<string, string>()
+    const secure = { getItem: async (key: string) => data.get(key) ?? null,
+      setItem: async (key: string, value: string) => { data.set(key, value) } }
+    const empty = (): SyncSnapshot => ({ version: 1, friends: [], interactions: [] })
+    let snapshot = empty()
+    const gardenRequests: Request[] = []
+    const handler = createGardenHandler(() => ({ baseURL: config.baseURL,
+      getUserId: async (headers) => (await testAuth.auth.api.getSession({ headers, query: { disableCookieCache: true, disableRefresh: true } }))?.user.id ?? null,
+      gardens: { read: async () => snapshot, merge: async (_user, incoming) => {
+        snapshot = mergeGardenSnapshots(snapshot, incoming)
+        return snapshot
+      } },
+    }))
+    const fetcher: typeof fetch = async (url, init) => {
+      const request = new Request(url, init)
+      if (new URL(request.url).pathname === '/api/garden') {
+        gardenRequests.push(request)
+        return handler(request, '203.0.113.20')
+      }
+      return testAuth.auth.handler(request)
+    }
+    const auth = createNativeAuth({ origin: config.baseURL, secure, fence: {
+      getItem: (key) => secure.getItem(key + '.fence'), setItem: (key, value) => secure.setItem(key + '.fence', value),
+    }, fetcher,
+      randomState: async () => 'a'.repeat(64), openBrowser: async () => { throw new Error('Email flow does not open a provider') } })
+    const client = createNativeAccountClient({ origin: config.baseURL, auth, fetcher })
+    const guest = [{ id: 'local', name: 'Local friend', cadenceDays: 14, createdAt: '2026-10-18T00:00:00.000Z', interactions: [] }]
+    let serial = 0
+    const account = createGardenAccount({ guest: { loadFriends: async () => guest, saveFriends: async () => {} },
+      client, persistence: secure, clock: () => ({ updatedAt: '2026-10-18T00:00:00.000Z', changeId: String(++serial) }) })
+    await account.refresh()
+    await client.email('friend@example.com')
+    const verified = await testAuth.auth.handler(new Request(testAuth.emails[0]!.url))
+    expect(await auth.handleURL(verified.headers.get('location')!)).toBe(true)
+    await account.refresh()
+    expect(account.getSnapshot().user?.email).toBe('friend@example.com')
+    expect(gardenRequests).toEqual([])
+    await account.enable('import')
+    expect(account.getSnapshot().phase).toBe('ready')
+    expect(snapshot.friends[0]?.value?.name).toBe('Local friend')
+    expect(gardenRequests.map(request => request.method)).toEqual(['GET', 'POST'])
+    expect(gardenRequests.every(request => request.headers.get('origin') === config.baseURL)).toBe(true)
+    const cookie = auth.getCookie()
+    await account.signOut()
+    expect(account.getSnapshot().user).toBeNull()
+    expect(await account.getSnapshot().storage.loadFriends()).toEqual(guest)
+    expect(auth.getCookie()).toBe('')
+    const revoked = await testAuth.auth.handler(authRequest('/get-session', { headers: { cookie } }))
+    expect(await revoked.json()).toBeNull()
+  })
+
+  it('hands a native email session only to the exact app callback without changing web redirects', async () => {
+    const testAuth = await createTestAuth()
+    const callbackURL = NATIVE_AUTH_CALLBACK + '?state=' + 'a'.repeat(64)
+    expect((await requestMagicLink(testAuth, { callbackURL, newUserCallbackURL: callbackURL, errorCallbackURL: callbackURL })).status).toBe(200)
+    const verified = await testAuth.auth.handler(new Request(testAuth.emails[0]!.url))
+    expect(verified.status).toBe(302)
+    const redirect = new URL(verified.headers.get('location')!)
+    expect(redirect.protocol).toBe('friendship-garden:')
+    expect(redirect.host).toBe('auth')
+    expect(redirect.pathname).toBe('/callback')
+    expect(redirect.searchParams.get('state')).toBe('a'.repeat(64))
+    expect(redirect.searchParams.get('cookie')).toContain('__Secure-better-auth.session_token=')
+    const cookie = verified.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
+    const session = await testAuth.auth.handler(authRequest('/get-session', { headers: { cookie } }))
+    expect(await session.json()).toMatchObject({ user: { email: 'friend@example.com', emailVerified: true } })
+  })
+
+  it.each([
+    'friendship-garden://evil/callback?state=' + 'a'.repeat(64),
+    NATIVE_AUTH_CALLBACK + '/other?state=' + 'a'.repeat(64),
+    NATIVE_AUTH_CALLBACK + '?state=short',
+    NATIVE_AUTH_CALLBACK + '?state=' + 'a'.repeat(64) + '&state=' + 'b'.repeat(64),
+    NATIVE_AUTH_CALLBACK + '?state=' + 'a'.repeat(64) + '&cookie=injected',
+    NATIVE_AUTH_CALLBACK + '?state=' + 'a'.repeat(64) + '#fragment',
+    'exp://127.0.0.1:8081/callback',
+  ])('rejects native callback lookalikes and injected fields: %s', async (callbackURL) => {
+    const testAuth = await createTestAuth()
+    expect((await requestMagicLink(testAuth, { callbackURL })).status).toBe(403)
+    expect(testAuth.emails).toEqual([])
+    const social = await testAuth.auth.handler(authRequest('/sign-in/social', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ provider: 'google', callbackURL }),
+    }))
+    expect(social.status).toBe(403)
+  })
+
+  it('does not accept a native scheme or expo-origin as an authentication request origin', async () => {
+    const testAuth = await createTestAuth()
+    const response = await testAuth.auth.handler(new Request(config.baseURL + '/api/auth/sign-in/magic-link', {
+      method: 'POST', headers: { 'content-type': 'application/json', origin: 'friendship-garden://', 'expo-origin': config.baseURL },
+      body: JSON.stringify({ email: 'friend@example.com', callbackURL: NATIVE_AUTH_CALLBACK + '?state=' + 'a'.repeat(64) }),
+    }))
+    expect(response.status).toBe(403)
+    expect(testAuth.emails).toEqual([])
+  })
+
+  it('rejects changed email verification callbacks before setting any cookie', async () => {
+    const testAuth = await createTestAuth()
+    await requestMagicLink(testAuth)
+    const link = new URL(testAuth.emails[0]!.url)
+    link.searchParams.set('callbackURL', NATIVE_AUTH_CALLBACK + '/steal?state=' + 'a'.repeat(64))
+    const response = await testAuth.auth.handler(new Request(link))
+    expect(response.status).toBe(403)
+    expect(response.headers.get('set-cookie')).toBeNull()
+  })
+
+  it('limits the native browser proxy to the configured Google authorization endpoint', async () => {
+    const testAuth = await createTestAuth()
+    for (const authorizationURL of ['https://evil.example/steal', config.baseURL + '/api/auth/callback/google',
+      'http://accounts.google.com/o/oauth2/v2/auth', 'https://accounts.google.com.evil.example/o/oauth2/v2/auth',
+      'https://accounts.google.com/o/oauth2/v2/auth/other']) {
+      const response = await testAuth.auth.handler(authRequest('/expo-authorization-proxy?' + new URLSearchParams({ authorizationURL, oauthState: 'synthetic-state' })))
+      expect(response.status).toBe(403)
+      expect(response.headers.get('set-cookie')).toBeNull()
+    }
+    const authorizationURL = 'https://accounts.google.com/o/oauth2/v2/auth?state=synthetic-state'
+    const valid = await testAuth.auth.handler(authRequest('/expo-authorization-proxy?' + new URLSearchParams({ authorizationURL, oauthState: 'synthetic-state' })))
+    expect(valid.status).toBe(302)
+    expect(valid.headers.get('location')).toBe(authorizationURL)
+    expect(valid.headers.get('set-cookie')).toContain('__Secure-better-auth.oauth_state=')
+  })
+
   it('sends a hashed one-time magic link that creates a secure session', async () => {
     const testAuth = await createTestAuth()
 

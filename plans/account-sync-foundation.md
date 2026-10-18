@@ -2,14 +2,15 @@
 
 Source: `plans/account-sync-notifications-roadmap.md`.
 
-## Status — 2026-10-17
+## Status — 2026-10-18
 
 Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
 (roadmap/evidence). The isolated merge module below is implemented in
 `apps/api/src/gardenSync.ts`, committed together with this status update.
 Account-scoped backend storage, transactional sync, and the first web client
-integration are implemented and automatically checked. Native sign-in/sync
-integration is next; hands-on verification remains deferred.
+integration are implemented and automatically checked. Native sign-in, secure
+callback handling, account controls, and storage integration are implemented.
+Final provider/inbox and user-run Android/iPhone verification remain pending.
 
 ## Work order
 
@@ -19,8 +20,8 @@ integration is next; hands-on verification remains deferred.
    sessions select account-scoped garden reads and transactional merges. Both
    PostgreSQL migrations are verified and applied to the separate development
    project. Test with an isolated database, never production credentials or data.
-3. **Opt-in client sync** — web implemented and automatically checked; native
-   pending. Explicitly confirm local-data import; keep local persistence and
+3. **Opt-in client sync** — web and native implemented and automatically checked.
+   Explicitly confirm local-data import; keep local persistence and
    offline use working. Do not upload the local garden on sign-in.
 4. **Recovery and verification** — pending. Test account switching/sign-out,
    retries, deletions, concurrent edits, backup compatibility, and reminders.
@@ -600,6 +601,61 @@ mobile app yet. Opening the current mobile app still uses the local garden.
 Next: connect the secure provider adapter and narrowly trusted native callback,
 then integrate account controls and the native writer with foreground/offline
 recovery. Preserve the final consolidated user-run checks for that integration.
+
+### Native authentication and app integration — 2026-10-18
+
+- Connected Google/email sign-in, checked identity, consent, account storage,
+  saved offline copies, retry, foreground recovery, and sign-out to the existing
+  mobile settings and garden. No consent action means no garden upload.
+  Account transitions clear stale drafts; reminder reconciliation follows only
+  the committed active garden. The original guest garden remains separate.
+- Kept Expo **54.0.35**. Installed SDK-compatible `expo-secure-store`,
+  `expo-web-browser`, and `expo-crypto`; added the matching **1.6.23** Better Auth
+  Expo server plugin with origin override disabled. No migration or secret changed.
+- Native requests use explicit secure cookies, `credentials: omit`, and the
+  exact backend HTTPS `Origin`. The server accepts only
+  `friendship-garden://auth/callback?state=<64 lowercase hex digits>`, not a
+  scheme wildcard, arbitrary paths, fragments, or extra/duplicate fields.
+  The browser proxy accepts only Google's HTTPS authorization endpoint.
+- Each attempt saves a fresh 256-bit device nonce before sending a request.
+  Callback cookies remain untrusted until the nonce, five-minute expiry,
+  database-checked verified session, and initiating email (for email sign-in)
+  match. Only the named secure session cookie is stored. Replay and unsolicited
+  links are rejected. Open email links on the initiating device; a new request
+  replaces an older pending attempt. Live Google callbacks belong to the browser
+  session; cold-start callbacks can recover a saved attempt.
+- Credentials and pending attempts use one atomic SecureStore envelope,
+  isolated by backend origin with this-device-only iOS accessibility. Account
+  cache keys are also origin-scoped. No credential enters the garden cache.
+  Independent npm installs require a minimal Metro watch folder for the shared
+  dependency-free sync core; no root workspace or dependency migration was added.
+- Security review found and verified fixes for failed sign-out recovery:
+  retain a failed server revocation until it succeeds, retry it before another
+  login, and persist a separate non-secret sign-out fence so a Keychain write
+  failure cannot resume the session after restart. Old sign-out responses cannot
+  clear a newer login. If both stores and the server all fail, the action rejects;
+  it does not claim successful durable sign-out. Bounded independent re-review
+  found no remaining concrete issue in those fixes.
+- **226 mobile tests/typecheck**, **138 API tests/typecheck/audit (0 findings)**,
+  and **154 web tests/build** pass. Tests include a real Better Auth email
+  handoff → native adapter → explicit consent → garden sync → session revocation
+  round trip with captured mail and an isolated in-memory database. Reminder
+  integration covers account-only switching, failed persistence, and guest
+  restoration. These checks do not prove live Google consent or inbox delivery.
+- Mobile audit reports **49 findings**, identical to the previous lockfile
+  baseline (1 low, 12 moderate, 32 high, 4 critical). The new modules add none;
+  no forced dependency or SDK upgrade was applied.
+- Both ARM64 Release builds compile. Android is installed/launched on the owned
+  emulator. iOS local Keychain access needs simulator-only ad-hoc signing with
+  `com.apple.application-identifier`; unsigned builds fail with **-34018**.
+  Device checks, cleanup, and deployment evidence follow in the next checkpoint.
+- Set public `EXPO_PUBLIC_ACCOUNT_ORIGIN` from `apps/mobile/.env.example` before
+  building; it is the preview backend, not a secret. An unset/invalid origin or
+  Expo web retains local-only use. Rebuild native binaries after installing modules.
+
+Next: verify the deployed native initiation/cancellation boundary and finish the
+single consolidated user-run Google/inbox/web/Android/iPhone acceptance pass.
+No physical phone, personal inbox, production data, or paid test run was used.
 
 ## First chunk: merge contract
 

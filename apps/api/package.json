@@ -19,6 +19,7 @@
     "vitest": "4.1.11"
   },
   "dependencies": {
+    "@better-auth/expo": "1.6.23",
     "better-auth": "1.6.23",
     "pg": "^8.23.1",
     "resend": "^6.32.1"

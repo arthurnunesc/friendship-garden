@@ -1,8 +1,9 @@
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView, StyleSheet, Text, TouchableOpacity } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGardenStore } from "./src/garden/useGardenStore";
-import { asyncStorageStore } from "./src/garden/storage";
+import { useNativeAccount } from "./src/sync/useNativeAccount";
+import { AccountSection } from "./src/components/AccountSection";
 import { EmptyGarden } from "./src/components/EmptyGarden";
 import { AddFriendForm } from "./src/components/AddFriendForm";
 import { PopulatedGarden } from "./src/components/PopulatedGarden";
@@ -12,8 +13,9 @@ import { useReminders } from "./src/reminders/useReminders";
 type ViewState = "loading" | "empty" | "adding" | "populated";
 
 export default function App() {
+  const connection = useNativeAccount();
   const { friends, loaded, error, retryLoad, addFriend, waterFriend, updateFriend, removeFriend, importGarden } =
-    useGardenStore(asyncStorageStore);
+    useGardenStore(connection.storage);
   const reminders = useReminders(friends, loaded);
 
   const viewState: ViewState = !loaded
@@ -24,6 +26,8 @@ export default function App() {
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const gardenKey = connection.state?.viewAccount?.id ?? 'guest';
+  useEffect(() => { setShowAddForm(false); }, [connection.storage]);
 
   if (!loaded) {
     return (
@@ -33,7 +37,7 @@ export default function App() {
           {error ?? 'loading your garden…'}
         </Text>
         {error && <TouchableOpacity style={styles.retry} accessibilityRole="button"
-          onPress={() => { void retryLoad() }}><Text style={styles.retryText}>retry loading garden</Text></TouchableOpacity>}
+          onPress={() => { void connection.account?.initialize().then(retryLoad); if (!connection.account) void retryLoad(); }}><Text style={styles.retryText}>retry loading garden</Text></TouchableOpacity>}
       </SafeAreaView>
     );
   }
@@ -47,6 +51,10 @@ export default function App() {
           friends={friends}
           onImport={importGarden}
           onClose={() => setShowSettings(false)}
+          accountSection={connection.account && connection.state ? <>
+            <AccountSection account={connection.account} state={connection.state} />
+            {connection.issue && <Text accessibilityRole="alert" style={styles.error}>{connection.issue}</Text>}
+          </> : <Text style={styles.loadMessage}>account sync is not configured in this build. your local garden and reminders still work.</Text>}
         />
       </SafeAreaView>
     );
@@ -57,6 +65,7 @@ export default function App() {
       <SafeAreaView style={styles.app}>
         <StatusBar style="dark" />
         <AddFriendForm
+          key={gardenKey}
           onSubmit={async (data) => {
             const saved = await addFriend(data);
             if (saved) setShowAddForm(false);
@@ -85,6 +94,7 @@ export default function App() {
       <StatusBar style="dark" />
       {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
       <PopulatedGarden
+        key={gardenKey}
         friends={friends}
         onAddFriend={() => setShowAddForm(true)}
         onSettings={() => setShowSettings(true)}

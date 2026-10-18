@@ -139,7 +139,7 @@ export function deleteInteraction(friend: Friend, interactionId: string): Friend
     remaining.length > 0
       ? remaining.reduce(
           (latest, i) => (i.date > latest ? i.date : latest),
-          remaining[0].date,
+          remaining[0]!.date,
         )
       : undefined
   return {
