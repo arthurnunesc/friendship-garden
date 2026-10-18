@@ -590,6 +590,12 @@ mobile app yet. Opening the current mobile app still uses the local garden.
   owned Android process **`15506`** / **`emulator-5584`**, resource wrapper
   **`13627`**, and build daemon **`11811`** are absent. The existing Android AVD
   was retained without resetting its data. No test server/database was created.
+- Source and this stage's roadmap are committed/pushed as **`0742d96`**.
+  Feature deploy **`6ad4d9fdecc4ac674a231ea3`** is ready from that commit.
+  Hosted home **200**, anonymous session **200/null**, and anonymous garden
+  **401** checks pass; both API responses are `no-store`. This is a web
+  regression/deployment check, not native authentication verification.
+  Production remains published at **`6a1df450234f820008eea876`**.
 
 Next: connect the secure provider adapter and narrowly trusted native callback,
 then integrate account controls and the native writer with foreground/offline
