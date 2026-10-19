@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getMigrations } from 'better-auth/db/migration'
+import { AccountRequestError } from '../../../../packages/garden-sync/src/account.js'
 import { createAuth } from './auth.js'
 import type { AuthConfig } from './config.js'
 import { NATIVE_AUTH_CALLBACK } from '../../../../packages/garden-sync/src/nativeAuth.ts'
@@ -183,6 +184,56 @@ describe('createAuth', () => {
     expect(valid.status).toBe(302)
     expect(valid.headers.get('location')).toBe(authorizationURL)
     expect(valid.headers.get('set-cookie')).toContain('__Secure-better-auth.oauth_state=')
+  })
+
+  it('opens the real Better Auth Google URL through the native proxy and clears canceled sign-in state', async () => {
+    const testAuth = await createTestAuth()
+    const secureData = new Map<string, string>()
+    const fenceData = new Map<string, string>()
+    const secure = {
+      getItem: async (key: string) => secureData.get(key) ?? null,
+      setItem: async (key: string, value: string) => { secureData.set(key, value) },
+    }
+    const fetcher: typeof fetch = async (url, init) => testAuth.auth.handler(new Request(url, init))
+    let proxyURL: string | undefined
+    let callback: string | undefined
+    let authorizationURL: string | undefined
+    const openBrowser = vi.fn(async (url: string, appCallback: string) => {
+      proxyURL = url
+      callback = appCallback
+      authorizationURL = new URL(url).searchParams.get('authorizationURL') ?? undefined
+      const proxyResponse = await fetcher(url, { headers: { origin: config.baseURL } })
+      expect(proxyResponse.status).toBe(302)
+      expect(proxyResponse.headers.get('location')).toBe(authorizationURL)
+      return { type: 'cancel' }
+    })
+    const auth = createNativeAuth({
+      origin: config.baseURL,
+      secure,
+      fence: {
+        getItem: async (key) => fenceData.get(key) ?? null,
+        setItem: async (key, value) => { fenceData.set(key, value) },
+      },
+      fetcher,
+      randomState: async () => 'b'.repeat(64),
+      openBrowser,
+    })
+
+    await expect(auth.google()).rejects.toBeInstanceOf(AccountRequestError)
+    expect(openBrowser).toHaveBeenCalledTimes(1)
+    expect(proxyURL).toBeDefined()
+    const proxy = new URL(proxyURL!)
+    expect(proxy.origin).toBe(config.baseURL)
+    expect(proxy.pathname).toBe('/api/auth/expo-authorization-proxy')
+    const target = new URL(proxy.searchParams.get('authorizationURL')!)
+    expect(target.origin + target.pathname).toBe('https://accounts.google.com/o/oauth2/v2/auth')
+    expect(target.searchParams.get('redirect_uri')).toBe(config.baseURL + '/api/auth/callback/google')
+    expect(callback).toBe(NATIVE_AUTH_CALLBACK + '?state=' + 'b'.repeat(64))
+    expect(secureData.size).toBe(1)
+    expect(JSON.parse([...secureData.values()][0]!)).toMatchObject({ version: 1, cookie: '', pending: null })
+    expect([...secureData.values()].join(' ')).not.toContain('__Secure-better-auth.session_token=')
+    expect(databaseValues(testAuth.database, 'SELECT id FROM session')).toEqual([])
+    expect(fenceData.size).toBe(0)
   })
 
   it('sends a hashed one-time magic link that creates a secure session', async () => {

@@ -2,7 +2,7 @@
 
 Source: `plans/account-sync-notifications-roadmap.md`.
 
-## Status — 2026-10-18
+## Status — 2026-10-19
 
 Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
 (roadmap/evidence). The isolated merge module below is implemented in
@@ -11,6 +11,43 @@ Account-scoped backend storage, transactional sync, and the first web client
 integration are implemented and automatically checked. Native sign-in, secure
 callback handling, account controls, and storage integration are implemented.
 Final provider/inbox and user-run Android/iPhone verification remain pending.
+
+Active verification scope (October 19): run hosted native-protocol/account
+round trips and native Google launch/cancel against one owned disposable
+development database. Restore the retained preview target before removing the
+test database; preserve production and other resources. These checks do not
+complete Google consent or personal-inbox/physical-phone acceptance.
+
+### Integrated verification and consent recovery — 2026-10-19
+
+- Real hosted native-protocol checks passed against an owned disposable database:
+  Resend test-sink email, two independent sessions, correlated callback/replay
+  rejection, no garden row before consent, import/account-only access, independent
+  offline edits, retained tombstones/stale retries, account mismatch with no write,
+  guest restoration, and remote session revocation. The runner uses the actual
+  native auth/account sources with injected memory stores; this does not verify
+  OS credential storage or native email app return.
+- The browser pass exposed a reproducible controller race: a focus/online refresh
+  could invalidate an explicit consent read and silently abandon import. Web and
+  native controllers now let consent finish before refreshing identity. Multiple
+  waiting refreshes coalesce; sign-out and pause still invalidate stale work.
+  Regression tests first failed on the old behavior and now pass.
+- **156 web tests/build**, **228 mobile tests/typecheck**, and **139 API
+  tests/typecheck** pass. Both ARM64 Release builds pass after the race fix.
+  A real Better Auth integration test also verifies Google's native browser proxy
+  and cancellation without contacting Google or creating a session.
+- A local Android emulator reached Google's actual sign-in page and returned to
+  the guest garden after cancellation without entering credentials. Earlier test
+  assertions missed the offscreen cancellation notice; the runner now scrolls
+  before checking it. This does not complete Google consent/token exchange.
+- The full hosted browser email/consent round trip remains pending. One test-sink
+  lookup timed out despite a successful sign-in request; a delivered provider
+  record was found later. The runner now allows a longer bounded delivery wait.
+  Do not count synthetic-browser checks as this hosted acceptance pass.
+- All completed disposable database scopes were restored and removed. Latest
+  retained-preview restore: **`6ad5ce7100038fd8e4f665b9`**, ready from `c09fd68`.
+  Production remains **`6a1df450234f820008eea876`**. Final post-fix hosted checks
+  and the consolidated user pass below remain open.
 
 ## Work order
 
@@ -61,6 +98,43 @@ builds for the consolidated pass, not earlier local-only binaries):
 Fix reported failures and rerun the affected checks before closing that pass.
 Apple sign-in and backend reminder email remain deferred; neither belongs
 to the acceptance checklist for this implementation scope.
+
+#### Consolidated user pass
+
+Use the configured preview builds, not an older local-only binary. Agent tests
+must first finish restoring the retained preview database. Do not use production
+as the test target. Keep existing gardens and reminders; use clearly named
+synthetic friends for edits/deletions and export backups before testing imports.
+
+1. **Authentication without import:** test Google and email on web and the
+   installed native builds. Open the newest email link on the device that
+   requested it within five minutes. Confirm the correct identity, close the
+   account controls without choosing sync, and check that the local garden stays
+   unchanged. Signing in alone must not upload it.
+2. **Consent and shared data:** explicitly choose merge-local on the intended
+   source device. Sign into the same account on the others and choose account-only.
+   Confirm names, birthdays, cadence, and conversation history. The original
+   local copies must remain available after sign-out.
+3. **Offline/restart:** reopen a saved account copy in airplane mode, add a
+   synthetic friend or conversation, restart, then reconnect and retry sync.
+   The change must remain local during the outage and appear on the other device
+   after recovery. A failed save must keep its form draft and must not say saved.
+4. **Independent edits/deletion:** make different synthetic edits on two devices
+   while offline. Reconnect both. Independent changes should survive; a stale
+   unchanged copy must not restore a deleted synthetic friend or conversation.
+   Conflicting edits to one field use the documented last-write-wins rule.
+5. **Sign-out/account switching:** sign out and confirm the original local
+   garden returns. If testing another account, use only an account you own.
+   Confirm it cannot see the previous account's garden. A failed sign-out must
+   show an error, not a success claim; retry it when storage/network work again.
+6. **Backups/reminders:** check export/import with a disposable backup and confirm
+   permissions, scheduled reminder changes, deletion cancellation, and actual
+   delivery on Android and iPhone. Keep each phone's existing reminder preference;
+   account switching should reconcile the active garden, not enable reminders.
+
+Record the device/OS, step, expected result, and visible error for failures.
+Do not paste sign-in links, cookies, credentials, or private friendship details.
+Simulator/emulator results do not replace this phone acceptance pass.
 
 ### Authentication bootstrap — implemented 2026-10-16
 

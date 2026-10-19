@@ -38,6 +38,7 @@ export function createGardenAccount(options: {
   let queue: Promise<unknown> = Promise.resolve()
   let boot: Promise<void> | null = null
   let flight: { epoch: number, promise: Promise<void> } | null = null
+  let consent: Promise<void> | null = null
   let state: GardenAccountState
   const find = (id: string) => saved.accounts.find((entry) => entry.user.id === id)
   const emit = (patch: Partial<GardenAccountState>) => {
@@ -187,6 +188,11 @@ export function createGardenAccount(options: {
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     initialize,
     async refresh() {
+      if (consent) {
+        const waiting = epoch
+        await consent
+        if (waiting !== epoch) return
+      }
       const ticket = ++epoch
       await initialize()
       if (!state.loaded || ticket !== epoch) return
@@ -207,6 +213,10 @@ export function createGardenAccount(options: {
       const user = state.user
       if (!user || !state.loaded || state.phase === 'checking' || state.phase === 'syncing') return
       const ticket = epoch
+      let release!: () => void
+      const pending = new Promise<void>((resolve) => { release = resolve })
+      // A foreground identity check must not invalidate an explicit import mid-read.
+      consent = pending
       emit({ phase: 'checking', error: null })
       try {
         if (damaged) throw new Error('Account cache is unavailable')
@@ -221,7 +231,12 @@ export function createGardenAccount(options: {
           show(user.id)
         })
         if (ticket === epoch) await sync()
-      } catch (error) { if (ticket === epoch) emit({ phase: 'offline', error: message(error) }) }
+      } catch (error) {
+        if (ticket === epoch) emit({ phase: 'offline', error: message(error) })
+      } finally {
+        if (consent === pending) consent = null
+        release()
+      }
     },
     async signOut() {
       const ticket = ++epoch

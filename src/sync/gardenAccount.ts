@@ -53,6 +53,7 @@ export function createGardenAccount(options: {
   let viewId: string | null = null
   let friends = guest.loadFriends()
   let flight: { epoch: number, promise: Promise<void> } | null = null
+  let consent: Promise<void> | null = null
   let paused = false
   let state: GardenAccountState
   const find = (id: string) => saved.accounts.find((entry) => entry.user.id === id)
@@ -149,6 +150,11 @@ export function createGardenAccount(options: {
     getSnapshot: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     async refresh() {
+      if (consent) {
+        const waiting = epoch
+        await consent
+        if (waiting !== epoch) return
+      }
       const ticket = ++epoch
       publish({ phase: 'checking' })
       try {
@@ -168,6 +174,10 @@ export function createGardenAccount(options: {
       const user = state.user
       if (!user || state.phase === 'checking' || state.phase === 'syncing') return
       const ticket = epoch
+      let release!: () => void
+      const pending = new Promise<void>((resolve) => { release = resolve })
+      // A foreground identity check must not invalidate an explicit import mid-read.
+      consent = pending
       publish({ phase: 'checking', error: null })
       try {
         const remote = await client.read(user.id)
@@ -183,6 +193,9 @@ export function createGardenAccount(options: {
         await sync()
       } catch (error) {
         if (ticket === epoch) publish({ phase: 'offline', error: message(error) })
+      } finally {
+        if (consent === pending) consent = null
+        release()
       }
     },
     async signOut() {

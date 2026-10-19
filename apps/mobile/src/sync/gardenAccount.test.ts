@@ -67,6 +67,47 @@ describe('mobile consent-gated account gardens', () => {
     expect(f.guestFriends).toEqual([friend('guest')])
   })
 
+  it('waits for pending import consent before a concurrent refresh checks the session', async () => {
+    const f = setup(); await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    f.client.read.mockImplementationOnce(() => read.promise)
+
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.client.read).toHaveBeenCalledOnce())
+    const refreshing = Promise.all([f.account.refresh(), f.account.refresh()])
+    await Promise.resolve()
+    expect(f.client.session).toHaveBeenCalledTimes(1)
+
+    read.resolve(empty())
+    await Promise.all([enabling, refreshing])
+
+    expect(f.account.getSnapshot().viewAccount?.id).toBe('a')
+    expect(f.server.get('a')?.friends.some((item) => item.id === 'guest')).toBe(true)
+    expect(f.account.getSnapshot().phase).toBe('ready')
+    expect(f.client.session).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not let sign-out release a queued refresh into a pending import', async () => {
+    const f = setup(); await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    f.client.read.mockImplementationOnce(() => read.promise)
+
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.client.read).toHaveBeenCalledOnce())
+    const refreshing = f.account.refresh()
+    await Promise.resolve()
+    const signingOut = f.account.signOut()
+    await signingOut
+    read.resolve(empty())
+    await Promise.all([enabling, refreshing])
+
+    expect(f.account.getSnapshot().user).toBeNull()
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual(f.guestFriends)
+    expect(f.client.merge).not.toHaveBeenCalled()
+    expect(f.client.session).toHaveBeenCalledTimes(1)
+  })
+
   it('enables an account-only garden without importing guest data', async () => {
     const f = setup(); await f.account.refresh(); await f.account.enable('account')
     expect(await f.account.getSnapshot().storage.loadFriends()).toEqual([])

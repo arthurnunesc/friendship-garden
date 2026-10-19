@@ -16,20 +16,20 @@ This document is an implementation handoff for future planning. It records decis
 4. **Backend notification channels**: extend reminders beyond native local notifications through a pluggable backend notification layer, with email as the first implemented channel.
 5. **Sync refinement**: improve conflict handling, first-sign-in import flows, and cross-device UX after the foundation exists.
 
-### Active implementation — 2026-10-18
+### Active implementation — 2026-10-19
 
 The first account-sync foundation chunk is implemented: an isolated merge
 contract in `apps/api`, committed as `4be7258`. Authentication bootstrap now
 adds Google + Resend magic links and a fail-closed Netlify handler, with
-**138 API tests** passing. PostgreSQL migrations now pass real isolated tests
+**139 API tests** passing. PostgreSQL migrations now pass real isolated tests
 and are applied to the separate development project. Branch-only credentials
 are configured; hosted passwordless sign-in and real Resend test-inbox delivery
 pass. Account-scoped storage and transactional garden merges now also pass
 real PostgreSQL checks, including concurrent writes and account isolation.
 Web sign-in, explicit import consent, account-isolated offline queues, and
-sync controls now pass **154 web tests** and synthetic browser checks. Native
+sync controls now pass **156 web tests** and synthetic browser checks. Native
 provider authentication, correlated secure callbacks, account controls, and the
-async persistence/queue/transport integration pass **226 mobile tests** and both
+async persistence/queue/transport integration pass **228 mobile tests** and both
 Release builds. Sign-in still requires explicit sync consent; local gardens and
 reminders remain independent. Completed Google consent, personal inbox delivery,
 and physical-phone checks remain deferred to one final user-run pass. See
@@ -37,6 +37,12 @@ and physical-phone checks remain deferred to one final user-run pass. See
 setup questions. Native Phase 7 is committed in `89462d9`
 (fix/tests) and `e3f497b` (roadmap/evidence). Account sync is available only in
 explicitly configured builds and remains opt-in.
+
+Hosted native-protocol consent, offline merging, tombstones, and revocation now
+pass with real backend/provider test-sink delivery and injected client stores.
+A focus/foreground consent-cancellation race is fixed in both clients. Android
+Google launch/cancellation reached the provider without entering credentials;
+completed provider consent and the real hosted browser pass are still open.
 
 The approved feature-branch preview is now live at
 <https://feature-mobile-app-creation--friendship-garden.netlify.app>.

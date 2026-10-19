@@ -6,6 +6,11 @@ import type { Friend } from '../friends/Friend'
 
 const empty = (): SyncSnapshot => ({ version: 1, friends: [], interactions: [] })
 const friend = (id: string): Friend => ({ id, name: id, cadenceDays: 14, createdAt: '2026-01-01T00:00:00.000Z', interactions: [] })
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => { resolve = done })
+  return { promise, resolve }
+}
 function setup() {
   let guest = [friend('local-only')]
   let user: AccountUser | null = { id: 'a', email: 'a@example.invalid' }
@@ -55,6 +60,49 @@ describe('consent-gated account gardens', () => {
     expect(f.account.getSnapshot().viewAccount?.id).toBe('a')
     expect(f.account.getSnapshot().storage.loadFriends()[0].name).toBe('local-only')
     expect(f.guest).toEqual([friend('local-only')])
+  })
+
+  it('waits for pending import consent before a concurrent refresh checks the session', async () => {
+    const f = setup()
+    await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    f.client.read.mockImplementationOnce(() => read.promise)
+
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.client.read).toHaveBeenCalledOnce())
+    const refreshing = Promise.all([f.account.refresh(), f.account.refresh()])
+    await Promise.resolve()
+    expect(f.client.session).toHaveBeenCalledTimes(1)
+
+    read.resolve(empty())
+    await Promise.all([enabling, refreshing])
+
+    expect(f.account.getSnapshot().viewAccount?.id).toBe('a')
+    expect(f.server.get('a')?.friends.some((item) => item.id === 'local-only')).toBe(true)
+    expect(f.account.getSnapshot().phase).toBe('ready')
+    expect(f.client.session).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not let sign-out release a queued refresh into a pending import', async () => {
+    const f = setup()
+    await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    f.client.read.mockImplementationOnce(() => read.promise)
+
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.client.read).toHaveBeenCalledOnce())
+    const refreshing = f.account.refresh()
+    await Promise.resolve()
+    const signingOut = f.account.signOut()
+    await signingOut
+    read.resolve(empty())
+    await Promise.all([enabling, refreshing])
+
+    expect(f.account.getSnapshot().user).toBeNull()
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    expect(f.account.getSnapshot().storage.loadFriends()).toEqual(f.guest)
+    expect(f.client.merge).not.toHaveBeenCalled()
+    expect(f.client.session).toHaveBeenCalledTimes(1)
   })
 
   it('can use an account garden without ever importing local guest data', async () => {
