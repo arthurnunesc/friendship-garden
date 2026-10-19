@@ -72,6 +72,33 @@ The corrected simulator binary launched and completed the initial secure-store
 read without showing the earlier auth failure. This is not proof of a real
 Google login, email handoff, or physical-phone Keychain behavior.
 
+### Integrated account verification — 2026-10-19
+
+Both ARM64 Release builds were repeated successfully after consent-refresh fix
+`a5ae7f3` and its follow-up safety fixes. The Android emulator ran the rebuilt
+APK against an owned isolated
+preview database: Google browser launch reached the real sign-in page; closing
+it returned to the local garden and created no user. No credentials were entered.
+The test uses read-only AVD mode, leaving the existing AVD data unchanged.
+
+The iOS Release app from `a5ae7f3`, with simulator-only ad-hoc signing as documented
+above, also opened Google's actual sign-in page. Cancel returned to guest account
+controls with the generic cancellation notice. No credentials were entered.
+Owned simulator `D77220BA-E078-4B7B-880D-C4554B918274` was deleted and its absence
+verified. That browser check predates the follow-up controller review fixes;
+the iOS binary was rebuilt successfully afterward.
+
+The same hosted scope passed real email/consent/sync/sign-out checks through
+Chromium and the native source protocol with injected memory stores. These do
+not establish native email app return, OS credential persistence, completed
+Google consent, or physical-phone reminder reliability.
+See `plans/account-sync-foundation.md` for the full evidence and user checklist.
+
+Owned database `br-sweet-violet-ba8hag7p`, browser session, and `emulator-5588`
+were removed/closed after preview restore `6ad5d176fa9c95358190154b` became ready.
+No paid runs were used; noqa still reports **$5.00**. No personal phone or iPhone
+signing setup was used.
+
 ## Device checks
 
 ```sh

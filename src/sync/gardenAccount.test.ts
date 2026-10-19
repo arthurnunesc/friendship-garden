@@ -83,6 +83,74 @@ describe('consent-gated account gardens', () => {
     expect(f.client.session).toHaveBeenCalledTimes(2)
   })
 
+  it('releases pending consent when the initial checking notification throws', async () => {
+    const f = setup()
+    await f.account.refresh()
+    let listenerActive = true
+    let threw = false
+    const unsubscribe = f.account.subscribe(() => {
+      if (listenerActive && !threw && f.account.getSnapshot().phase === 'checking') {
+        threw = true
+        throw new Error('listener failed')
+      }
+    })
+
+    const enabling = f.account.enable('import')
+    listenerActive = false
+    unsubscribe()
+    await enabling.catch(() => undefined)
+
+    let refreshSettled = false
+    const refreshing = f.account.refresh().then(() => { refreshSettled = true })
+    await Promise.resolve()
+    await vi.waitFor(() => expect(refreshSettled).toBe(true), { timeout: 100 })
+    await refreshing
+    await f.account.enable('import')
+    expect(f.account.getSnapshot().viewAccount?.id).toBe('a')
+  })
+
+  it('does not refresh the session while sign-out is revoking it during pending consent', async () => {
+    const f = setup()
+    await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    const revoke = deferred<void>()
+    f.client.read.mockImplementationOnce(() => read.promise)
+    f.client.signOut.mockImplementationOnce(async () => { await revoke.promise; f.setUser(null) })
+
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.client.read).toHaveBeenCalledOnce())
+    const signingOut = f.account.signOut()
+    await vi.waitFor(() => expect(f.client.signOut).toHaveBeenCalledOnce())
+    const sessionsBeforeRefresh = f.client.session.mock.calls.length
+    const refreshing = f.account.refresh()
+    read.resolve(empty())
+    await Promise.all([enabling, refreshing])
+    const sessionsDuringRevocation = f.client.session.mock.calls.length
+    const viewDuringRevocation = f.account.getSnapshot().viewAccount
+
+    revoke.resolve()
+    await Promise.all([enabling, signingOut, refreshing])
+    expect(sessionsDuringRevocation).toBe(sessionsBeforeRefresh)
+    expect(viewDuringRevocation).toBeNull()
+    expect(f.account.getSnapshot().user).toBeNull()
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    expect(f.account.getSnapshot().storage.loadFriends()).toEqual(f.guest)
+    expect(f.client.merge).not.toHaveBeenCalled()
+  })
+
+  it('allows refresh and a sign-out retry after revocation fails', async () => {
+    const f = setup()
+    await f.account.refresh()
+    f.client.signOut.mockRejectedValueOnce(new Error('offline'))
+    await f.account.signOut()
+    expect(f.account.getSnapshot().phase).toBe('offline')
+    await f.account.refresh()
+    expect(f.client.session).toHaveBeenCalledTimes(2)
+    await f.account.signOut()
+    expect(f.client.signOut).toHaveBeenCalledTimes(2)
+    expect(f.account.getSnapshot().user).toBeNull()
+  })
+
   it('does not let sign-out release a queued refresh into a pending import', async () => {
     const f = setup()
     await f.account.refresh()

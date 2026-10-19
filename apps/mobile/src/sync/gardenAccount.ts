@@ -39,6 +39,7 @@ export function createGardenAccount(options: {
   let boot: Promise<void> | null = null
   let flight: { epoch: number, promise: Promise<void> } | null = null
   let consent: Promise<void> | null = null
+  let signingOut = false
   let state: GardenAccountState
   const find = (id: string) => saved.accounts.find((entry) => entry.user.id === id)
   const emit = (patch: Partial<GardenAccountState>) => {
@@ -188,6 +189,7 @@ export function createGardenAccount(options: {
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     initialize,
     async refresh() {
+      if (signingOut) return
       if (consent) {
         const waiting = epoch
         await consent
@@ -211,14 +213,14 @@ export function createGardenAccount(options: {
     },
     async enable(choice: 'import' | 'account') {
       const user = state.user
-      if (!user || !state.loaded || state.phase === 'checking' || state.phase === 'syncing') return
+      if (!user || !state.loaded || consent || signingOut || state.phase === 'checking' || state.phase === 'syncing') return
       const ticket = epoch
       let release!: () => void
       const pending = new Promise<void>((resolve) => { release = resolve })
       // A foreground identity check must not invalidate an explicit import mid-read.
       consent = pending
-      emit({ phase: 'checking', error: null })
       try {
+        emit({ phase: 'checking', error: null })
         if (damaged) throw new Error('Account cache is unavailable')
         const remote = await client.read(user.id)
         await serialize(async () => {
@@ -239,24 +241,28 @@ export function createGardenAccount(options: {
       }
     },
     async signOut() {
+      if (signingOut) return
+      signingOut = true
       const ticket = ++epoch
       paused = true
       const user = state.user
-      show(null)
-      emit({ phase: 'checking' })
       let localFailure = false
-      await serialize(async () => {
-        const entry = user && find(user.id)
-        if (entry) {
-          try { await persist({ ...entry, enabled: false }) } catch { localFailure = true }
-        }
-      })
       try {
+        show(null)
+        emit({ phase: 'checking' })
+        await serialize(async () => {
+          const entry = user && find(user.id)
+          if (entry) {
+            try { await persist({ ...entry, enabled: false }) } catch { localFailure = true }
+          }
+        })
         await client.signOut()
         if (ticket === epoch) emit({ user: null, phase: 'local', error: localFailure
           ? 'Signed out. Saved account settings could not be updated on this device.' : null })
       } catch (error) {
         if (ticket === epoch) emit({ phase: 'offline', error: message(error) })
+      } finally {
+        signingOut = false
       }
     },
     async openOffline(userId: string) {

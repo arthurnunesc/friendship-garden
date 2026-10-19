@@ -27,9 +27,9 @@ are configured; hosted passwordless sign-in and real Resend test-inbox delivery
 pass. Account-scoped storage and transactional garden merges now also pass
 real PostgreSQL checks, including concurrent writes and account isolation.
 Web sign-in, explicit import consent, account-isolated offline queues, and
-sync controls now pass **156 web tests** and synthetic browser checks. Native
+sync controls now pass **159 web tests** and synthetic browser checks. Native
 provider authentication, correlated secure callbacks, account controls, and the
-async persistence/queue/transport integration pass **228 mobile tests** and both
+async persistence/queue/transport integration pass **231 mobile tests** and both
 Release builds. Sign-in still requires explicit sync consent; local gardens and
 reminders remain independent. Completed Google consent, personal inbox delivery,
 and physical-phone checks remain deferred to one final user-run pass. See
@@ -40,9 +40,10 @@ explicitly configured builds and remains opt-in.
 
 Hosted native-protocol consent, offline merging, tombstones, and revocation now
 pass with real backend/provider test-sink delivery and injected client stores.
-A focus/foreground consent-cancellation race is fixed in both clients. Android
-Google launch/cancellation reached the provider without entering credentials;
-completed provider consent and the real hosted browser pass are still open.
+A focus/foreground consent-cancellation race is fixed in both clients. The
+post-fix hosted browser email, consent, import, and sign-out round trip passes.
+Android and iOS simulator Google launch/cancellation pass without credentials;
+completed provider consent, native email return, and phone acceptance stay open.
 
 The approved feature-branch preview is now live at
 <https://feature-mobile-app-creation--friendship-garden.netlify.app>.

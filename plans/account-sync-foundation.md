@@ -32,22 +32,44 @@ complete Google consent or personal-inbox/physical-phone acceptance.
   native controllers now let consent finish before refreshing identity. Multiple
   waiting refreshes coalesce; sign-out and pause still invalidate stale work.
   Regression tests first failed on the old behavior and now pass.
-- **156 web tests/build**, **228 mobile tests/typecheck**, and **139 API
-  tests/typecheck** pass. Both ARM64 Release builds pass after the race fix.
+- A focused safety review then found two additional controller edges: a throwing
+  subscriber could bypass consent-latch release, and a foreground refresh during
+  sign-out could supersede its final local identity update. Both are fixed: consent
+  notifications are protected by latch cleanup, and refresh is suppressed while
+  revocation runs. Four regressions reproduced the failures before the fix; retry
+  checks prove a failed revocation releases the guard. The hosted source below
+  predates this follow-up; a new focus-stress run remains pending.
+- **159 web tests/build**, **231 mobile tests/typecheck**, and **139 API
+  tests/typecheck/audit (0 findings)** pass. Both ARM64 Release builds pass after
+  the review fixes.
   A real Better Auth integration test also verifies Google's native browser proxy
   and cancellation without contacting Google or creating a session.
-- A local Android emulator reached Google's actual sign-in page and returned to
-  the guest garden after cancellation without entering credentials. Earlier test
-  assertions missed the offscreen cancellation notice; the runner now scrolls
-  before checking it. This does not complete Google consent/token exchange.
-- The full hosted browser email/consent round trip remains pending. One test-sink
-  lookup timed out despite a successful sign-in request; a delivered provider
-  record was found later. The runner now allows a longer bounded delivery wait.
-  Do not count synthetic-browser checks as this hosted acceptance pass.
-- All completed disposable database scopes were restored and removed. Latest
-  retained-preview restore: **`6ad5ce7100038fd8e4f665b9`**, ready from `c09fd68`.
-  Production remains **`6a1df450234f820008eea876`**. Final post-fix hosted checks
-  and the consolidated user pass below remain open.
+- The rebuilt Android Release app passed actual Google page launch and
+  cancellation on the local emulator: returned to the guest garden, no credentials
+  entered, and no user created. Earlier assertions missed the offscreen cancel
+  notice; the runner now scrolls before checking it. This does not complete Google
+  consent/token exchange.
+- The iOS Release app from `a5ae7f3` also opened the real Google sign-in page and
+  returned to the guest garden after Cancel on an owned iPhone simulator. It used
+  the test-only ad-hoc Keychain entitlement documented in the device guide.
+  No credentials were entered. Owned simulator
+  **`D77220BA-E078-4B7B-880D-C4554B918274`** was deleted and its absence verified.
+- The full hosted Chromium email/consent round trip now passes: a real Resend
+  test-sink link signs in without creating a garden row; explicit merge imports
+  the synthetic guest to the real server; sign-out restores the original guest
+  and removes its session. Earlier delivery/wait failures are not counted as
+  passes; the final complete run passed with the longer bounded provider wait.
+- The consent fix, regression tests, and roadmap are committed/pushed as
+  **`a5ae7f3`**. The complete post-fix hosted run passed on isolated deploy
+  **`6ad5d0e409def4618dccac6d`** from that source. Retained-preview restore
+  **`6ad5d176fa9c95358190154b`** is ready from the same source, with anonymous
+  session **200/null**. Owned database **`br-sweet-violet-ba8hag7p`** was deleted
+  and its absence verified; owned Chromium and **`emulator-5588`** were closed.
+  Earlier failed scopes were also restored and removed.
+- Production remains **`6a1df450234f820008eea876`**. Full Google consent,
+  personal-inbox delivery, native email app return/OS credential persistence,
+  and the consolidated physical-phone pass remain open.
+  No paid test run, SDK upgrade, personal credentials, or physical phone was used.
 
 ## Work order
 

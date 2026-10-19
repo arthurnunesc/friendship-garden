@@ -54,6 +54,7 @@ export function createGardenAccount(options: {
   let friends = guest.loadFriends()
   let flight: { epoch: number, promise: Promise<void> } | null = null
   let consent: Promise<void> | null = null
+  let signingOut = false
   let paused = false
   let state: GardenAccountState
   const find = (id: string) => saved.accounts.find((entry) => entry.user.id === id)
@@ -150,6 +151,7 @@ export function createGardenAccount(options: {
     getSnapshot: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
     async refresh() {
+      if (signingOut) return
       if (consent) {
         const waiting = epoch
         await consent
@@ -172,14 +174,14 @@ export function createGardenAccount(options: {
     },
     async enable(choice: 'import' | 'account') {
       const user = state.user
-      if (!user || state.phase === 'checking' || state.phase === 'syncing') return
+      if (!user || consent || signingOut || state.phase === 'checking' || state.phase === 'syncing') return
       const ticket = epoch
       let release!: () => void
       const pending = new Promise<void>((resolve) => { release = resolve })
       // A foreground identity check must not invalidate an explicit import mid-read.
       consent = pending
-      publish({ phase: 'checking', error: null })
       try {
+        publish({ phase: 'checking', error: null })
         const remote = await client.read(user.id)
         if (ticket !== epoch || state.user?.id !== user.id) return
         const previous = find(user.id)
@@ -199,6 +201,8 @@ export function createGardenAccount(options: {
       }
     },
     async signOut() {
+      if (signingOut) return
+      signingOut = true
       ++epoch
       paused = true
       const user = state.user
@@ -218,6 +222,8 @@ export function createGardenAccount(options: {
       } catch (error) {
         show(null)
         publish({ phase: 'offline', error: message(error) })
+      } finally {
+        signingOut = false
       }
     },
     openOffline(userId: string) {
