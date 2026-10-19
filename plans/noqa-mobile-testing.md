@@ -99,6 +99,14 @@ were removed/closed after preview restore `6ad5d176fa9c95358190154b` became read
 No paid runs were used; noqa still reports **$5.00**. No personal phone or iPhone
 signing setup was used.
 
+Final review source **`a2475d4`** passes **231 mobile tests/typecheck** and both
+Release builds. Its hosted native protocol and rebuilt Android Google
+launch/cancel passed on deploy `6ad5d406704d9ed8cab4d710`. A later Android repeat
+failed at UIAutomator dump (exit **137**); that repeat is not counted as a pass.
+Real hosted Chromium consent/sign-out also passed with injected focus events on
+deploy `6ad5d519c5af155a291127ef`. Both owned databases were deleted after restore
+`6ad5d57d92e75bb8d35e1bd8` reached ready. No owned device remains.
+
 ## Device checks
 
 ```sh

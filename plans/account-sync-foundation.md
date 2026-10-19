@@ -12,11 +12,11 @@ integration are implemented and automatically checked. Native sign-in, secure
 callback handling, account controls, and storage integration are implemented.
 Final provider/inbox and user-run Android/iPhone verification remain pending.
 
-Active verification scope (October 19): run hosted native-protocol/account
-round trips and native Google launch/cancel against one owned disposable
-development database. Restore the retained preview target before removing the
-test database; preserve production and other resources. These checks do not
-complete Google consent or personal-inbox/physical-phone acceptance.
+Agent verification (October 19): hosted native-protocol/account round trips,
+real browser consent/sign-out, and native Google launch/cancel passed within
+the scopes below. Each hosted test database was disposable; the retained preview
+was restored before removal. These checks do not complete Google consent or
+personal-inbox/physical-phone acceptance.
 
 ### Integrated verification and consent recovery — 2026-10-19
 
@@ -37,8 +37,8 @@ complete Google consent or personal-inbox/physical-phone acceptance.
   sign-out could supersede its final local identity update. Both are fixed: consent
   notifications are protected by latch cleanup, and refresh is suppressed while
   revocation runs. Four regressions reproduced the failures before the fix; retry
-  checks prove a failed revocation releases the guard. The hosted source below
-  predates this follow-up; a new focus-stress run remains pending.
+  checks prove a failed revocation releases the guard. The independent follow-up
+  review confirmed both findings resolved with no new concrete issue in scope.
 - **159 web tests/build**, **231 mobile tests/typecheck**, and **139 API
   tests/typecheck/audit (0 findings)** pass. Both ARM64 Release builds pass after
   the review fixes.
@@ -66,6 +66,23 @@ complete Google consent or personal-inbox/physical-phone acceptance.
   session **200/null**. Owned database **`br-sweet-violet-ba8hag7p`** was deleted
   and its absence verified; owned Chromium and **`emulator-5588`** were closed.
   Earlier failed scopes were also restored and removed.
+- Review follow-ups are committed/pushed as **`a2475d4`**. Native protocol and
+  rebuilt Android Google launch/cancel passed on isolated deploy
+  **`6ad5d406704d9ed8cab4d710`** from that source. The real browser round trip
+  then passed on **`6ad5d519c5af155a291127ef`**, including deliberate focus events
+  during consent's first garden read and during sign-out revocation. The first
+  stress runner clicked a disabled sign-out button; it now waits for the queued
+  foreground check to finish before testing sign-out.
+- A later Android repeat failed in **UIAutomator dump, exit 137**, not an app
+  assertion; it is not counted as a pass. The earlier passing Android check on
+  the same source remains the device evidence. No full device certification is
+  claimed. The final iOS binary was rebuilt after review fixes; its Google
+  launch/cancel inspection above was on the preceding `a5ae7f3` build.
+- Final retained-preview restore **`6ad5d57d92e75bb8d35e1bd8`** is ready from
+  `a2475d4`. Owned databases **`br-wild-sound-baz6aa04`** and
+  **`br-flat-bird-banrsblo`** were removed after restoration; the approved Neon
+  project contains only the retained development branch. Owned browsers,
+  emulator, simulator, and test/build processes are stopped/removed.
 - Production remains **`6a1df450234f820008eea876`**. Full Google consent,
   personal-inbox delivery, native email app return/OS credential persistence,
   and the consolidated physical-phone pass remain open.
@@ -124,7 +141,7 @@ to the acceptance checklist for this implementation scope.
 #### Consolidated user pass
 
 Use the configured preview builds, not an older local-only binary. Agent tests
-must first finish restoring the retained preview database. Do not use production
+have restored the retained preview database. Do not use production
 as the test target. Keep existing gardens and reminders; use clearly named
 synthetic friends for edits/deletions and export backups before testing imports.
 

@@ -42,6 +42,8 @@ Hosted native-protocol consent, offline merging, tombstones, and revocation now
 pass with real backend/provider test-sink delivery and injected client stores.
 A focus/foreground consent-cancellation race is fixed in both clients. The
 post-fix hosted browser email, consent, import, and sign-out round trip passes.
+Focused review fixes also protect consent cleanup and in-progress sign-out;
+real hosted browser checks pass with focus events during both operations.
 Android and iOS simulator Google launch/cancellation pass without credentials;
 completed provider consent, native email return, and phone acceptance stay open.
 
