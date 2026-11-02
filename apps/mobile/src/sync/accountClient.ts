@@ -31,8 +31,9 @@ export function createNativeAccountClient(options: {
       if (!cookie) throw new AccountRequestError(401)
       const response = await fetcher(origin + '/api/garden', {
         method: incoming === undefined ? 'GET' : 'POST',
-        credentials: 'omit', cache: 'no-store', redirect: 'error', signal: abort.signal,
-        headers: { 'content-type': 'application/json', origin, cookie, 'x-garden-account': userId },
+        credentials: 'omit', redirect: 'error', signal: abort.signal,
+        // React Native's cache option adds a query parameter, which this endpoint rejects.
+        headers: { 'content-type': 'application/json', 'cache-control': 'no-store', origin, cookie, 'x-garden-account': userId },
         ...(incoming === undefined ? {} : { body: JSON.stringify(incoming) }),
       })
       const result: unknown = await response.json().catch(() => null)

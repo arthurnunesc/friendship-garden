@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createRequire } from 'node:module'
 import { createNativeAccountClient, type NativeAuth } from './accountClient'
 import { AccountRequestError } from '../../../../packages/garden-sync/src/account'
 
@@ -11,6 +12,22 @@ const auth = (): NativeAuth => ({
 })
 
 describe('native garden transport', () => {
+  it('keeps the strict garden URL unchanged through the React Native fetch polyfill', async () => {
+    const { Request: NativeRequest } = createRequire(import.meta.url)('whatwg-fetch') as { Request: typeof Request }
+    const requests: Request[] = []
+    const client = createNativeAccountClient({ origin, auth: auth(), fetcher: async (url, init) => {
+      const request = new NativeRequest(url, init)
+      requests.push(request)
+      return new URL(request.url).search
+        ? Response.json({ error: 'Invalid garden request.' }, { status: 400 })
+        : Response.json(snapshot)
+    } })
+    await expect(client.read('a')).resolves.toEqual(snapshot)
+    await expect(client.merge('a', snapshot)).resolves.toEqual(snapshot)
+    expect(requests.map(request => request.url)).toEqual([origin + '/api/garden', origin + '/api/garden'])
+    expect(requests.map(request => request.headers.get('cache-control'))).toEqual(['no-store', 'no-store'])
+  })
+
   it.each(['http://garden.example', 'https://garden.example/', 'https://a:b@garden.example', 'https://garden.example/path', 'https://garden.example?q=1'])('rejects an unsafe or ambiguous origin %s', (origin) => {
     expect(() => createNativeAccountClient({ origin, auth: auth() })).toThrow('HTTPS origin')
   })
@@ -23,8 +40,8 @@ describe('native garden transport', () => {
     security.getCookie = () => '__Secure-better-auth.session_token=rotated-synthetic-session'
     await client.merge('a', snapshot)
     expect(fetcher.mock.calls[0]).toMatchObject([origin + '/api/garden', {
-      method: 'GET', credentials: 'omit', redirect: 'error', cache: 'no-store',
-      headers: { origin, cookie: '__Secure-better-auth.session_token=synthetic-session', 'x-garden-account': 'a' },
+      method: 'GET', credentials: 'omit', redirect: 'error',
+      headers: { origin, 'cache-control': 'no-store', cookie: '__Secure-better-auth.session_token=synthetic-session', 'x-garden-account': 'a' },
     }])
     expect(fetcher.mock.calls[1][1]).toMatchObject({ method: 'POST', body: JSON.stringify(snapshot),
       headers: { cookie: '__Secure-better-auth.session_token=rotated-synthetic-session' } })

@@ -2,7 +2,7 @@
 
 Source: `plans/account-sync-notifications-roadmap.md`.
 
-## Status — 2026-10-19
+## Status — 2026-11-02
 
 Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
 (roadmap/evidence). The isolated merge module below is implemented in
@@ -17,6 +17,71 @@ real browser consent/sign-out, and native Google launch/cancel passed within
 the scopes below. Each hosted test database was disposable; the retained preview
 was restored before removal. These checks do not complete Google consent or
 personal-inbox/physical-phone acceptance.
+
+### Native email handoff and persistence — 2026-11-02
+
+- Rebuilt both ARM64 Release clients and tested their actual OS browser-to-app
+  email-link handoff with delivered Resend test-sink messages. The app was
+  terminated before opening each link. Android and iOS both recovered the saved
+  pending attempt and signed in. Android's first sign-in left **zero garden rows**
+  until explicit import consent.
+- Found and fixed a real native-only transport bug: React Native's installed
+  `whatwg-fetch` adds a timestamp query to GET requests with `cache: 'no-store'`.
+  The strict garden endpoint correctly rejected it with **400**, preventing native
+  garden reads. Native transport now sends **`Cache-Control: no-store`** instead
+  of the URL-mutating cache option. The server's query/origin/account restrictions
+  are unchanged. A regression using the actual polyfill failed before the fix and
+  passes afterward; earlier Node-fetch protocol checks did not cover this behavior.
+- With the uninstrumented fix installed, Android explicitly imported its synthetic
+  guest and iOS chose **account garden only** for the same account. The Android
+  friend appeared on iOS through the real hosted service. Both clients recovered
+  their signed-in account after process restart using real SecureStore and
+  AsyncStorage adapters. Sign-out reduced server sessions **2 → 1 → 0**; another
+  restart restored Android's original guest and iOS's original empty garden.
+- Consent/sign-out changes briefly remount the settings view when active storage
+  changes, collapsing its account disclosure. Test helpers had to reopen that
+  disclosure before checking status. Those post-fix UI wait failures are not
+  counted as successful test commands; separate visible-state, server-state,
+  restart, and cross-device checks confirmed the completed operations.
+- **232 mobile tests/typecheck**, **159 web tests/build**, and **139 API
+  tests/typecheck** pass. Both native Release builds pass. The iOS rebuild first
+  failed because ignored `.xcode.env.local` referenced a removed Homebrew Node
+  binary; its backed-up local setting now uses `/opt/homebrew/bin/node`. No SDK
+  or dependency upgrade was made. The temporary payload-free trace is removed
+  from source and both final native binaries.
+- Tests used source `8ca6dac` plus the local transport fix, isolated deploy
+  **`6ae8518b5112b3570f5a77b2`**, and owned database
+  **`br-solitary-violet-banppdld`**. Preview restore
+  **`6ae857d961641beeb2c1a350`** reached ready before database deletion. The first
+  setup's cold database connection timed out; its owned branch
+  **`br-icy-moon-babxnaqp`** was removed without changing preview configuration.
+  Only the retained development database remains. Owned emulator **`emulator-5590`**,
+  simulator **`F4E2C674-8280-493C-9732-63DC61EDE577`**, supervisor, and loopback
+  control service are removed/stopped; private control credentials were removed.
+- These are simulator/emulator checks, including a simulator-only ad-hoc Keychain
+  entitlement. Links were retrieved from the provider test sink, not a personal
+  inbox or Mail app. Real inbox delivery, full Google consent, physical-phone
+  credential behavior, broader offline/concurrent device edits, backups, and
+  reminder reliability remain in the user pass. No paid device run was used.
+
+#### Dependency audit follow-up — 2026-11-02
+
+The unchanged API dependency tree now reports **5 findings**: 2 low, 2 moderate,
+and 1 critical. The earlier zero-finding audit below is historical, not a current
+security clearance. Do not force-upgrade the pinned authentication stack as part
+of the native transport fix; plan and verify coordinated auth/plugin and test-tool
+updates before widening the authentication rollout.
+
+- Better Auth's critical
+  [OAuth-state/Magic-Link advisory](https://github.com/advisories/GHSA-965c-763c-88jm)
+  lists an existing mitigation already used here: `magicLink.storeToken: 'hashed'`
+  with global `verification.storeIdentifier` unset. General OAuth Proxy and Device
+  Authorization plugins are not enabled. The Expo authorization proxy is a
+  different integration. This does not erase the version-range audit finding.
+- The PostgreSQL adapter's
+  [concurrent rate-limit advisory](https://github.com/advisories/GHSA-44jh-23m7-hpcf)
+  and Vitest/mocker advisories also require follow-up. No dependency or lockfile
+  changed in this pass, and no claim of a clean audit or production readiness is made.
 
 ### Integrated verification and consent recovery — 2026-10-19
 

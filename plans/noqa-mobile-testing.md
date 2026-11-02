@@ -109,6 +109,36 @@ deploy `6ad5d519c5af155a291127ef`. Both owned databases were deleted after resto
 
 ## Device checks
 
+### Native email and stored sessions — 2026-11-02
+
+Actual rebuilt Release clients were checked on an owned Android emulator and
+iPhone simulator against one disposable hosted database. Resend test-sink links
+were opened in Chrome/Safari after terminating the app. Both OS callbacks recovered
+the pending attempt from real SecureStore. Android sign-in alone created no garden
+row; explicit import uploaded its synthetic guest. iOS account-only consent then
+retrieved that friend. Both clients recovered identity and the account garden after
+process restart. Both sign-outs revoked their server sessions; another restart
+restored the separate original guest gardens. Personal inbox/Mail-app delivery and
+physical-phone Keychain/Keystore reliability are not covered.
+
+The first native import exposed a real React Native fetch incompatibility:
+`cache: 'no-store'` adds a query parameter, which the strict garden API rejects.
+The native transport now uses a `Cache-Control: no-store` header instead. A test
+using the real installed polyfill proves the failure and fix. **232 mobile tests**,
+mobile typecheck, and both ARM64 Release builds pass. Temporary HTTP-status-only
+probe output was removed from source and final binaries. No SDK upgrade was used.
+
+The iOS build's ignored `.xcode.env.local` referenced a removed version-specific
+Homebrew Node path. Its original contents were backed up in the owned temporary
+directory; `NODE_BINARY=/opt/homebrew/bin/node` fixed the build without changing
+dependencies or physical-device signing.
+
+Owned database `br-solitary-violet-banppdld` was deleted only after preview restore
+`6ae857d961641beeb2c1a350` reached ready. Emulator `emulator-5590`, simulator
+`F4E2C674-8280-493C-9732-63DC61EDE577`, supervisor, and private loopback control
+service were removed/stopped and absence verified. The first failed setup's test
+branch was also removed. No paid run or personal phone was used.
+
 ```sh
 noqa devices active
 # Connect only if this simulator is not already active:

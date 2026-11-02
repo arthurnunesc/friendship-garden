@@ -16,7 +16,7 @@ This document is an implementation handoff for future planning. It records decis
 4. **Backend notification channels**: extend reminders beyond native local notifications through a pluggable backend notification layer, with email as the first implemented channel.
 5. **Sync refinement**: improve conflict handling, first-sign-in import flows, and cross-device UX after the foundation exists.
 
-### Active implementation — 2026-10-19
+### Active implementation — 2026-11-02
 
 The first account-sync foundation chunk is implemented: an isolated merge
 contract in `apps/api`, committed as `4be7258`. Authentication bootstrap now
@@ -29,7 +29,7 @@ real PostgreSQL checks, including concurrent writes and account isolation.
 Web sign-in, explicit import consent, account-isolated offline queues, and
 sync controls now pass **159 web tests** and synthetic browser checks. Native
 provider authentication, correlated secure callbacks, account controls, and the
-async persistence/queue/transport integration pass **231 mobile tests** and both
+async persistence/queue/transport integration pass **232 mobile tests** and both
 Release builds. Sign-in still requires explicit sync consent; local gardens and
 reminders remain independent. Completed Google consent, personal inbox delivery,
 and physical-phone checks remain deferred to one final user-run pass. See
@@ -45,7 +45,18 @@ post-fix hosted browser email, consent, import, and sign-out round trip passes.
 Focused review fixes also protect consent cleanup and in-progress sign-out;
 real hosted browser checks pass with focus events during both operations.
 Android and iOS simulator Google launch/cancellation pass without credentials;
-completed provider consent, native email return, and phone acceptance stay open.
+completed provider consent, personal inbox/Mail-app delivery, and phone acceptance
+stay open.
+
+Actual Android/iOS simulator email browser-to-app return, credential recovery
+after process restart, same-account garden retrieval, and sign-out restoration
+now pass against a disposable hosted database. This exposed and fixed the native
+fetch polyfill's cache-busting query, which the strict garden endpoint rejected.
+Personal inbox/Mail-app delivery and physical-phone behavior remain unverified.
+The current API audit reports five dependency findings; the critical Magic Link
+path has the documented mitigation already configured, but coordinated dependency
+updates and audit follow-up remain required before broader rollout. See the
+foundation plan for details; historical clean audits are not current clearance.
 
 The approved feature-branch preview is now live at
 <https://feature-mobile-app-creation--friendship-garden.netlify.app>.
