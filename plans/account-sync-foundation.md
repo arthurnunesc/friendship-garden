@@ -58,6 +58,11 @@ personal-inbox/physical-phone acceptance.
   Only the retained development database remains. Owned emulator **`emulator-5590`**,
   simulator **`F4E2C674-8280-493C-9732-63DC61EDE577`**, supervisor, and loopback
   control service are removed/stopped; private control credentials were removed.
+- The fix, regression, and verification notes are committed/pushed as
+  **`b505782`**. Feature deploy **`6ae8593e323fe7baae9786dd`** is ready from that
+  source; hosted home **200**, anonymous session **200/null**, and anonymous garden
+  **401** checks pass after restoration. Published production remains
+  **`6a1df450234f820008eea876`**.
 - These are simulator/emulator checks, including a simulator-only ad-hoc Keychain
   entitlement. Links were retrieved from the provider test sink, not a personal
   inbox or Mail app. Real inbox delivery, full Google consent, physical-phone
