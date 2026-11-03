@@ -16,11 +16,11 @@
     "@types/node": "^26.6.5",
     "@types/pg": "^8.23.1",
     "typescript": "~5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "dependencies": {
-    "@better-auth/expo": "1.6.23",
-    "better-auth": "1.6.23",
+    "@better-auth/expo": "1.7.14",
+    "better-auth": "1.7.14",
     "pg": "^8.23.1",
     "resend": "^6.32.1"
   }

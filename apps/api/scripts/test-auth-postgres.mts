@@ -101,7 +101,7 @@ async function main() {
       endpoints: { host: string, branch_id: string }[],
     }
     assert(endpoints.endpoints.some((endpoint) => endpoint.branch_id === ownedBranch && endpoint.host === host))
-    pool = new Pool({ ...authPoolConfig(databaseURL), query_timeout: 15_000 })
+    pool = new Pool({ ...authPoolConfig(databaseURL), connectionTimeoutMillis: 15_000, query_timeout: 15_000 })
     pool.on('error', () => { console.error('Disposable PostgreSQL connection failed.') })
     verificationStage = 'owned disposable schema reset'
     // This schema exists only on our newly created schema-only disposable branch.
@@ -165,15 +165,41 @@ async function main() {
     await checkGardenPostgres(pool, auth, baseURL, sessionData.user.id, cookie, emails)
     assert.equal((await auth.handler(request('/sign-out', { method: 'POST', headers: { cookie } }))).status, 200)
     assert.equal(await (await auth.handler(request('/get-session', { headers: { cookie } }))).json(), null)
-    verificationStage = 'expiry and rate limit'
-    await signIn()
+    verificationStage = 'expiry'
+    assert.equal((await signIn()).status, 200)
     const expiredLink = emails.at(-1)?.url
     assert(expiredLink)
     await pool.query('UPDATE verification SET "expiresAt" = now() - interval \'1 minute\'')
     assert((await auth.handler(new Request(expiredLink))).headers.get('location')?.includes('INVALID_TOKEN'))
-    await signIn()
-    assert.equal((await signIn()).status, 429)
-    console.log('PostgreSQL passed: concurrent/idempotent migrations, checksum guard, zero schema drift, hashed/single-use/expired links, secure session, sign-out, database rate limit.')
+    verificationStage = 'sequential database rate limit'
+    const limitedSignIn = () => auth.handler(request('/sign-in/magic-link', {
+      method: 'POST', headers: { 'x-auth-client-ip': '198.51.100.41' },
+      body: JSON.stringify({ email: 'sequential-limit@example.invalid', callbackURL: '/' }),
+    }))
+    for (let i = 0; i < 3; i += 1) assert.equal((await limitedSignIn()).status, 200)
+    assert.equal((await limitedSignIn()).status, 429)
+    verificationStage = 'concurrent database rate limit'
+    const emailCount = emails.length
+    const parallelSignIns = await Promise.all(Array.from({ length: 12 }, () => auth.handler(request('/sign-in/magic-link', {
+      method: 'POST', headers: { 'x-auth-client-ip': '198.51.100.42' },
+      body: JSON.stringify({ email: 'concurrent-limit@example.invalid', callbackURL: '/' }),
+    }))))
+    assert.equal(parallelSignIns.filter(response => response.status === 200).length, 3, 'Concurrent sign-in requests must not exceed the configured limit.')
+    assert.equal(parallelSignIns.filter(response => response.status === 429).length, 9)
+    assert.equal(emails.length - emailCount, 3, 'Rate-limited requests must not send extra emails.')
+    verificationStage = 'concurrent magic-link consume'
+    assert.equal((await auth.handler(request('/sign-in/magic-link', {
+      method: 'POST', headers: { 'x-auth-client-ip': '198.51.100.43' },
+      body: JSON.stringify({ email: 'concurrent-consume@example.invalid', callbackURL: '/' }),
+    }))).status, 200)
+    const concurrentLink = emails.at(-1)?.url
+    assert(concurrentLink)
+    const competing = await Promise.all([auth.handler(new Request(concurrentLink)), auth.handler(new Request(concurrentLink))])
+    assert.equal(competing.filter(response => response.status === 302 && response.headers.get('set-cookie')?.includes('session_token=')).length, 1, 'Only one concurrent verification may issue a session.')
+    assert.equal(competing.filter(response => response.headers.get('location')?.includes('INVALID_TOKEN')).length, 1)
+    const sessions = await pool.query('SELECT count(*)::int AS count FROM session s JOIN "user" u ON u.id=s."userId" WHERE u.email=$1', ['concurrent-consume@example.invalid'])
+    assert.equal(sessions.rows[0].count, 1)
+    console.log('PostgreSQL passed: concurrent/idempotent migrations, checksum guard, zero schema drift, hashed/single-use/expired links, secure session, sign-out, concurrent database rate limit and atomic link consume.')
   } finally {
     await cleanup()
     process.removeListener('SIGINT', interrupt)

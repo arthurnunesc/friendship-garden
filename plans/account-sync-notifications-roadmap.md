@@ -16,12 +16,12 @@ This document is an implementation handoff for future planning. It records decis
 4. **Backend notification channels**: extend reminders beyond native local notifications through a pluggable backend notification layer, with email as the first implemented channel.
 5. **Sync refinement**: improve conflict handling, first-sign-in import flows, and cross-device UX after the foundation exists.
 
-### Active implementation — 2026-11-02
+### Active implementation — 2026-11-03
 
 The first account-sync foundation chunk is implemented: an isolated merge
 contract in `apps/api`, committed as `4be7258`. Authentication bootstrap now
 adds Google + Resend magic links and a fail-closed Netlify handler, with
-**139 API tests** passing. PostgreSQL migrations now pass real isolated tests
+**140 API tests** passing. PostgreSQL migrations now pass real isolated tests
 and are applied to the separate development project. Branch-only credentials
 are configured; hosted passwordless sign-in and real Resend test-inbox delivery
 pass. Account-scoped storage and transactional garden merges now also pass
@@ -53,10 +53,12 @@ after process restart, same-account garden retrieval, and sign-out restoration
 now pass against a disposable hosted database. This exposed and fixed the native
 fetch polyfill's cache-busting query, which the strict garden endpoint rejected.
 Personal inbox/Mail-app delivery and physical-phone behavior remain unverified.
-The current API audit reports five dependency findings; the critical Magic Link
-path has the documented mitigation already configured, but coordinated dependency
-updates and audit follow-up remain required before broader rollout. See the
-foundation plan for details; historical clean audits are not current clearance.
+The API security update pins Better Auth/Expo **1.7.14** together and Vitest
+**4.1.12**, resolving the five findings; the API audit now reports **zero**.
+The mobile SDK is unchanged. Legacy sessions survive the update, but pending
+magic links and OAuth attempts must restart after deployment. Real PostgreSQL
+schema/concurrency checks pass; hosted update verification is the remaining
+agent check. See the foundation plan for rollout evidence and user-test limits.
 
 The approved feature-branch preview is now live at
 <https://feature-mobile-app-creation--friendship-garden.netlify.app>.

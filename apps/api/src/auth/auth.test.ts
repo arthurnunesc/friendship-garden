@@ -247,6 +247,7 @@ describe('createAuth', () => {
     expect(rawToken).toBeTruthy()
     const values = databaseValues(testAuth.database, 'SELECT value FROM verification')
     expect(values.join(' ')).not.toContain(rawToken)
+    expect(databaseValues(testAuth.database, 'SELECT identifier FROM verification')).toEqual([expect.stringMatching(/^magic-link:/)])
 
     const verified = await testAuth.auth.handler(new Request(delivered.url))
     expect(verified.status).toBe(302)
@@ -256,6 +257,25 @@ describe('createAuth', () => {
     const reused = await testAuth.auth.handler(new Request(delivered.url))
     expect(reused.headers.get('location')).toContain('error=INVALID_TOKEN')
     expect(reused.headers.get('set-cookie')).toBeNull()
+  })
+
+  it('never accepts caller-influenced OAuth state as an email sign-in token', async () => {
+    const testAuth = await createTestAuth()
+    const initiated = await testAuth.auth.handler(authRequest('/sign-in/social', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ provider: 'google', callbackURL: config.baseURL,
+        additionalData: { email: 'victim@example.invalid', name: 'Synthetic victim' } }),
+    }))
+    expect(initiated.status).toBe(200)
+    const state = new URL((await initiated.json() as { url: string }).url).searchParams.get('state')
+    expect(state).toBeTruthy()
+    expect(databaseValues(testAuth.database, 'SELECT identifier FROM verification')).toEqual([expect.stringMatching(/^auth-state:/)])
+    const rejected = await testAuth.auth.handler(authRequest('/magic-link/verify?' + new URLSearchParams({ token: state!, callbackURL: config.baseURL })))
+    expect(rejected.headers.get('location')).toContain('error=INVALID_TOKEN')
+    expect(rejected.headers.get('set-cookie')).toBeNull()
+    expect(databaseValues(testAuth.database, 'SELECT id FROM "user"')).toEqual([])
+    expect(databaseValues(testAuth.database, 'SELECT id FROM session')).toEqual([])
+    expect(testAuth.emails).toEqual([])
   })
 
   it('rejects expired magic links', async () => {

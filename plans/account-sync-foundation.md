@@ -2,7 +2,7 @@
 
 Source: `plans/account-sync-notifications-roadmap.md`.
 
-## Status — 2026-11-02
+## Status — 2026-11-03
 
 Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
 (roadmap/evidence). The isolated merge module below is implemented in
@@ -17,6 +17,49 @@ real browser consent/sign-out, and native Google launch/cancel passed within
 the scopes below. Each hosted test database was disposable; the retained preview
 was restored before removal. These checks do not complete Google consent or
 personal-inbox/physical-phone acceptance.
+
+### API dependency security update — 2026-11-03
+
+- Updated only the API package: Better Auth and its Expo server plugin are pinned
+  together at **`1.7.14`**, and Vitest at **`4.1.12`**. The existing three-day npm
+  release-age policy blocked newer auth releases; it was not bypassed. No mobile
+  SDK, web/mobile dependency file, auth configuration, or migration changed.
+- The five API findings recorded below are resolved: **`npm audit` reports 0**.
+  **140 API tests/typecheck**, **159 web tests/build**, and **232 mobile
+  tests/typecheck** pass. This is API audit evidence, not a new clean audit of
+  the unchanged web/mobile dependency trees.
+- An actual session issued by **1.6.23** remained valid and revocable under
+  **1.7.14**, using the same owned local database and secret. No schema additions
+  were required. An unexpired pre-upgrade email link was rejected, while a new
+  link worked. Exact disposable fixture files were removed by an exit/signal trap.
+- The isolated PostgreSQL suite passes with zero auth schema drift. Twelve
+  concurrent requests from one fresh IP allow exactly three emails and reject
+  nine; two simultaneous consumes of one link create exactly one session.
+  These concurrency checks also passed on the old baseline, so they are guards,
+  not claimed reproductions of an old exploit. The sequential quota check now
+  uses a fresh IP rather than depending on an earlier request staying in-window
+  throughout the longer garden suite. Cold test connections allow 15 seconds;
+  the production pool configuration is unchanged.
+- A real-auth regression rejects caller-influenced OAuth state used as an email
+  token, creates no user/session, and checks the separate `auth-state:` and
+  `magic-link:` storage namespaces. Google/native proxy, email consent, garden
+  transport, and sign-out integration tests still pass.
+- Read-only rollout preflight on the pinned development database found no
+  duplicate `(providerId, accountId)` keys or incompatible `issuer` column.
+  No account data was changed or exported. Test branches
+  `br-snowy-grass-badp7ua9`, `br-gentle-credit-ba5rcqwv`, and
+  `br-little-cloud-bad3bpb4` were deleted; only the retained development branch
+  remains. No physical device, personal inbox, or paid test run was used.
+- **Rollout:** wait for the feature deployment to be ready before requesting new
+  sign-in links or starting Google consent. Old pending magic links and OAuth
+  state cannot cross this update and must be restarted. Existing signed-in users
+  do not need a forced logout. Deploy the auth/plugin pair together; do not weaken
+  state validation to accept old flows or run mixed versions sharing verification
+  storage. Production remains outside this feature rollout.
+
+The focused review found no additional concrete issue beyond the expected
+pending-flow reset. A disposable hosted email/native-callback check and final
+deployment evidence remain pending for this update.
 
 ### Native email handoff and persistence — 2026-11-02
 
