@@ -57,8 +57,9 @@ The API security update pins Better Auth/Expo **1.7.14** together and Vitest
 **4.1.12**, resolving the five findings; the API audit now reports **zero**.
 The mobile SDK is unchanged. Legacy sessions survive the update, but pending
 magic links and OAuth attempts must restart after deployment. Real PostgreSQL
-schema/concurrency checks pass; hosted update verification is the remaining
-agent check. See the foundation plan for rollout evidence and user-test limits.
+schema/concurrency and disposable hosted email/native-callback/sync checks pass.
+The preview is restored to its retained database and production is unchanged.
+See the foundation plan for rollout evidence and user-test limits.
 
 The approved feature-branch preview is now live at
 <https://feature-mobile-app-creation--friendship-garden.netlify.app>.

@@ -58,8 +58,23 @@ personal-inbox/physical-phone acceptance.
   storage. Production remains outside this feature rollout.
 
 The focused review found no additional concrete issue beyond the expected
-pending-flow reset. A disposable hosted email/native-callback check and final
-deployment evidence remain pending for this update.
+pending-flow reset. The update is committed/pushed as **`9e85114`**.
+
+- Isolated feature deploy **`6aea5ae7a94503173d615471`** from that source passed
+  real Resend test-sink email delivery, correlated native callback and replay
+  rejection, no upload before consent, consented garden round trip, expected-account
+  mismatch rejection, guest restoration, and remote session revocation. The Google
+  proxy returned only its allowed authorization target and cancellation left no
+  signed-in session. Client stores/browser were injected; this is hosted protocol
+  evidence, not a new OS/physical-device or full Google-consent check.
+- Retained-preview restore **`6aea5b2988e16a379a2085c8`** reached ready before
+  deleting owned database **`br-orange-night-baak8mky`**. Cleanup and absence were
+  verified; only the retained development branch remains. No test server,
+  container, simulator, or emulator was created for this hosted protocol check.
+- Published production remains **`6a1df450234f820008eea876`**. Current full and
+  production-only API audits both report zero findings. Personal Google/inbox and
+  physical-phone acceptance remain pending; the dependency-audit follow-up below
+  is now historical and resolved by this update.
 
 ### Native email handoff and persistence — 2026-11-02
 
