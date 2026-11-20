@@ -11,6 +11,16 @@ delivery, completed Google consent, physical-device behavior, or production
 readiness. Keep those checks unverified. They do not block local development
 of the next roadmap phase.
 
+- Automated checks: 159 web, 144 API, and 233 mobile tests passed. The web
+  build and both API and mobile type checks passed. The two-device mobile
+  fixture uses independent local stores and a shared in-memory server. Both
+  offline additions survive reconnect, and a stale copy does not restore a
+  deleted friend.
+- Both native Release builds passed from `b146d7f`. A fresh iOS simulator
+  showed the empty guest garden. The test tap did not open the add-friend
+  form; this attempt does not establish a UI failure or a pass for the
+  add-friend flow. The simulator was deleted and the test runner stopped.
+
 ## Status — 2026-11-03
 
 Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
