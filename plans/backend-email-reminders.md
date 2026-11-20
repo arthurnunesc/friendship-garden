@@ -60,3 +60,34 @@ reminders or upload garden data. No scheduled job or live sender is active.
 Automated checks passed: 163 web tests, 151 API tests, 237 mobile tests, and
 type checks for all three packages. Browser and native tests used fake account
 requests; the settings route was not deployed or tested on an emulator.
+
+## Preview delivery — 2026-11-20
+
+The Resend sender and feedback route are implemented for an isolated preview
+only. Both stay off unless the deploy context is a branch deploy or deploy
+preview and `EMAIL_REMINDER_DELIVERY` is `preview-test`. The test database
+must match the preview API database, and the configured recipient must be a
+Resend test inbox. The job uses only that one account. The published
+production context cannot send. Netlify does not run scheduled functions
+automatically on branch deploys or deploy previews; invoke the function with
+**Run now** for hosted verification.
+
+The feedback route verifies the signature over the original request body. It
+accepts permanent bounces, complaints, and suppression events for the tagged
+reminder addressed to the configured inbox. Repeated events leave one hashed
+address record. Delivery checks this record both at claim time and before
+calling the sender. Sign-in email is not affected.
+
+Local checks passed: 155 API tests and a disposable PostgreSQL 15 check with
+all four migrations. The PostgreSQL check ran the preview worker with a fake
+sender, verified at most one submission and verified suppression. Signed
+webhook tests used the actual Resend SDK verifier and synthetic payloads. No
+provider call, hosted migration, or deploy occurred.
+
+Hosted acceptance needs approval to push the preview branch, create and
+migrate a disposable development database, set preview-only test values,
+register the test webhook, and submit to the Resend test sink. Verify consent,
+manual job invocation, duplicate prevention, and feedback with synthetic
+data. Restore the preview settings and remove the test webhook and database.
+Do not enable mail to real addresses. Production rollout is not part of this
+preview slice.

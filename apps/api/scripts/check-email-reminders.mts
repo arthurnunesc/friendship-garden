@@ -5,6 +5,8 @@ import { Pool } from 'pg'
 import { migrationVersions } from '../src/authMigration.ts'
 import { createEmailReminderStore } from '../src/reminders/emailReminderStore.ts'
 import { deliverEmailDigest } from '../src/reminders/deliverEmailDigest.ts'
+import { runPreviewReminderJob } from '../src/reminders/previewReminderJob.ts'
+import { createGardenStore } from '../src/gardenStore.ts'
 
 // Use a fresh local cluster with a private socket and no TCP listener.
 // Never load dotenv or fall back to normal PG environment variables.
@@ -77,6 +79,27 @@ try {
   assert.ok(revised)
   assert.notEqual(revised.revision, preference.revision)
   assert.equal(await store.claim('a', day, revised), null)
+  assert.equal(await store.isSuppressed(email), false)
+  await pool.query(`DELETE FROM public.email_reminder_deliveries WHERE user_id = 'a'`)
+  const gardens = createGardenStore(pool)
+  const snapshot = { version: 1, friends: [{ id: 'synthetic-friend', deleted: false,
+    updatedAt: '2026-11-20T00:00:00.000Z', changeId: 'synthetic:1',
+    value: { name: 'Private synthetic name', createdAt: '2026-11-20T00:00:00.000Z', cadenceDays: 7 } }], interactions: [] }
+  await gardens.merge('a', snapshot)
+  let sends = 0
+  const deps = { store, now: () => new Date(), readGarden: gardens.read,
+    send: async ({ text }: { text: string }) => { assert.doesNotMatch(text, /Private synthetic name/); sends++ } }
+  assert.equal(await runPreviewReminderJob(email, deps), 'accepted')
+  assert.equal(await runPreviewReminderJob(email, deps), 'skipped')
+  assert.equal(sends, 1)
+  await pool.query(`DELETE FROM public.email_reminder_deliveries WHERE user_id = 'a'`)
+  await store.suppress(email.toUpperCase())
+  await store.suppress(email)
+  assert.equal(await store.isSuppressed(email), true)
+  assert.equal(await store.claim('a', day, revised), null)
+  assert.equal(await runPreviewReminderJob(email, deps), 'skipped')
+  assert.equal(sends, 1)
+  assert.equal((await pool.query(`SELECT 1 FROM public.email_reminder_suppressions`)).rowCount, 1)
   await pool.query(`DELETE FROM public."user" WHERE id = 'a'`)
   assert.equal((await pool.query(`SELECT 1 FROM public.email_reminder_deliveries`)).rowCount, 0)
   assert.equal(await store.read('a'), null)

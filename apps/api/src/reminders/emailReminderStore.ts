@@ -7,6 +7,9 @@ export interface EmailReminderPreference {
   revision: string
 }
 
+const addressHash = (email: string) => `sha256(convert_to(lower(${email}), 'UTF8'))`
+const notSuppressed = `NOT EXISTS (SELECT 1 FROM public.email_reminder_suppressions s WHERE s.address_hash = ${addressHash('p.email')})`
+
 export function createEmailReminderStore(pool: Pool) {
   async function query<Row>(sql: string, values: readonly unknown[]) {
     const client = await pool.connect()
@@ -45,6 +48,24 @@ export function createEmailReminderStore(pool: Pool) {
       await query(`DELETE FROM public.email_reminder_preferences WHERE user_id = $1`, [userId])
     },
 
+    async suppress(email: string): Promise<void> {
+      await query(`INSERT INTO public.email_reminder_suppressions (address_hash)
+        VALUES (${addressHash('$1::text')}) ON CONFLICT DO NOTHING`, [email])
+    },
+
+    async isSuppressed(email: string): Promise<boolean> {
+      return Boolean(await query(`SELECT 1 FROM public.email_reminder_suppressions
+        WHERE address_hash = ${addressHash('$1::text')}`, [email]))
+    },
+
+    async findVerifiedOwner(email: string): Promise<string | null> {
+      const owner = await query<{ id: string }>(`SELECT u.id FROM public."user" u
+        JOIN public.gardens g ON g.user_id = u.id
+        JOIN public.email_reminder_preferences p ON p.user_id = u.id AND p.email = u.email
+        WHERE u.email = $1 AND u."emailVerified"`, [email])
+      return owner?.id ?? null
+    },
+
     async claim(userId: string, localDay: string, preference: EmailReminderPreference): Promise<string | null> {
       const token = randomUUID()
       // A single statement reserves the account/day under the current consent.
@@ -57,6 +78,7 @@ export function createEmailReminderStore(pool: Pool) {
         FROM public.email_reminder_preferences p JOIN public."user" u ON u.id = p.user_id
         WHERE p.user_id = $1 AND p.revision = $3 AND p.email = $5
           AND u."emailVerified" AND u.email = p.email
+          AND ${notSuppressed}
           AND $2::date = (statement_timestamp() AT TIME ZONE p.time_zone)::date
         ON CONFLICT (user_id, local_day) DO UPDATE SET
           lease_token = EXCLUDED.lease_token, lease_until = EXCLUDED.lease_until

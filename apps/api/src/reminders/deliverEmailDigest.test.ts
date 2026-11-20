@@ -13,6 +13,7 @@ it('does not submit a claimed digest if consent was withdrawn before delivery', 
     read: vi.fn().mockResolvedValueOnce(preference).mockResolvedValueOnce(null),
     claim: vi.fn().mockResolvedValue('lease'),
     markAccepted: vi.fn(),
+    isSuppressed: vi.fn().mockResolvedValue(false),
   }
   const send = vi.fn()
   await expect(deliverEmailDigest(input, store, send)).resolves.toBe('skipped')
@@ -26,6 +27,7 @@ it('does not acknowledge a lease when submission has an uncertain outcome', asyn
     read: vi.fn().mockResolvedValue(preference),
     claim: vi.fn().mockResolvedValue('lease'),
     markAccepted: vi.fn(),
+    isSuppressed: vi.fn().mockResolvedValue(false),
   }
   const send = vi.fn().mockRejectedValue(new Error('Synthetic timeout'))
   await expect(deliverEmailDigest(input, store, send)).rejects.toThrow('Synthetic timeout')
