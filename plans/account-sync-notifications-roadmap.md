@@ -71,6 +71,17 @@ its retained development database. The user approved masked
 branch-only secrets with build access to stay on Netlify Free. Production
 remains on its previous `main` deployment.
 
+### Next phase — 2026-11-20
+
+Use automated tests, the iOS simulator, and the Android emulator for the
+account-sync acceptance pass. The owner does not want a phone test handoff.
+Real Google consent, personal inbox delivery, and physical-phone behavior
+remain unverified. They do not block local development of backend reminders.
+
+Start the [email reminder slice](backend-email-reminders.md) with a fake
+delivery channel. Do not activate scheduled jobs or send real reminders as
+part of this slice.
+
 ## Durable Decisions
 
 - **Verification timing** (2026-10-17): continue implementation with agent-run automated checks; defer user-run Google/inbox/device verification until the integrated flow is ready. The user will then test Android and iPhone. Track pending manual checks explicitly and fix failures before closing that pass; do not block independent implementation on those checks now.

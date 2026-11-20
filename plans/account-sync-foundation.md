@@ -2,6 +2,15 @@
 
 Source: `plans/account-sync-notifications-roadmap.md`.
 
+## Acceptance scope — 2026-11-20
+
+The owner requested agent-run verification without physical phones. Use
+disposable simulators and emulators and synthetic fixtures for the checks
+below. An automated fixture can verify app behavior, but not personal inbox
+delivery, completed Google consent, physical-device behavior, or production
+readiness. Keep those checks unverified. They do not block local development
+of the next roadmap phase.
+
 ## Status — 2026-11-03
 
 Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
