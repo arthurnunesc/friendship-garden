@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 
 export const AUTH_MIGRATION_VERSION = '0001_auth'
-export type MigrationVersion = typeof AUTH_MIGRATION_VERSION | '0002_gardens'
-const migrationVersions: readonly MigrationVersion[] = [AUTH_MIGRATION_VERSION, '0002_gardens']
+export const migrationVersions = [AUTH_MIGRATION_VERSION, '0002_gardens', '0003_email_reminders'] as const
+export type MigrationVersion = typeof migrationVersions[number]
 
 const advisoryLockKey = 713_941_518
 const migrationsTable = 'public.friendship_garden_migrations'

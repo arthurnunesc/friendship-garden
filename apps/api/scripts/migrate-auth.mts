@@ -1,10 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import { Pool } from 'pg'
-import { applyAuthMigration, type DevelopmentMigrationTarget } from '../src/authMigration.ts'
+import { applyAuthMigration, migrationVersions, type DevelopmentMigrationTarget } from '../src/authMigration.ts'
 import { authPoolConfig } from '../src/authDatabase.ts'
 
 const manifestURL = new URL('../development-database.json', import.meta.url)
-const migrationVersions = ['0001_auth', '0002_gardens'] as const
 
 const usage = `Usage: npm run db:migrate:dev -- --dry-run | --apply
 
@@ -14,7 +13,7 @@ Examples:
 
 Options:
   --dry-run  Inspect the migration without making schema changes.
-  --apply    Apply the ordered development authentication and garden migrations.
+  --apply    Apply the ordered development migrations.
   --help     Show this help.`
 
 function migrationMode(arguments_: string[]) {

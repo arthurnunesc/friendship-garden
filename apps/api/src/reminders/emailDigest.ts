@@ -46,6 +46,7 @@ export function planEmailDigest(input: EmailDigestInput) {
   if (!due) return null
 
   return {
+    localDay: date,
     to: email,
     subject: 'A Friendship Garden check-in is due',
     text: 'Someone in your garden may appreciate a check-in. Open Friendship Garden to see your garden or turn off email reminders in account settings.',
