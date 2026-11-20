@@ -42,6 +42,23 @@ async function setup(accountState = state()) {
 beforeEach(() => { vi.clearAllMocks() })
 
 describe('account section', () => {
+  it('offers reminders for a signed-in guest and resets on email change without sync consent', async () => {
+    const h = await setup(state({ user }))
+    const reminders = { read: vi.fn(async () => ({ enabled: false as const })), update: vi.fn() }
+    h.account.client.emailReminders = reminders
+    try {
+      await h.press('Account and sync')
+      await h.press('email reminders')
+      expect(reminders.read).toHaveBeenCalledWith(user.id)
+      expect(h.account.enable).not.toHaveBeenCalled()
+      expect(h.account.sync).not.toHaveBeenCalled()
+      await act(async () => { h.view.update(<AccountSection account={h.account} state={state({ user: { ...user, email: 'changed@example.invalid' } })} />) })
+      expect(h.view.root.findByProps({ accessibilityLabel: 'email reminders' }).props.accessibilityState.expanded).toBe(false)
+      await h.press('email reminders')
+      expect(reminders.read).toHaveBeenCalledTimes(2)
+    } finally { await act(async () => { h.view.unmount() }) }
+  })
+
   it('can sign out while background sync is in progress', async () => {
     const h = await setup(state({ user, viewAccount: user, phase: 'syncing' }))
     try {

@@ -18,6 +18,17 @@ describe('same-origin account transport', () => {
     }
   })
 
+  it('uses account-bound email reminder GET and PUT and rejects malformed responses', async () => {
+    const fetcher = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ enabled: false }))
+    const client = createAccountClient(origin, fetcher)
+    await expect(client.emailReminders!.read('a')).resolves.toEqual({ enabled: false })
+    await client.emailReminders!.update('a', { enabled: true, email: 'a@example.invalid', timeZone: 'Europe/London' })
+    expect(fetcher.mock.calls[0]).toMatchObject([origin + '/api/email-reminders', { method: 'GET', headers: { 'x-garden-account': 'a' } }])
+    expect(fetcher.mock.calls[1]).toMatchObject([origin + '/api/email-reminders', { method: 'PUT', body: JSON.stringify({ enabled: true, email: 'a@example.invalid', timeZone: 'Europe/London' }) }])
+    const malformed = createAccountClient(origin, async () => Response.json({ enabled: true }))
+    await expect(malformed.emailReminders!.read('a')).rejects.toBeInstanceOf(AccountRequestError)
+  })
+
   it('returns only user identity, never session tokens or other auth data', async () => {
     const client = createAccountClient(origin, async () => Response.json({ user: { id: 'a', email: 'a@example.invalid' }, session: { token: 'private' } }))
     expect(await client.session()).toEqual({ id: 'a', email: 'a@example.invalid' })

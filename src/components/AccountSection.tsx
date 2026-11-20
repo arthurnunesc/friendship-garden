@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { GardenAccount, GardenAccountState } from '../sync/gardenAccount'
 import { AccountRequestError } from '../sync/accountClient'
+import EmailReminders from './EmailReminders'
 import './AccountSection.css'
 
 export default function AccountSection({ account, state }: { account: GardenAccount, state: GardenAccountState }) {
@@ -36,6 +37,7 @@ export default function AccountSection({ account, state }: { account: GardenAcco
             </div>
             <p>not ready? close this section to keep using your local garden.</p>
           </>}
+          {account.client.emailReminders && <EmailReminders key={JSON.stringify([state.user.id, state.user.email])} client={account.client.emailReminders} user={state.user} />}
           <button type="button" className="tool-button" disabled={sending || state.phase === 'checking'} onClick={() => void account.signOut()}>sign out &amp; return to local garden</button>
         </> : <>
           {state.viewAccount && <p>showing the saved account copy for <span className="account-email">{state.viewAccount.email}</span>. sign in again to sync it.</p>}

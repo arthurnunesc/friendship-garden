@@ -1,6 +1,7 @@
 import { mergeGardenSnapshots, type SyncSnapshot } from '../../packages/garden-sync/src/snapshot'
 
 import { AccountRequestError, type AccountClient, type AccountUser } from '../../packages/garden-sync/src/account'
+import { parseEmailReminderSettings } from '../../packages/garden-sync/src/reminderSettings'
 export { AccountRequestError, type AccountClient, type AccountUser } from '../../packages/garden-sync/src/account'
 
 const empty = (): SyncSnapshot => ({ version: 1, friends: [], interactions: [] })
@@ -36,7 +37,15 @@ export function createAccountClient(
   function snapshot(value: unknown): SyncSnapshot {
     try { return mergeGardenSnapshots(empty(), value) } catch { throw new AccountRequestError(0) }
   }
+  async function reminderRequest(userId: string, method: string, body?: unknown) {
+    try { return parseEmailReminderSettings(await request('/api/email-reminders', method, body, userId)) }
+    catch (error) { if (error instanceof AccountRequestError) throw error; throw new AccountRequestError(0) }
+  }
   return {
+    emailReminders: {
+      read: (userId) => reminderRequest(userId, 'GET'),
+      update: (userId, change) => reminderRequest(userId, 'PUT', change),
+    },
     async session() {
       const value = await request('/api/auth/get-session')
       if (value === null) return null

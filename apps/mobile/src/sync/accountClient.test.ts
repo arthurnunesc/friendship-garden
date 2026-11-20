@@ -70,6 +70,17 @@ describe('native garden transport', () => {
     expect(fetcher).not.toHaveBeenCalled()
   })
 
+  it('uses account-bound email reminder GET and PUT and rejects malformed responses', async () => {
+    const fetcher = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ enabled: false }))
+    const client = createNativeAccountClient({ origin, auth: auth(), fetcher })
+    await expect(client.emailReminders!.read('a')).resolves.toEqual({ enabled: false })
+    await client.emailReminders!.update('a', { enabled: true, email: 'a@example.invalid', timeZone: 'Europe/London' })
+    expect(fetcher.mock.calls[0]).toMatchObject([origin + '/api/email-reminders', { method: 'GET', headers: { 'x-garden-account': 'a' } }])
+    expect(fetcher.mock.calls[1]).toMatchObject([origin + '/api/email-reminders', { method: 'PUT', body: JSON.stringify({ enabled: true, email: 'a@example.invalid', timeZone: 'Europe/London' }) }])
+    const malformed = createNativeAccountClient({ origin, auth: auth(), fetcher: async () => Response.json({ enabled: true }) })
+    await expect(malformed.emailReminders!.read('a')).rejects.toBeInstanceOf(AccountRequestError)
+  })
+
   it('keeps account mismatches distinct and rejects malformed successful snapshots', async () => {
     const client = createNativeAccountClient({ origin, auth: auth(), fetcher: async () => Response.json({ code: 'ACCOUNT_CHANGED', error: 'private' }, { status: 409 }) })
     await expect(client.merge('a', snapshot)).rejects.toMatchObject({ status: 409, code: 'ACCOUNT_CHANGED' })

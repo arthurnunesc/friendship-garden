@@ -48,3 +48,15 @@ To repeat the check, start a fresh local PostgreSQL cluster with role
 directory named `fg-reminder-db.*`. From the repository root, run
 `node --experimental-strip-types apps/api/scripts/check-email-reminders.mts <absolute-socket-directory>`.
 Stop the cluster and remove its data after the check.
+
+## Account settings — 2026-11-20
+
+Web and native account settings now load and save the email preference through
+the signed-in account. Opening the controls does not opt in. Enabling uses the
+current verified address and the device time zone. A signed-in user can opt
+out without opening the account garden. These controls do not change local
+reminders or upload garden data. No scheduled job or live sender is active.
+
+Automated checks passed: 163 web tests, 151 API tests, 237 mobile tests, and
+type checks for all three packages. Browser and native tests used fake account
+requests; the settings route was not deployed or tested on an emulator.

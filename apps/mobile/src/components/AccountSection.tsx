@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { EmailReminders } from './EmailReminders'
 import type { GardenAccount, GardenAccountState } from '../sync/gardenAccount'
 
 interface AccountSectionProps {
@@ -77,6 +78,7 @@ export function AccountSection({ account, state }: AccountSectionProps) {
             {action('use account garden only', () => { void run(() => account.enable('account')) })}
             <Text style={styles.hint}>not ready? close this section to keep using your local garden.</Text>
           </>}
+          {account.client.emailReminders && <EmailReminders key={JSON.stringify([state.user.id, state.user.email])} client={account.client.emailReminders} user={state.user} />}
           {action('sign out & return to local garden', () => { void run(() => account.signOut(), undefined, true) }, false, busy || state.phase === 'checking')}
         </> : <>
           {state.viewAccount && <Text style={styles.body}>showing the saved account copy for <Text style={styles.email}>{state.viewAccount.email}</Text>. sign in again to sync it.</Text>}

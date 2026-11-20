@@ -1,7 +1,9 @@
 import type { SyncSnapshot } from './snapshot.ts'
+import type { EmailReminderClient } from './reminderSettings.ts'
 
 export interface AccountUser { id: string, email: string }
 export interface AccountClient {
+  emailReminders?: EmailReminderClient
   session(): Promise<AccountUser | null>
   google(): Promise<void>
   email(email: string): Promise<void>
