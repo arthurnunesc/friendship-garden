@@ -13,7 +13,7 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
-function setup() {
+function setup(server = new Map<string, SyncSnapshot>(), device = 'first') {
   let guestFriends = [friend('guest')]
   let user: AccountUser | null = { id: 'a', email: 'a@example.invalid' }
   let serial = 0
@@ -22,7 +22,6 @@ function setup() {
     getItem: vi.fn(async (key: string) => values.get(key) ?? null),
     setItem: vi.fn(async (key: string, value: string) => { values.set(key, value) }),
   }
-  const server = new Map<string, SyncSnapshot>()
   const client = {
     session: vi.fn(async () => user), google: vi.fn(async () => {}), email: vi.fn(async (_email: string) => {}),
     signOut: vi.fn(async () => { user = null }),
@@ -39,7 +38,7 @@ function setup() {
     saveFriends: vi.fn(async (next: Friend[]) => { guestFriends = next }),
   }
   const options = { guest, persistence, client,
-    clock: () => ({ updatedAt: '2026-10-18T00:00:00.000Z', changeId: `change-${++serial}` }) }
+    clock: () => ({ updatedAt: '2026-10-18T00:00:00.000Z', changeId: `change-${++serial}-${device}` }) }
   return { options, account: createGardenAccount(options), values, persistence, client, server,
     get guestFriends() { return guestFriends }, setUser(next: AccountUser | null) { user = next } }
 }
@@ -220,6 +219,42 @@ describe('mobile consent-gated account gardens', () => {
     await restored.refresh()
     expect(f.server.get('a')?.friends.find(x => x.id === 'guest')?.deleted).toBe(true)
     expect(f.server.get('a')?.friends.find(x => x.id === 'offline')?.deleted).toBe(false)
+  })
+
+  it('converges after two offline devices make independent edits and one deletes a shared friend', async () => {
+    const first = setup()
+    const second = setup(first.server, 'second')
+    await first.account.refresh()
+    await first.account.enable('import')
+    await second.account.refresh()
+    await second.account.enable('account')
+    expect(await second.account.getSnapshot().storage.loadFriends()).toEqual([friend('guest')])
+
+    const firstMerge = first.client.merge.getMockImplementation()!
+    const secondMerge = second.client.merge.getMockImplementation()!
+    first.client.merge.mockRejectedValue(new AccountRequestError(0))
+    second.client.merge.mockRejectedValue(new AccountRequestError(0))
+    await first.account.getSnapshot().storage.saveFriends([friend('first-edit')])
+    await second.account.getSnapshot().storage.saveFriends([friend('guest'), friend('second-edit')])
+    await Promise.all([first.account.sync(), second.account.sync()])
+    expect(first.account.getSnapshot().phase).toBe('offline')
+    expect(second.account.getSnapshot().phase).toBe('offline')
+
+    const restored = createGardenAccount(second.options)
+    await restored.openOffline('a')
+    expect((await restored.getSnapshot().storage.loadFriends()).map(x => x.id)).toEqual(['guest', 'second-edit'])
+    first.client.merge.mockImplementation(firstMerge)
+    second.client.merge.mockImplementation(secondMerge)
+    await first.account.refresh()
+    expect(first.server.get('a')?.friends.find(x => x.id === 'guest')?.deleted).toBe(true)
+    await restored.refresh()
+    await first.account.sync()
+    for (const account of [first.account, restored]) {
+      expect((await account.getSnapshot().storage.loadFriends()).map(x => x.id)).toEqual(['first-edit', 'second-edit'])
+    }
+    expect(first.server.get('a')?.friends.find(x => x.id === 'guest')?.deleted).toBe(true)
+    expect(first.guestFriends).toEqual([friend('guest')])
+    expect(second.guestFriends).toEqual([friend('guest')])
   })
 
   it('drains edits made during a POST using the latest persisted snapshot', async () => {
