@@ -20,6 +20,11 @@ of the next roadmap phase.
   showed the empty guest garden. The test tap did not open the add-friend
   form; this attempt does not establish a UI failure or a pass for the
   add-friend flow. The simulator was deleted and the test runner stopped.
+- Android: the Release APK installed on a disposable emulator, but the
+  launch command did not resolve the launcher activity. The APK contains
+  the launcher activity. A retry with an explicit activity could not reach
+  the launch step because the emulator did not finish booting in 300 seconds.
+  No new Android UI result is counted. The emulator and runner stopped.
 
 ## Status — 2026-11-03
 
