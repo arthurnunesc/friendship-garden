@@ -14,7 +14,7 @@ const user = { id: 'account-a', email: 'a@example.invalid' }
 
 function state(patch: Partial<GardenAccountState> = {}): GardenAccountState {
   return {
-    loaded: true, user: null, viewAccount: null, storage: {} as GardenAccountState['storage'],
+    loaded: true, user: null, viewAccount: null, pending: false, storage: {} as GardenAccountState['storage'],
     phase: 'local', error: null, ...patch,
   }
 }
@@ -24,6 +24,7 @@ async function setup(accountState = state()) {
     refresh: vi.fn(async () => {}),
     enable: vi.fn(async (_choice: 'import' | 'account') => {}),
     sync: vi.fn(async () => {}),
+    recoverCollision: vi.fn(async () => {}),
     signOut: vi.fn(async () => {}),
     openOffline: vi.fn(async (_id: string) => {}),
     savedAccounts: vi.fn(() => []),
@@ -42,6 +43,26 @@ async function setup(accountState = state()) {
 beforeEach(() => { vi.clearAllMocks() })
 
 describe('account section', () => {
+  it('closes the first sign-in choices without enabling sync', async () => {
+    const h = await setup(state({ user }))
+    try {
+      await h.press('Account and sync')
+      await h.press('keep using this local garden')
+      expect(h.account.enable).not.toHaveBeenCalled()
+      expect(h.view.root.findByProps({ accessibilityLabel: 'Account and sync' }).props.accessibilityState.expanded).toBe(false)
+    } finally { await act(async () => { h.view.unmount() }) }
+  })
+
+  it('shows waiting edits and only resolves a collision on explicit retry', async () => {
+    const h = await setup(state({ user, viewAccount: user, pending: true, phase: 'conflict' }))
+    try {
+      await h.press('Account and sync')
+      expect(JSON.stringify(h.view.toJSON())).toContain('changes waiting to sync')
+      expect(h.account.recoverCollision).not.toHaveBeenCalled()
+      await h.press('retry with this device’s edits')
+      expect(h.account.recoverCollision).toHaveBeenCalledOnce()
+    } finally { await act(async () => { h.view.unmount() }) }
+  })
   it('offers reminders for a signed-in guest and resets on email change without sync consent', async () => {
     const h = await setup(state({ user }))
     const reminders = { read: vi.fn(async () => ({ enabled: false as const })), update: vi.fn() }

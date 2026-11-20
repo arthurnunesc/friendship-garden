@@ -282,6 +282,27 @@ export function mergeGardenSnapshots(current: unknown, incoming: unknown): SyncS
   }
 }
 
+/** Give only exact payload collisions a new version, after an explicit choice of this device. */
+export function recoverLocalSyncCollisions(local: unknown, remote: unknown, freshId: () => string): SyncSnapshot {
+  const left = parseSnapshot(local)
+  const right = parseSnapshot(remote)
+  function repair<T extends SyncFriendRecord | SyncInteractionRecord>(records: T[], other: T[], key: (record: T) => string): T[] {
+    const byKey = new Map(other.map(record => [key(record), record]))
+    return records.map(record => {
+      const match = byKey.get(key(record))
+      if (!match || record.updatedAt !== match.updatedAt || record.changeId !== match.changeId
+        || record.deleted !== match.deleted || canonicalRecord(record) === canonicalRecord(match)) return record
+      // Extending the old ID wins the tie without advancing its timestamp or overriding newer remote edits.
+      return { ...record, changeId: `${record.changeId}:${nonBlank(freshId(), 'new change ID')}` }
+    })
+  }
+  return {
+    version: 1,
+    friends: repair(left.friends, right.friends, record => record.id),
+    interactions: repair(left.interactions, right.interactions, interactionKey),
+  }
+}
+
 function compareGardenInteractions(left: GardenInteraction, right: GardenInteraction): number {
   const timestampOrder = new Date(left.date).getTime() - new Date(right.date).getTime()
   return timestampOrder || compareCodePoints(left.id, right.id)

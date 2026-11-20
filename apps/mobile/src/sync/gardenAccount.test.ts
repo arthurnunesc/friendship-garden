@@ -54,6 +54,38 @@ describe('mobile consent-gated account gardens', () => {
     expect(f.client.merge).not.toHaveBeenCalled()
   })
 
+  it('keeps the offline queue across restart and does not re-version it until asked', async () => {
+    const f = setup()
+    await f.account.refresh()
+    await f.account.enable('import')
+    f.client.merge.mockRejectedValue(new AccountRequestError(0))
+    await f.account.getSnapshot().storage.saveFriends([friend('guest'), friend('queued')])
+    await f.account.sync()
+    expect(f.account.getSnapshot()).toMatchObject({ pending: true, phase: 'offline' })
+    const lastSent = f.client.merge.mock.lastCall![1]
+    const queued = lastSent.friends.find(record => record.id === 'queued')!
+    if (queued.deleted) throw new Error('Expected a live record')
+    f.server.set('a', { ...lastSent, friends: [
+      { ...queued, value: { ...queued.value, name: 'Other version' } },
+      ...lastSent.friends.filter(record => record.id !== 'queued'),
+    ] })
+    const restored = createGardenAccount(f.options)
+    await restored.openOffline('a')
+    expect(restored.getSnapshot().pending).toBe(true)
+    f.client.merge.mockRejectedValue(new AccountRequestError(409, 'SYNC_COLLISION'))
+    await restored.refresh()
+    expect(restored.getSnapshot()).toMatchObject({ pending: true, phase: 'conflict' })
+    expect(f.client.merge.mock.lastCall![1]).toEqual(lastSent)
+    f.client.merge.mockImplementation(async (id, incoming) => {
+      const merged = mergeGardenSnapshots(f.server.get(id), incoming)
+      f.server.set(id, merged)
+      return merged
+    })
+    await restored.recoverCollision()
+    expect(restored.getSnapshot()).toMatchObject({ pending: false, phase: 'ready' })
+    expect(f.server.get('a')?.friends.find(record => record.id === 'queued')).toEqual({ ...queued, changeId: expect.stringContaining(queued.changeId + ':') })
+  })
+
   it('persists import consent before upload and leaves the original guest garden untouched', async () => {
     const f = setup(); await f.account.initialize(); await f.account.refresh()
     f.client.merge.mockImplementationOnce(async (_id, incoming) => {

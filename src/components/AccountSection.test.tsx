@@ -56,7 +56,10 @@ describe('account section in App', () => {
     expect(screen.getByText('Guest Friend')).toBeInTheDocument()
     expect(f.client.read).not.toHaveBeenCalled()
     expect(f.client.merge).not.toHaveBeenCalled()
-    await user.click(screen.getByText(/account & sync/i))
+    await user.click(screen.getByRole('button', { name: 'keep using this local garden' }))
+    expect(screen.getByText(/account & sync/i).closest('details')).not.toHaveAttribute('open')
+    expect(screen.getByText('Guest Friend')).toBeInTheDocument()
+    expect(f.client.read).not.toHaveBeenCalled()
     expect(f.client.merge).not.toHaveBeenCalled()
   })
 

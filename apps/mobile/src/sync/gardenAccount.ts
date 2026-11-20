@@ -1,5 +1,5 @@
 import { AccountRequestError, type AccountClient, type AccountUser } from '../../../../packages/garden-sync/src/account'
-import { materializeGarden, mergeGardenSnapshots, type SyncSnapshot } from '../../../../packages/garden-sync/src/snapshot'
+import { materializeGarden, mergeGardenSnapshots, recoverLocalSyncCollisions, SyncCollisionError, type SyncSnapshot } from '../../../../packages/garden-sync/src/snapshot'
 import { recordGardenChanges } from '../../../../packages/garden-sync/src/changes'
 import type { Friend } from '../garden/Friend'
 import type { GardenStorage } from '../garden/storage'
@@ -13,7 +13,8 @@ export interface GardenAccountState {
   user: AccountUser | null
   viewAccount: AccountUser | null
   storage: GardenStorage
-  phase: 'loading' | 'local' | 'checking' | 'ready' | 'syncing' | 'offline'
+  phase: 'loading' | 'local' | 'checking' | 'ready' | 'syncing' | 'offline' | 'conflict'
+  pending: boolean
   error: string | null
 }
 
@@ -43,7 +44,7 @@ export function createGardenAccount(options: {
   let state: GardenAccountState
   const find = (id: string) => saved.accounts.find((entry) => entry.user.id === id)
   const emit = (patch: Partial<GardenAccountState>) => {
-    state = { ...state, ...patch }
+    state = { ...state, ...patch, pending: viewId !== null && find(viewId)?.pending === true }
     listeners.forEach((listener) => listener())
   }
   const dataChanged = () => storageListeners.forEach((listener) => listener())
@@ -80,6 +81,7 @@ export function createGardenAccount(options: {
       }
       if (!active()) throw new Error('Your garden changed. Try again.')
       friends = owner === null ? guestFriends : materializeGarden(find(owner)!.snapshot)
+      if (owner !== null && !state.pending) emit({})
       dataChanged()
       if (owner !== null && state.user?.id === owner) void sync()
       return friends
@@ -94,7 +96,7 @@ export function createGardenAccount(options: {
       updateFriends: update,
     }
   }
-  state = { loaded: false, user: null, viewAccount: null, storage: binding(), phase: 'loading', error: null }
+  state = { loaded: false, user: null, viewAccount: null, storage: binding(), phase: 'loading', error: null, pending: false }
 
   function show(id: string | null) {
     const changed = viewId !== id
@@ -144,14 +146,25 @@ export function createGardenAccount(options: {
     boot = null
   }
 
-  async function sync(): Promise<void> {
+  async function sync(recover = false): Promise<void> {
     const user = state.user
-    if (!state.loaded || paused || !user || viewId !== user.id || !find(user.id)?.enabled) return
+    if (!state.loaded || paused || !user || viewId !== user.id || !find(user.id)?.enabled || (recover && state.phase !== 'conflict')) return
     const ticket = epoch
     if (flight?.epoch === ticket) return flight.promise
     const task = (async () => {
       emit({ phase: 'syncing', error: null })
       try {
+        if (recover) {
+          const remote = await client.read(user.id)
+          await serialize(async () => {
+            if (ticket !== epoch || viewId !== user.id) return
+            const current = find(user.id)
+            if (!current?.enabled) return
+            const snapshot = recoverLocalSyncCollisions(current.snapshot, remote, () => clock().changeId)
+            await persist({ ...current, snapshot, pending: true })
+            if (ticket === epoch && viewId === user.id) show(user.id)
+          })
+        }
         let again: boolean
         do {
           const sent = await serialize(async () => ticket === epoch ? find(user.id)?.snapshot : undefined)
@@ -175,6 +188,8 @@ export function createGardenAccount(options: {
           epoch += 1
           show(null)
           emit({ user: null, phase: 'local', error: message(error) })
+        } else if (error instanceof SyncCollisionError || (error instanceof AccountRequestError && error.code === 'SYNC_COLLISION')) {
+          emit({ phase: 'conflict', error: 'Two edits have the same sync version. Your changes are still on this device.' })
         } else emit({ phase: 'offline', error: message(error) })
       }
     })()
@@ -225,9 +240,11 @@ export function createGardenAccount(options: {
         const remote = await client.read(user.id)
         await serialize(async () => {
           if (ticket !== epoch || state.user?.id !== user.id) return
-          let snapshot = mergeGardenSnapshots(find(user.id)?.snapshot ?? empty(), remote)
-          if (choice === 'import') snapshot = mergeGardenSnapshots(snapshot, recordGardenChanges(empty(), guestFriends, clock))
-          await persist({ user, snapshot, enabled: true, pending: true })
+          const previous = find(user.id)
+          let snapshot = mergeGardenSnapshots(previous?.snapshot ?? empty(), remote)
+          const imported = choice === 'import' ? guestFriends : []
+          if (imported.length > 0) snapshot = mergeGardenSnapshots(snapshot, recordGardenChanges(empty(), imported, clock))
+          await persist({ user, snapshot, enabled: true, pending: previous?.pending === true || imported.length > 0 })
           if (ticket !== epoch || state.user?.id !== user.id) return
           paused = false
           show(user.id)
@@ -273,7 +290,8 @@ export function createGardenAccount(options: {
       emit({ phase: 'offline', error: 'Showing the saved copy on this device. Reconnect to sync changes.' })
     },
     savedAccounts: () => saved.accounts.map((entry) => entry.user),
-    sync,
+    sync: () => sync(),
+    recoverCollision: () => sync(true),
     client,
     pause() { ++epoch; paused = true },
   }

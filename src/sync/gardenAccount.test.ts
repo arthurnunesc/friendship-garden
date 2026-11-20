@@ -47,6 +47,41 @@ describe('consent-gated account gardens', () => {
     expect(f.persistence.setItem).not.toHaveBeenCalled()
   })
 
+  it('shows queued edits across restart and resolves only matching versions after an explicit retry', async () => {
+    const f = setup()
+    await f.account.refresh()
+    await f.account.enable('import')
+    f.client.merge.mockRejectedValue(new AccountRequestError(0))
+    f.account.getSnapshot().storage.saveFriends([friend('local-only'), friend('queued')])
+    await f.account.sync()
+    expect(f.account.getSnapshot()).toMatchObject({ pending: true, phase: 'offline' })
+
+    const restored = createGardenAccount(f.options)
+    restored.openOffline('a')
+    expect(restored.getSnapshot().pending).toBe(true)
+    const lastSent = f.client.merge.mock.lastCall![1]
+    const queued = lastSent.friends.find(record => record.id === 'queued')!
+    if (queued.deleted) throw new Error('Expected a live record')
+    f.server.set('a', { ...lastSent, friends: [
+      { ...queued, value: { ...queued.value, name: 'Other version' } },
+      ...lastSent.friends.filter(record => record.id !== 'queued'),
+    ] })
+    f.client.merge.mockRejectedValue(new AccountRequestError(409, 'SYNC_COLLISION'))
+    await restored.refresh()
+    expect(restored.getSnapshot()).toMatchObject({ pending: true, phase: 'conflict' })
+    expect(f.client.merge.mock.lastCall![1]).toEqual(lastSent)
+    f.client.merge.mockImplementation(async (id, incoming) => {
+      const merged = mergeGardenSnapshots(f.server.get(id), incoming)
+      f.server.set(id, merged)
+      return merged
+    })
+    await restored.recoverCollision()
+    expect(restored.getSnapshot()).toMatchObject({ pending: false, phase: 'ready' })
+    const applied = f.server.get('a')!
+    expect(applied.friends.find(record => record.id === 'queued')).toEqual({ ...queued, changeId: expect.stringMatching(/^change-\d+:change-\d+$/) })
+    expect(applied.friends.find(record => record.id === 'local-only')).toEqual(lastSent.friends.find(record => record.id === 'local-only'))
+  })
+
   it('persists explicit import consent before uploading and preserves the original guest garden', async () => {
     const f = setup()
     await f.account.refresh()

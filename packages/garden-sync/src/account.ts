@@ -19,7 +19,8 @@ export class AccountRequestError extends Error {
   constructor(status: number, code?: string) {
     super(status === 401 ? 'Your session ended. Sign in again; your changes are kept on this device.'
       : code === 'ACCOUNT_CHANGED' ? 'Your account changed. Reconnect before syncing.'
-      : status === 409 ? 'Two changes have the same sync version. Your local changes are kept.'
+      : code === 'SYNC_COLLISION' ? 'Two edits have the same sync version. Your changes are still on this device.'
+      : status === 409 ? 'Could not sync these changes. Your local changes are kept.'
       : status === 413 ? 'This garden is too large to sync. Your changes are kept on this device.'
       : status === 429 ? 'Too many sign-in attempts. Try again in a minute.'
       : 'Cannot connect right now. Your garden is safe on this device. Try again.')

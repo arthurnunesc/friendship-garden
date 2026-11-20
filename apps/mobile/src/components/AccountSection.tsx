@@ -71,12 +71,16 @@ export function AccountSection({ account, state }: AccountSectionProps) {
           {viewingAccount ? <>
             <Text style={styles.body}>this account garden is saved here and synced across your devices. your original local garden is kept separately.</Text>
             {action(state.phase === 'syncing' ? 'syncing…' : 'sync now', () => { void run(() => account.sync()) }, true)}
+            {state.phase === 'conflict' && <>
+              <Text style={styles.body}>retry with this device’s edits for matching versions. newer edits from other devices still take priority.</Text>
+              {action('retry with this device’s edits', () => { void run(() => account.recoverCollision()) })}
+            </>}
           </> : <>
             <Text style={styles.body}>signing in has not uploaded your local garden.</Text>
-            <Text style={styles.body}>enable sync to store friendship details on our server. you can merge this device’s local garden, or use only the account garden. the original local copy stays here.</Text>
+            <Text style={styles.body}>choose whether to sync. syncing stores friendship details on our server. either sync option keeps your original local garden on this device.</Text>
             {action('merge local garden & sync', () => { void run(() => account.enable('import')) }, true)}
             {action('use account garden only', () => { void run(() => account.enable('account')) })}
-            <Text style={styles.hint}>not ready? close this section to keep using your local garden.</Text>
+            {action('keep using this local garden', () => { setExpanded(false) })}
           </>}
           {account.client.emailReminders && <EmailReminders key={JSON.stringify([state.user.id, state.user.email])} client={account.client.emailReminders} user={state.user} />}
           {action('sign out & return to local garden', () => { void run(() => account.signOut(), undefined, true) }, false, busy || state.phase === 'checking')}
@@ -114,8 +118,9 @@ export function AccountSection({ account, state }: AccountSectionProps) {
         </>}
         {state.phase === 'checking' && <Text accessibilityLiveRegion="polite" style={styles.status}>checking your account…</Text>}
         {state.phase === 'syncing' && <Text accessibilityLiveRegion="polite" style={styles.status}>syncing your account garden…</Text>}
-        {state.phase === 'ready' && <Text accessibilityLiveRegion="polite" style={styles.status}>up to date</Text>}
-        {state.phase === 'offline' && <Text accessibilityLiveRegion="polite" style={styles.status}>saved on this device</Text>}
+        {state.pending && <Text accessibilityLiveRegion="polite" style={styles.status}>changes waiting to sync. they are saved on this device.</Text>}
+        {state.phase === 'ready' && !state.pending && <Text accessibilityLiveRegion="polite" style={styles.status}>up to date</Text>}
+        {state.phase === 'offline' && !state.pending && <Text accessibilityLiveRegion="polite" style={styles.status}>saved on this device</Text>}
         {state.error && <Text accessibilityRole="alert" style={styles.error}>{state.error}</Text>}
         {state.error && state.user && action('reconnect / check sign-in', () => { void run(() => account.refresh()) })}
         {notice && <Text accessibilityLiveRegion="polite" style={styles.status}>{notice}</Text>}

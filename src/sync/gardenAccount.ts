@@ -1,4 +1,4 @@
-import { materializeGarden, mergeGardenSnapshots, type SyncSnapshot } from '../../packages/garden-sync/src/snapshot'
+import { materializeGarden, mergeGardenSnapshots, recoverLocalSyncCollisions, SyncCollisionError, type SyncSnapshot } from '../../packages/garden-sync/src/snapshot'
 import { recordGardenChanges } from '../../packages/garden-sync/src/changes'
 import type { GardenStorage } from '../friends/storage'
 import { AccountRequestError, type AccountClient, type AccountUser } from './accountClient'
@@ -16,7 +16,8 @@ export interface GardenAccountState {
   user: AccountUser | null
   viewAccount: AccountUser | null
   storage: GardenStorage
-  phase: 'local' | 'checking' | 'ready' | 'syncing' | 'offline'
+  phase: 'local' | 'checking' | 'ready' | 'syncing' | 'offline' | 'conflict'
+  pending: boolean
   error: string | null
 }
 
@@ -59,7 +60,7 @@ export function createGardenAccount(options: {
   let state: GardenAccountState
   const find = (id: string) => saved.accounts.find((entry) => entry.user.id === id)
   const publish = (patch: Partial<GardenAccountState> = {}) => {
-    state = { ...state, ...patch }
+    state = { ...state, ...patch, pending: viewId !== null && find(viewId)?.pending === true }
     listeners.forEach((listener) => listener())
   }
   function persist(entry: SavedAccount) {
@@ -91,7 +92,7 @@ export function createGardenAccount(options: {
       },
     }
   }
-  state = { user: null, viewAccount: null, storage: binding(), phase: 'local',
+  state = { user: null, viewAccount: null, storage: binding(), phase: 'local', pending: false,
     error: damaged ? 'Saved account data could not be read. Your local garden is still available.' : null }
 
   function show(id: string | null) {
@@ -108,15 +109,24 @@ export function createGardenAccount(options: {
   const message = (error: unknown) => error instanceof AccountRequestError ? error.message
     : 'Could not save or sync your account garden. Your existing data has not been replaced. Try again.'
 
-  async function sync(): Promise<void> {
+  async function sync(recover = false): Promise<void> {
     const user = state.user
     const entry = user && find(user.id)
-    if (paused || !user || viewId !== user.id || !entry?.enabled) return
+    if (paused || !user || viewId !== user.id || !entry?.enabled || (recover && state.phase !== 'conflict')) return
     const ticket = epoch
     if (flight?.epoch === ticket) return flight.promise
     const task = (async () => {
       publish({ phase: 'syncing', error: null })
       try {
+        if (recover) {
+          const remote = await client.read(user.id)
+          if (ticket !== epoch || viewId !== user.id) return
+          const current = find(user.id)
+          if (!current?.enabled) return
+          const snapshot = recoverLocalSyncCollisions(current.snapshot, remote, () => clock().changeId)
+          persist({ ...current, snapshot, pending: true })
+          show(user.id)
+        }
         let again: boolean
         do {
           const current = find(user.id)
@@ -137,6 +147,8 @@ export function createGardenAccount(options: {
           epoch += 1
           show(null)
           publish({ user: null, phase: 'local', error: message(error) })
+        } else if (error instanceof SyncCollisionError || (error instanceof AccountRequestError && error.code === 'SYNC_COLLISION')) {
+          publish({ phase: 'conflict', error: 'Two edits have the same sync version. Your changes are still on this device.' })
         } else {
           publish({ phase: 'offline', error: message(error) })
         }
@@ -186,10 +198,11 @@ export function createGardenAccount(options: {
         if (ticket !== epoch || state.user?.id !== user.id) return
         const previous = find(user.id)
         let snapshot = mergeGardenSnapshots(previous?.snapshot ?? empty(), remote)
-        if (choice === 'import') {
-          snapshot = mergeGardenSnapshots(snapshot, recordGardenChanges(empty(), guest.loadFriends(), clock))
+        const imported = choice === 'import' ? guest.loadFriends() : []
+        if (imported.length > 0) {
+          snapshot = mergeGardenSnapshots(snapshot, recordGardenChanges(empty(), imported, clock))
         }
-        persist({ user, snapshot, enabled: true, pending: true })
+        persist({ user, snapshot, enabled: true, pending: previous?.pending === true || imported.length > 0 })
         paused = false
         show(user.id)
         await sync()
@@ -235,7 +248,8 @@ export function createGardenAccount(options: {
       publish({ phase: 'offline', error: 'Showing the saved copy on this device. Reconnect to sync changes.' })
     },
     savedAccounts: () => saved.accounts.map((entry) => entry.user),
-    sync,
+    sync: () => sync(),
+    recoverCollision: () => sync(true),
     client,
     pause() { ++epoch },
   }

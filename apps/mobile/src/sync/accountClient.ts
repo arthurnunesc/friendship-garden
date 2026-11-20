@@ -40,7 +40,7 @@ export function createNativeAccountClient(options: {
       const result: unknown = await response.json().catch(() => null)
       if (!response.ok) {
         const code = result && typeof result === 'object' && 'code' in result ? result.code : undefined
-        throw new AccountRequestError(response.status, code === 'ACCOUNT_CHANGED' ? code : undefined)
+        throw new AccountRequestError(response.status, code === 'ACCOUNT_CHANGED' || code === 'SYNC_COLLISION' ? code : undefined)
       }
       return result
     } catch (error) {
