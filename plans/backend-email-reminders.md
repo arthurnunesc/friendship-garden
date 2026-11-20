@@ -91,3 +91,31 @@ manual job invocation, duplicate prevention, and feedback with synthetic
 data. Restore the preview settings and remove the test webhook and database.
 Do not enable mail to real addresses. Production rollout is not part of this
 preview slice.
+
+## Hosted preview verification — 2026-11-21
+
+On source `70785a7`, the isolated branch deploy `6b00d179e461ae8dcd8d76b5`
+passed the session, default-off, explicit opt-in, synthetic garden, and
+opt-out checks. A manual job invocation submitted one message to a Resend
+bounce test address. Resend accepted the request, then returned a signed bounce
+event. The address was suppressed, and a second invocation skipped without
+creating a second delivery record. An unsigned webhook request returned 401.
+This was a bounce test, not proof of inbox delivery.
+
+The previous preview source `b146d7f` was restored in deploy
+`6b00d205f0d790ab5518fd86`. The home page, anonymous session response, and
+unauthenticated garden response passed. Both test deploys
+(`6b00d060a66d1152a4e90acb`, `6b00d179e461ae8dcd8d76b5`) and all temporary
+environment values were removed. The disposable database branches and webhooks
+from this run, including setup retries, were removed:
+
+| Disposable database branch | Temporary webhook |
+| --- | --- |
+| `br-twilight-shape-baqrn6n4` | `114e1000-5a8d-4b1a-b716-16934a09e275` |
+| `br-morning-smoke-basulnmp` | `b5edbed3-143a-4afb-984d-8c9f3faa2157` |
+| `br-withered-mode-baqta4an` | `5d5776df-4dee-4b2a-a2e3-6c9fee963226` |
+
+Production did not change. The feature branch contains the reminder code, but
+the retained preview still uses the previous source and has no reminder tables.
+Leave delivery off. A retained preview rollout needs separate approval for the
+guarded migrations and redeploy. No simulator or emulator checks ran here.
