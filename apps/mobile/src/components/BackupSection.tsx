@@ -6,11 +6,12 @@ import { pickBackup, shareBackup } from '../garden/backupFiles'
 interface BackupSectionProps {
   friends: Friend[]
   onImport(payload: unknown): Promise<ImportResult | ImportError>
+  accountGarden?: boolean
 }
 
 // Extend the existing settings surface: green actions, system type, and calm
 // feedback. Validation and an explicit preview protect replacement of local data.
-export function BackupSection({ friends, onImport }: BackupSectionProps) {
+export function BackupSection({ friends, onImport, accountGarden = false }: BackupSectionProps) {
   const [draft, setDraft] = useState('')
   const [showPaste, setShowPaste] = useState(false)
   const [pending, setPending] = useState<Friend[] | null>(null)
@@ -46,6 +47,7 @@ export function BackupSection({ friends, onImport }: BackupSectionProps) {
   }
 
   const choose = () => run(async () => {
+    setPending(null)
     const text = await pickBackup()
     if (text !== null) preview(text)
   })
@@ -53,7 +55,8 @@ export function BackupSection({ friends, onImport }: BackupSectionProps) {
     if (pending === null) return
     const result = await onImport({ version: 1, friends: pending })
     if (!result.success) throw new Error(result.error)
-    setFeedback(`Imported ${result.friends.length} ${result.friends.length === 1 ? 'friend' : 'friends'}. Your garden is saved on this device.`)
+    const scope = accountGarden ? 'Your account garden is saved on this device. Changes can sync when sync is enabled and connected.' : 'Your garden is saved on this device.'
+    setFeedback(`Imported ${result.friends.length} ${result.friends.length === 1 ? 'friend' : 'friends'}. ${scope}`)
     setPending(null)
     setDraft('')
     setShowPaste(false)
@@ -98,7 +101,10 @@ export function BackupSection({ friends, onImport }: BackupSectionProps) {
           </Text>
           {pending.length > 0 && <Text style={styles.names}>{pending.map((friend) => friend.name).join('\n')}</Text>}
           <Text style={styles.description}>
-            Replace the {friends.length} {friends.length === 1 ? 'friend' : 'friends'} on this device? This does not merge gardens. Export your current garden first if you want to keep it. Enabled reminders will be updated for the imported garden.
+            {accountGarden
+              ? 'This replaces your saved account garden. Friends and history missing from the backup can be removed on other devices when you sync. Your separate local garden is unchanged.'
+              : `Replace the ${friends.length} ${friends.length === 1 ? 'friend' : 'friends'} on this device? This does not merge gardens.`}
+            {' Export your current garden first if you want to keep it. Enabled reminders will be updated for the imported garden.'}
           </Text>
           {button('Replace garden with backup', 'replace garden', () => { void confirm() }, true)}
           {button('Cancel garden replacement', 'cancel', () => { setPending(null); setError(null) })}

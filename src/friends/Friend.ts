@@ -1,3 +1,5 @@
+import { normalizeBackupDates } from '../../packages/garden-sync/src/changes'
+
 export const INTERACTION_TYPES = ['message', 'call', 'in-person'] as const
 export type InteractionType = (typeof INTERACTION_TYPES)[number]
 
@@ -247,5 +249,9 @@ export function validateAndImportGarden(
     }
   }
 
-  return { success: true, friends: p.friends as Friend[] }
+  try {
+    return { success: true, friends: normalizeBackupDates(p.friends as Friend[]) }
+  } catch {
+    return { success: false, error: 'Invalid garden backup: check dates, names, cadence, and duplicate IDs.' }
+  }
 }

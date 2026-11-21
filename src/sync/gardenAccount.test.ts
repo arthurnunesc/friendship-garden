@@ -37,6 +37,36 @@ function setup() {
 }
 
 describe('consent-gated account gardens', () => {
+  it('uploads only the local copy chosen before a delayed account read', async () => {
+    const f = setup(); await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    f.client.read.mockReturnValueOnce(read.promise)
+    const enable = f.account.enable('import')
+    f.account.getSnapshot().storage.saveFriends([friend('local-backup')])
+    read.resolve(empty()); await enable
+    expect(f.server.get('a')?.friends.map(record => record.id)).toEqual(['local-only'])
+    expect(f.guest).toEqual([friend('local-backup')])
+  })
+
+  it.each([false, true])('offers cached collision recovery after sign-out (failed pause write: %s)', async (failedWrite) => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('import')
+    if (failedWrite) f.persistence.setItem.mockImplementationOnce(() => { throw new Error('quota') })
+    await f.account.signOut()
+    const remote = f.server.get('a')!
+    const entry = remote.friends[0]!
+    if (entry.deleted) throw new Error('Expected live friend')
+    f.server.set('a', { ...remote, friends: [{ ...entry, value: { ...entry.value, name: 'Other edit' } }] })
+    f.account.openOffline('a')
+    f.setUser({ id: 'a', email: 'a@example.invalid' }); await f.account.refresh()
+    expect(f.account.getSnapshot()).toMatchObject({ viewAccount: { id: 'a' }, syncEnabled: false })
+    f.client.merge.mockClear()
+    await f.account.enable('account')
+    expect(f.account.getSnapshot()).toMatchObject({ phase: 'conflict', syncEnabled: false })
+    expect(f.client.merge).not.toHaveBeenCalled()
+    await f.account.recoverCollision()
+    expect(f.account.getSnapshot()).toMatchObject({ phase: 'ready', pending: false })
+    expect(f.server.get('a')?.friends[0]).toMatchObject({ value: { name: 'local-only' } })
+  })
   it('does not read or upload any garden merely because the user signed in', async () => {
     const f = setup()
     await f.account.refresh()

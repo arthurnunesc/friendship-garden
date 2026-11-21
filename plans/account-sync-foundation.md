@@ -251,8 +251,11 @@ updates before widening the authentication rollout.
 3. **Opt-in client sync** — web and native implemented and automatically checked.
    Explicitly confirm local-data import; keep local persistence and
    offline use working. Do not upload the local garden on sign-in.
-4. **Recovery and verification** — pending. Test account switching/sign-out,
-   retries, deletions, concurrent edits, backup compatibility, and reminders.
+4. **Recovery and verification** — implemented for the preview scope. Automated
+   tests cover account changes, sign-out, retries, deletions, concurrent edits,
+   backup replacement, and reminder reconciliation. See the dated closeout in
+   `plans/account-sync-notifications-roadmap.md` for the simulator and hosted
+   checks. The owner-only release checks below remain unverified.
 
 Backend reminder delivery remains a later scope. Do not introduce it here.
 

@@ -48,6 +48,18 @@ async function openAccount(user = userEvent.setup()) {
 }
 
 describe('account section in App', () => {
+  it('warns about synced deletions and clears an import preview when the garden changes', async () => {
+    const f = setup()
+    const user = await openAccount()
+    await user.click(await screen.findByRole('button', { name: /merge local garden & sync/i }))
+    await user.upload(screen.getByTestId('import-input'), new File([JSON.stringify({ version: 1, friends: [] })],
+      'empty.json', { type: 'application/json' }))
+    expect(await screen.findByRole('region', { name: 'Review garden backup' })).toHaveTextContent('can be removed on other devices')
+    expect(f.account.getSnapshot().storage.loadFriends()).toEqual([localFriend])
+    await user.click(screen.getByRole('button', { name: /sign out & return/i }))
+    expect(screen.queryByRole('region', { name: 'Review garden backup' })).not.toBeInTheDocument()
+    expect(f.guestStorage.loadFriends()).toEqual([localFriend])
+  })
   it('keeps a signed-in guest garden local until consent, including after closing the section', async () => {
     const user = userEvent.setup()
     const f = setup()

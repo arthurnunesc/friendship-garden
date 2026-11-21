@@ -11,6 +11,25 @@ type ChangeClock = () => { updatedAt: string; changeId: string }
 
 const EMPTY_SNAPSHOT: SyncSnapshot = { version: 1, friends: [], interactions: [] }
 
+/** Accept legacy ISO dates and validate against the same record rules as sync. */
+export function normalizeBackupDates(friends: GardenFriend[]): GardenFriend[] {
+  function iso(value: string) {
+    const day = /^\d{4}-\d{2}-\d{2}/.exec(value)?.[0]
+    if (!day || (value !== day && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value))
+      || new Date(`${day}T00:00:00.000Z`).toISOString().slice(0, 10) !== day) {
+      throw new InvalidSyncSnapshotError('Invalid date in garden backup')
+    }
+    return new Date(value).toISOString()
+  }
+  const normalized = friends.map(friend => ({ ...friend,
+    createdAt: iso(friend.createdAt),
+    ...(friend.lastInteractionAt !== undefined ? { lastInteractionAt: iso(friend.lastInteractionAt) } : {}),
+    interactions: friend.interactions.map(interaction => ({ ...interaction, date: iso(interaction.date) })),
+  }))
+  recordGardenChanges(EMPTY_SNAPSHOT, normalized, () => ({ updatedAt: '1970-01-01T00:00:00.000Z', changeId: 'validate-backup' }))
+  return normalized
+}
+
 function payload(value: object): string {
   return JSON.stringify(value)
 }

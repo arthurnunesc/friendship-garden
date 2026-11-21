@@ -106,6 +106,16 @@ part of this slice.
   simulator and Android emulator. Mock signed-in runs passed the keep-local
   choice and email reminder opt-in and opt-out on both platforms.
 
+### Backup and consent cleanup
+
+Web import now reviews a backup before replacing the open garden. Both
+clients validate identities and normalize legacy ISO timestamps before
+import, and explain that an account replacement can sync deletions. A backup
+preview for one garden cannot apply to a different garden. First-time sync
+uses the local snapshot chosen at consent, not edits made while the account
+read is pending. A paused saved account copy offers re-enablement and explicit
+conflict recovery without silently uploading data.
+
 ## Durable Decisions
 
 - **Verification timing** (2026-10-17): continue implementation with agent-run automated checks; defer user-run Google/inbox/device verification until the integrated flow is ready. The user will then test Android and iPhone. Track pending manual checks explicitly and fix failures before closing that pass; do not block independent implementation on those checks now.
@@ -169,11 +179,18 @@ Encrypted sync may be revisited later, but it should not block the first useful 
 - Last-write-wins is intentionally simple. The app is scoped to a small personal garden, not collaborative document editing.
 - Server-side structured data is a deliberate privacy compromise made for practical sync and notification support.
 
-## Open Questions For The Next Planning Session
+## Remaining release checks and deferred decisions
 
 - Resend's domain/key, branch configuration, and development schema are set up. Hosted delivery to the provider test inbox and passwordless sessions pass; completed Google consent and personal inbox delivery remain unverified.
 - Apple OAuth is deferred from the first auth chunk; its later provider setup and HTTPS return URL remain to be arranged.
-- What user-facing copy explains the privacy change when enabling sync?
-- What reminder preferences belong locally only versus synced across devices?
-- What is the minimum useful backend notification channel after email?
-- Should signed-in users still be able to export/import JSON manually?
+- First sign-in explains that sync stores friendship details on the server.
+  The user can keep using the local garden without uploading it.
+- Local notification preferences stay on the device. Email reminders use a
+  separate account preference and do not turn on local notifications.
+- Web and native backups apply to the open garden. Import validates the backup
+  and requires confirmation before replacement. On an account garden,
+  replacement can sync changes and deletion records to other devices. The
+  separate local garden is not affected by that account replacement.
+- Other notification channels, Apple sign-in, shared-core extraction, and
+  social features stay deferred or optional. Real recipients and production
+  rollout are outside the preview scope.

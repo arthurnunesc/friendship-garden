@@ -50,6 +50,8 @@ export default function App() {
           reminders={reminders}
           friends={friends}
           onImport={importGarden}
+          backupGardenKey={gardenKey}
+          backupIsAccountGarden={Boolean(connection.state?.viewAccount)}
           onClose={() => setShowSettings(false)}
           accountSection={connection.account && connection.state ? <>
             <AccountSection account={connection.account} state={connection.state} />

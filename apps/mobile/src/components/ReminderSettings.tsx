@@ -20,10 +20,12 @@ interface ReminderSettingsProps {
   onClose: () => void
   friends: Friend[]
   onImport(payload: unknown): Promise<ImportResult | ImportError>
+  backupGardenKey?: string
+  backupIsAccountGarden?: boolean
   accountSection?: ReactNode
 }
 
-export function ReminderSettings({ reminders, onClose, friends, onImport, accountSection }: ReminderSettingsProps) {
+export function ReminderSettings({ reminders, onClose, friends, onImport, accountSection, backupGardenKey, backupIsAccountGarden }: ReminderSettingsProps) {
   const [timeDraft, setTimeDraft] = useState(reminders.settings.preferredTime)
   const [deviceSettingsError, setDeviceSettingsError] = useState<string | null>(null)
 
@@ -159,7 +161,7 @@ export function ReminderSettings({ reminders, onClose, friends, onImport, accoun
 
       {reminders.error && <Text style={styles.errorText} accessibilityRole="alert">{reminders.error}</Text>}
       {accountSection}
-      <BackupSection friends={friends} onImport={onImport} />
+      <BackupSection key={backupGardenKey} friends={friends} onImport={onImport} accountGarden={backupIsAccountGarden} />
     </ScrollView>
   )
 }

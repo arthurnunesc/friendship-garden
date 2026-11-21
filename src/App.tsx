@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useLayoutEffect, useState, useRef, useSyncExternalStore } from 'react'
 import './App.css'
 import { exportGarden, validateAndImportGarden, type Friend, type LogInteractionInput, type EditFriendInput } from './friends/Friend'
 import { localStorageStore } from './friends/storage'
@@ -107,6 +107,13 @@ function App({ storage = localStorageStore, account: injectedAccount }: AppProps
     ? 'Sign-in did not finish. Open account & sync and try again. Your local garden is unchanged.' : null)
   const [feedbackType, setFeedbackType] = useState<'success' | 'error'>(signInFailed ? 'error' : 'success')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const importRequest = useRef(0)
+  const [pendingImport, setPendingImport] = useState<{ storage: GardenStorage; friends: Friend[] } | null>(null)
+  const importPreview = pendingImport?.storage === activeStorage ? pendingImport : null
+  useLayoutEffect(() => {
+    setPendingImport(null)
+    return () => { importRequest.current++ }
+  }, [activeStorage])
 
   useEffect(() => {
     if (!account) return
@@ -151,8 +158,11 @@ function App({ storage = localStorageStore, account: injectedAccount }: AppProps
     const file = e.target.files?.[0]
     if (!file) return
 
+    const request = ++importRequest.current
+    setPendingImport(null)
     const reader = new FileReader()
     reader.onload = () => {
+      if (request !== importRequest.current) return
       try {
         const json = JSON.parse(reader.result as string)
         const result = validateAndImportGarden(json)
@@ -160,11 +170,13 @@ function App({ storage = localStorageStore, account: injectedAccount }: AppProps
           showFeedback(result.error, 'error')
           return
         }
-        if (!replaceGarden(result.friends)) return
-        showFeedback('garden imported.', 'success')
+        setPendingImport({ storage: activeStorage, friends: result.friends })
       } catch {
         showFeedback('invalid json file.', 'error')
       }
+    }
+    reader.onerror = () => {
+      if (request === importRequest.current) showFeedback('could not read the backup file.', 'error')
     }
     reader.readAsText(file)
 
@@ -209,6 +221,21 @@ function App({ storage = localStorageStore, account: injectedAccount }: AppProps
           data-testid="import-input"
         />
       </div>
+      {importPreview && <section className="backup-preview" aria-label="Review garden backup">
+        <p>this backup has {importPreview.friends.length} {importPreview.friends.length === 1 ? 'friend' : 'friends'}.</p>
+        <p>{accountState?.viewAccount
+          ? 'this replaces your saved account garden. friends and history missing from the backup can be removed on other devices when you sync. your separate local garden is unchanged.'
+          : 'this replaces your local garden on this device. it does not merge with the current garden.'}</p>
+        <p>export the current garden first if you want to keep a copy.</p>
+        <div className="garden-tools">
+          <button className="tool-button" type="button" onClick={() => {
+            if (!replaceGarden(importPreview.friends)) return
+            setPendingImport(null)
+            showFeedback('garden imported.', 'success')
+          }} disabled={accountState?.phase === 'checking'}>replace garden</button>
+          <button className="tool-button" type="button" onClick={() => setPendingImport(null)}>cancel import</button>
+        </div>
+      </section>}
       {account && accountState && <AccountSection account={account} state={accountState} />}
       {accountIssue && <p className="feedback" role="status">{accountIssue}</p>}
       {saveError && <p role="status" className="feedback feedback--error">{saveError}</p>}

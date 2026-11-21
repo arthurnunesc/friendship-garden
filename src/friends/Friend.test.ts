@@ -406,6 +406,15 @@ describe('exportGarden', () => {
 })
 
 describe('validateAndImportGarden', () => {
+  it('normalizes legacy ISO dates and rejects duplicates or impossible dates', () => {
+    const friend = { ...createFriend({ name: 'Legacy' }), createdAt: '2025-01-01',
+      interactions: [{ id: 'chat', date: '2025-02-01T12:00:00+02:00' }] }
+    expect(validateAndImportGarden({ version: 1, friends: [friend] })).toMatchObject({ success: true, friends: [{
+      createdAt: '2025-01-01T00:00:00.000Z', interactions: [{ date: '2025-02-01T10:00:00.000Z' }],
+    }] })
+    expect(validateAndImportGarden({ version: 1, friends: [friend, friend] }).success).toBe(false)
+    expect(validateAndImportGarden({ version: 1, friends: [{ ...friend, createdAt: '2025-02-30' }] }).success).toBe(false)
+  })
   it('returns success for a valid payload', () => {
     const payload = exportGarden([
       {
