@@ -164,6 +164,7 @@ body {
 }
 
 .backup-preview {
+  flex-shrink: 0;
   width: min(100%, 22rem);
   max-height: 30dvh;
   overflow-y: auto;
@@ -171,6 +172,7 @@ body {
   text-align: start;
 }
 
+.garden--populated:has(.backup-preview) { overflow-y: auto; }
 .backup-preview .tool-button { min-height: 2.75rem; }
 
 .feedback {

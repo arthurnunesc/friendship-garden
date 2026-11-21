@@ -84,9 +84,10 @@ part of this slice.
 
 ### Roadmap closeout — 2026-11-21
 
-- **Account sync:** implemented and checked with automated and disposable
-  hosted tests. Final physical-phone, personal-inbox, and real Google-consent
-  checks remain unverified. They are not part of this acceptance pass.
+- **Account sync:** implemented and verified within the preview scope,
+  including the merged backup and conflict recovery checks below. Physical
+  phones, personal inbox delivery, and completed Google consent remain
+  unverified. They are not part of this acceptance pass.
 - **Email reminders:** settings, delivery deduplication, and suppression are
   implemented. The Netlify preview job passed a Resend bounce test. A separate
   disposable run of the job and sender confirmed delivery to the Resend test
@@ -115,6 +116,49 @@ preview for one garden cannot apply to a different garden. First-time sync
 uses the local snapshot chosen at consent, not edits made while the account
 read is pending. A paused saved account copy offers re-enablement and explicit
 conflict recovery without silently uploading data.
+
+#### Post-merge preview verification — 2026-11-21
+
+[PR #20](https://github.com/arthurnunesc/friendship-garden/pull/20) passed on
+merge commit `717d7cbe44d90da04f28f43fcfa25ef3aa59b28b`. All 576 automated
+tests passed (173 web, 156 API, 247 mobile), and all three type checks passed.
+
+The hosted desktop browser used a synthetic account on a disposable database.
+Re-enabling sync showed the conflict and left the server row unchanged. The
+explicit retry synced the device edit. Reviewing and canceling a backup left
+the recovered row unchanged. Confirming the backup synced the replacement and
+deletion records for omitted friends and their conversation history. Signing
+out restored the untouched guest garden. The successful run used keyboard
+activation for backup cancellation and confirmation at a desktop viewport;
+pointer activation at the smaller automation viewport was not verified.
+
+The initial branch deploy was `6b01b23176c780959ff65322`. Each disposable
+deploy and database below was deleted after its restore deploy passed smoke
+checks. Earlier runs stopped at browser automation or test-script errors.
+
+| Run | Disposable deploy (deleted) | Database branch (deleted) | Restore deploy |
+| --- | --- | --- | --- |
+| Incomplete | `6b01b3ee9e05a1e042df7d60` | `br-muddy-credit-basu0i2z` | `6b01b454bbb28f7994c3a2d4` |
+| Incomplete | `6b01b582f66a64be2dbd4ddc` | `br-bold-tree-ba1j9tyr` | `6b01b5e16160f9feb1927d6d` |
+| Incomplete | `6b01b6b95326ddbfbf92de19` | `br-billowing-art-ba79waov` | `6b01b70cbc567b603643360f` |
+| Incomplete | `6b01b7982798d8db01c3a64f` | `br-lingering-cake-bar84fgp` | `6b01b7dc278877b02579484c` |
+| Incomplete | `6b01f381adb7317407227e52` | `br-damp-darkness-bavd1k18` | `6b01f3eda42ef0fabd1bb287` |
+| Incomplete | `6b01f4799f9ccc6159f37f88` | `br-noisy-wind-bau9eu7i` | `6b01f4d9bff074ee68aa3b1b` |
+| Incomplete | `6b01f559a5a45ccca0a9dbe8` | `br-cool-pond-baoytsko` | `6b01f59f8e54b0c01b02a21a` |
+| Incomplete | `6b01f626f5a2ba0b3ac3a168` | `br-mute-glade-bark2sqd` | `6b01f66a93c8993694794b38` |
+| Passed | `6b01f6dd14f2a294cb0a9fba` | `br-holy-mountain-ba5xavze` | `6b01f72ebb5ceaab5222802f` |
+
+The final restore uses the same merge commit and the retained development
+database. The home page returned 200, the session endpoint returned 200 with
+no session (including with the disposable cookie), the anonymous garden
+endpoint returned 401, and the disabled reminder webhook returned 404. Only
+the retained database branch remains. No email was sent; production deploy
+`6a1df450234f820008eea876` was unchanged. This completes the agreed preview
+checks, not production release validation or delivery to real addresses.
+
+The [draft web release checklist](web-account-sync-release.md) covers the
+narrow-screen pointer follow-up, owner prerequisites, smoke checks, and
+rollback. It does not authorize production changes.
 
 ## Durable Decisions
 
