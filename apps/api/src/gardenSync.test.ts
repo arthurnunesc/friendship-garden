@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { materializeGarden, mergeGardenSnapshots } from './gardenSync.js'
+import { materializeGarden, mergeGardenSnapshots, recoverLocalSyncCollisions } from './gardenSync.js'
 
 const updatedAt = '2026-10-16T12:00:00.000Z'
 const earlier = '2026-10-16T11:00:00.000Z'
@@ -46,6 +46,22 @@ function snapshot(
 }
 
 describe('mergeGardenSnapshots', () => {
+  it('re-versions only exact payload collisions without overriding newer records or tombstones', () => {
+    const local = snapshot([friend(), friend({ id: 'other' }), friend({ id: 'deleted' })], [interaction()])
+    const remote = snapshot([
+      friend({ value: { ...friend().value, name: 'Other device' } }),
+      friend({ id: 'other', updatedAt: later }),
+      { id: 'deleted', updatedAt, changeId: 'device-a:1', deleted: true },
+    ], [interaction({ value: { ...interaction().value, note: 'Different note' } })])
+    let versions = 0
+    const repaired = recoverLocalSyncCollisions(local, remote, () => `repair-${++versions}`)
+    const result = mergeGardenSnapshots(remote, repaired)
+    expect(versions).toBe(2)
+    expect(result.friends.find(record => record.id === 'friend-a')).toEqual({ ...friend(), changeId: 'device-a:1:repair-1' })
+    expect(result.friends.find(record => record.id === 'other')).toEqual(friend({ id: 'other', updatedAt: later }))
+    expect(result.friends.find(record => record.id === 'deleted')?.deleted).toBe(true)
+    expect(result.interactions[0]).toEqual({ ...interaction(), changeId: 'device-a:2:repair-2' })
+  })
   it('selects a newer friend edit regardless of arrival order', () => {
     const old = snapshot([friend({ updatedAt: earlier, changeId: 'device-a:1' })])
     const revised = snapshot([

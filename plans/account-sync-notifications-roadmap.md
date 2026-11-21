@@ -82,6 +82,29 @@ Start the [email reminder slice](backend-email-reminders.md) with a fake
 delivery channel. Do not activate scheduled jobs or send real reminders as
 part of this slice.
 
+### Roadmap closeout — 2026-11-21
+
+- **Account sync:** implemented and checked with automated and disposable
+  hosted tests. Final physical-phone, personal-inbox, and real Google-consent
+  checks remain unverified. They are not part of this acceptance pass.
+- **Email reminders:** settings, delivery deduplication, and suppression are
+  implemented. Hosted testing passed with a Resend bounce sink. Positive
+  reminder delivery is not yet verified. The retained preview was restored to
+  its older app version. Approval is required before applying reminder
+  migrations `0003` and `0004` to the retained development database and
+  redeploying. Keep delivery off. Real-address delivery and production rollout
+  are separate decisions, not part of the preview implementation.
+- **Sync refinement (`a3db174`):** first sign-in offers an explicit choice to
+  keep the local garden, merge it, or use the account garden. The status shows
+  edits queued on the device, including after an offline restart. A version
+  collision keeps local data and offers an explicit retry with this device's
+  edits. Retry changes only IDs of records with matching versions and different
+  payloads. It keeps timestamps, so newer versions and tombstone rules still
+  apply. Web and native tests cover consent, queues, and recovery. The 164 web,
+  156 API, and 240 mobile tests and all three type checks passed. Release
+  builds passed local-garden and reminder scheduling smoke tests on the iOS
+  simulator and Android emulator.
+
 ## Durable Decisions
 
 - **Verification timing** (2026-10-17): continue implementation with agent-run automated checks; defer user-run Google/inbox/device verification until the integrated flow is ready. The user will then test Android and iPhone. Track pending manual checks explicitly and fix failures before closing that pass; do not block independent implementation on those checks now.

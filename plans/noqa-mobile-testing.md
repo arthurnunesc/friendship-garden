@@ -510,3 +510,17 @@ No paid runs, physical devices, production services, backend, authentication,
 contact import, or messaging integration were added or used. The web app
 remains the fallback. Shared-core extraction stays optional; account-sync
 planning is a separate next scope, not implemented as part of this closeout.
+
+## Verified run: 2026-11-21 — local garden and reminders
+
+The iOS 26.4 simulator and Android 17 emulator ran Release source `a3db174`.
+Both opened the empty guest garden without a permission prompt. A synthetic
+friend remained after an app restart. Reminders were off by default. Explicit
+enablement granted notification permission and created a pending notification
+on iOS and a scheduled alarm on Android. Disabling cleared the app's enabled
+state. The disposable simulator and emulator and the runner were stopped.
+
+Two earlier Android attempts selected the label instead of the Switch and
+did not reach permission approval. The passing run selected the Switch from
+the full tree. No app change was needed. These checks do not verify actual
+notification delivery, signed-in sync, or email reminder preferences.
