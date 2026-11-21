@@ -9,7 +9,7 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { DEFAULT_CADENCE_DAYS } from "../garden/Friend";
+import { DEFAULT_CADENCE_DAYS, isCalendarBirthday } from "../garden/Friend";
 
 interface AddFriendFormProps {
   onSubmit: (data: { name: string; birthday?: string; cadenceDays?: number }) => Promise<boolean> | boolean | void;
@@ -35,7 +35,8 @@ export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
   const submitting = useRef(false);
 
   const trimmed = name.trim();
-  const isValid = trimmed.length > 0;
+  const invalidBirthday = birthday.trim() !== "" && !isCalendarBirthday(birthday.trim());
+  const isValid = trimmed.length > 0 && !invalidBirthday;
 
   const handleSubmit = async () => {
     if (!isValid || submitting.current) return;
@@ -45,7 +46,7 @@ export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
     try {
       const result = await onSubmit({
         name: trimmed,
-        birthday: birthday || undefined,
+        birthday: birthday.trim() || undefined,
         cadenceDays,
       });
       if (result === false) setSaveError(true);
@@ -151,6 +152,7 @@ export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
             <Text style={styles.cancelText}>cancel</Text>
           </TouchableOpacity>
         </View>
+        {invalidBirthday && <Text accessibilityRole="alert" style={styles.errorText}>enter a valid birthday (YYYY-MM-DD), or leave it blank.</Text>}
         {saveError && <Text accessibilityRole="alert" style={styles.errorText}>could not save. please try again.</Text>}
       </ScrollView>
     </KeyboardAvoidingView>

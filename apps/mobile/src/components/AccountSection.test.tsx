@@ -15,7 +15,7 @@ const user = { id: 'account-a', email: 'a@example.invalid' }
 function state(patch: Partial<GardenAccountState> = {}): GardenAccountState {
   return {
     loaded: true, user: null, viewAccount: null, pending: false, storage: {} as GardenAccountState['storage'],
-    phase: 'local', error: null, ...patch,
+    phase: 'local', syncEnabled: false, error: null, ...patch,
   }
 }
 
@@ -43,6 +43,16 @@ async function setup(accountState = state()) {
 beforeEach(() => { vi.clearAllMocks() })
 
 describe('account section', () => {
+  it('offers consent again when a signed-in user views a paused saved copy', async () => {
+    const h = await setup(state({ user, viewAccount: user, pending: true, syncEnabled: false }))
+    try {
+      await h.press('Account and sync')
+      expect(h.view.root.findAllByProps({ accessibilityLabel: 'sync now' })).toHaveLength(0)
+      expect(JSON.stringify(h.view.toJSON())).toContain('sync is paused')
+      await h.press('use account garden only')
+      expect(h.account.enable).toHaveBeenCalledWith('account')
+    } finally { await act(async () => { h.view.unmount() }) }
+  })
   it('closes the first sign-in choices without enabling sync', async () => {
     const h = await setup(state({ user }))
     try {
@@ -81,7 +91,7 @@ describe('account section', () => {
   })
 
   it('can sign out while background sync is in progress', async () => {
-    const h = await setup(state({ user, viewAccount: user, phase: 'syncing' }))
+    const h = await setup(state({ user, viewAccount: user, phase: 'syncing', syncEnabled: true }))
     try {
       await h.press('Account and sync')
       await h.press('sign out & return to local garden')
@@ -146,7 +156,7 @@ describe('account section', () => {
   })
 
   it('shows signed-in sync status, saved offline copies, and a return to the local garden', async () => {
-    const h = await setup(state({ user, viewAccount: user, phase: 'ready' }))
+    const h = await setup(state({ user, viewAccount: user, phase: 'ready', syncEnabled: true }))
     vi.mocked(h.account.savedAccounts).mockReturnValue([user])
     try {
       await h.press('Account and sync')

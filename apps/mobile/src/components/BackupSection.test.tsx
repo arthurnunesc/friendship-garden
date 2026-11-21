@@ -14,16 +14,27 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 beforeEach(() => { vi.clearAllMocks() })
 
 describe('backup section', () => {
-  async function setup() {
+  async function setup(accountGarden = false) {
     const onImport = vi.fn(async () => ({ success: true as const, friends: [] }))
     let view!: ReactTestRenderer
-    await act(async () => { view = create(<BackupSection friends={[createFriend({ name: 'Original' })]} onImport={onImport} />) })
+    await act(async () => { view = create(<BackupSection friends={[createFriend({ name: 'Original' })]} onImport={onImport} accountGarden={accountGarden} />) })
     const press = async (label: string) => {
       await act(async () => { await view.root.findByProps({ accessibilityLabel: label }).props.onPress() })
     }
     const text = () => JSON.stringify(view.toJSON())
     return { view, onImport, press, text }
   }
+  it('warns that replacing an account garden can remove records on other devices', async () => {
+    files.pick.mockResolvedValue(JSON.stringify(exportGarden([])))
+    const h = await setup(true)
+    await h.press('Choose garden backup file')
+    expect(h.text()).toContain('can be removed on other devices')
+    expect(h.text()).toContain('separate local garden is unchanged')
+    expect(h.onImport).not.toHaveBeenCalled()
+    await h.press('Replace garden with backup')
+    expect(h.text()).toContain('can sync when sync is enabled and connected')
+    await act(async () => { h.view.unmount() })
+  })
   it('validates and previews before replacing; cancellation leaves data alone', async () => {
     const imported = [createFriend({ name: 'Web Alice' })]
     files.pick.mockResolvedValue(JSON.stringify(exportGarden(imported)))
@@ -66,6 +77,15 @@ describe('backup section', () => {
     expect(h.onImport).not.toHaveBeenCalled()
     await h.press('Export garden backup')
     expect(h.text()).toContain('Sharing unavailable')
+    await act(async () => { h.view.unmount() })
+  })
+  it('clears an earlier preview when a later file read fails', async () => {
+    files.pick.mockResolvedValueOnce(JSON.stringify(exportGarden([]))).mockRejectedValueOnce(new Error('Could not read backup'))
+    const h = await setup()
+    await h.press('Choose garden backup file')
+    await h.press('Choose garden backup file')
+    expect(h.view.root.findAllByProps({ accessibilityLabel: 'Replace garden with backup' })).toHaveLength(0)
+    expect(h.onImport).not.toHaveBeenCalled()
     await act(async () => { h.view.unmount() })
   })
   it('supports pasted backups and invalidates the preview when the draft changes', async () => {

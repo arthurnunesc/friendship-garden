@@ -11,6 +11,35 @@ type ChangeClock = () => { updatedAt: string; changeId: string }
 
 const EMPTY_SNAPSHOT: SyncSnapshot = { version: 1, friends: [], interactions: [] }
 
+export function isCalendarBirthday(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+/** Validate normalized backups; preserve legacy birthday text in local copies only. */
+export function normalizeBackupDates(friends: GardenFriend[], accountGarden = false): GardenFriend[] {
+  function iso(value: string) {
+    const day = /^\d{4}-\d{2}-\d{2}/.exec(value)?.[0]
+    const date = new Date(value)
+    if (Number.isFinite(date.getTime()) && date.toISOString() === value) return value
+    if (!day || !isCalendarBirthday(day) || !Number.isFinite(date.getTime())
+      || (value !== day && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value))) {
+      throw new InvalidSyncSnapshotError('Invalid date in garden backup')
+    }
+    return date.toISOString()
+  }
+  const normalized = friends.map(friend => ({ ...friend,
+    createdAt: iso(friend.createdAt),
+    ...(friend.lastInteractionAt !== undefined ? { lastInteractionAt: iso(friend.lastInteractionAt) } : {}),
+    interactions: friend.interactions.map(interaction => ({ ...interaction, date: iso(interaction.date) })),
+  }))
+  const forValidation = accountGarden ? normalized : normalized.map(friend =>
+    friend.birthday !== undefined && !isCalendarBirthday(friend.birthday) ? { ...friend, birthday: undefined } : friend)
+  recordGardenChanges(EMPTY_SNAPSHOT, forValidation, () => ({ updatedAt: '1970-01-01T00:00:00.000Z', changeId: 'validate-backup' }))
+  return normalized
+}
+
 function payload(value: object): string {
   return JSON.stringify(value)
 }
@@ -82,7 +111,7 @@ export function recordGardenChanges(
     if (
       friend.lastInteractionAt !== undefined &&
       !representedDates.has(friend.lastInteractionAt) &&
-      (interactions.length === 0 || interactions.every((item) => item.date < friend.lastInteractionAt!))
+      (interactions.length === 0 || interactions.every((item) => Date.parse(item.date) < Date.parse(friend.lastInteractionAt!)))
     ) {
       let id = `legacy-last-${friend.lastInteractionAt}`
       while (interactions.some((item) => item.id === id)) id += '-legacy'

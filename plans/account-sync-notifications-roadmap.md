@@ -88,12 +88,12 @@ part of this slice.
   hosted tests. Final physical-phone, personal-inbox, and real Google-consent
   checks remain unverified. They are not part of this acceptance pass.
 - **Email reminders:** settings, delivery deduplication, and suppression are
-  implemented. Hosted testing passed with a Resend bounce sink. Positive
-  reminder delivery is not yet verified. The retained preview was restored to
-  its older app version. Approval is required before applying reminder
-  migrations `0003` and `0004` to the retained development database and
-  redeploying. Keep delivery off. Real-address delivery and production rollout
-  are separate decisions, not part of the preview implementation.
+  implemented. The Netlify preview job passed a Resend bounce test. A separate
+  disposable run of the job and sender confirmed delivery to the Resend test
+  inbox. The retained development database now has migrations `0003` and
+  `0004`, and the feature preview has the reminder and sync updates. Delivery
+  remains off. Real-address delivery and production rollout are separate
+  decisions, not part of the preview implementation.
 - **Sync refinement (`a3db174`):** first sign-in offers an explicit choice to
   keep the local garden, merge it, or use the account garden. The status shows
   edits queued on the device, including after an offline restart. A version
@@ -105,6 +105,16 @@ part of this slice.
   builds passed local-garden and reminder scheduling smoke tests on the iOS
   simulator and Android emulator. Mock signed-in runs passed the keep-local
   choice and email reminder opt-in and opt-out on both platforms.
+
+### Backup and consent cleanup
+
+Web import now reviews a backup before replacing the open garden. Both
+clients validate identities and normalize legacy ISO timestamps before
+import, and explain that an account replacement can sync deletions. A backup
+preview for one garden cannot apply to a different garden. First-time sync
+uses the local snapshot chosen at consent, not edits made while the account
+read is pending. A paused saved account copy offers re-enablement and explicit
+conflict recovery without silently uploading data.
 
 ## Durable Decisions
 
@@ -169,11 +179,18 @@ Encrypted sync may be revisited later, but it should not block the first useful 
 - Last-write-wins is intentionally simple. The app is scoped to a small personal garden, not collaborative document editing.
 - Server-side structured data is a deliberate privacy compromise made for practical sync and notification support.
 
-## Open Questions For The Next Planning Session
+## Remaining release checks and deferred decisions
 
 - Resend's domain/key, branch configuration, and development schema are set up. Hosted delivery to the provider test inbox and passwordless sessions pass; completed Google consent and personal inbox delivery remain unverified.
 - Apple OAuth is deferred from the first auth chunk; its later provider setup and HTTPS return URL remain to be arranged.
-- What user-facing copy explains the privacy change when enabling sync?
-- What reminder preferences belong locally only versus synced across devices?
-- What is the minimum useful backend notification channel after email?
-- Should signed-in users still be able to export/import JSON manually?
+- First sign-in explains that sync stores friendship details on the server.
+  The user can keep using the local garden without uploading it.
+- Local notification preferences stay on the device. Email reminders use a
+  separate account preference and do not turn on local notifications.
+- Web and native backups apply to the open garden. Import validates the backup
+  and requires confirmation before replacement. On an account garden,
+  replacement can sync changes and deletion records to other devices. The
+  separate local garden is not affected by that account replacement.
+- Other notification channels, Apple sign-in, shared-core extraction, and
+  social features stay deferred or optional. Real recipients and production
+  rollout are outside the preview scope.

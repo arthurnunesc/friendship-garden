@@ -12,12 +12,14 @@ interface SavedAccount {
   snapshot: SyncSnapshot
 }
 interface SavedState { version: 1, accounts: SavedAccount[] }
+type SyncChoice = 'import' | 'account'
 export interface GardenAccountState {
   user: AccountUser | null
   viewAccount: AccountUser | null
   storage: GardenStorage
   phase: 'local' | 'checking' | 'ready' | 'syncing' | 'offline' | 'conflict'
   pending: boolean
+  syncEnabled: boolean
   error: string | null
 }
 
@@ -55,12 +57,14 @@ export function createGardenAccount(options: {
   let friends = guest.loadFriends()
   let flight: { epoch: number, promise: Promise<void> } | null = null
   let consent: Promise<void> | null = null
+  let consentConflict: { userId: string; imported: SyncSnapshot | null } | null = null
   let signingOut = false
   let paused = false
   let state: GardenAccountState
   const find = (id: string) => saved.accounts.find((entry) => entry.user.id === id)
   const publish = (patch: Partial<GardenAccountState> = {}) => {
-    state = { ...state, ...patch, pending: viewId !== null && find(viewId)?.pending === true }
+    const viewed = viewId === null ? undefined : find(viewId)
+    state = { ...state, ...patch, pending: viewed?.pending === true, syncEnabled: !paused && viewed?.enabled === true }
     listeners.forEach((listener) => listener())
   }
   function persist(entry: SavedAccount) {
@@ -92,7 +96,7 @@ export function createGardenAccount(options: {
       },
     }
   }
-  state = { user: null, viewAccount: null, storage: binding(), phase: 'local', pending: false,
+  state = { user: null, viewAccount: null, storage: binding(), phase: 'local', pending: false, syncEnabled: false,
     error: damaged ? 'Saved account data could not be read. Your local garden is still available.' : null }
 
   function show(id: string | null) {
@@ -112,7 +116,7 @@ export function createGardenAccount(options: {
   async function sync(recover = false): Promise<void> {
     const user = state.user
     const entry = user && find(user.id)
-    if (paused || !user || viewId !== user.id || !entry?.enabled || (recover && state.phase !== 'conflict')) return
+    if (paused || consentConflict || !user || viewId !== user.id || !entry?.enabled || (recover && state.phase !== 'conflict')) return
     const ticket = epoch
     if (flight?.epoch === ticket) return flight.promise
     const task = (async () => {
@@ -175,47 +179,25 @@ export function createGardenAccount(options: {
         const user = await client.session()
         if (ticket !== epoch) return
         if (viewId !== user?.id) show(null)
+        if (consentConflict && consentConflict.userId === user?.id) {
+          publish({ user, phase: 'conflict', error: 'A saved account edit has the same sync version as another edit. Nothing was uploaded.' })
+          return
+        }
+        consentConflict = null
         publish({ user, error: damaged ? state.error : null, phase: 'local' })
         if (user && find(user.id)?.enabled && !damaged && !paused) {
           show(user.id)
           await sync()
         }
       } catch (error) {
-        if (ticket === epoch) publish({ phase: 'offline', error: message(error) })
+        if (ticket === epoch) publish({ phase: consentConflict ? 'conflict' : 'offline', error: message(error) })
       }
     },
-    async enable(choice: 'import' | 'account') {
-      const user = state.user
-      if (!user || consent || signingOut || state.phase === 'checking' || state.phase === 'syncing') return
-      const ticket = epoch
-      let release!: () => void
-      const pending = new Promise<void>((resolve) => { release = resolve })
-      // A foreground identity check must not invalidate an explicit import mid-read.
-      consent = pending
-      try {
-        publish({ phase: 'checking', error: null })
-        const remote = await client.read(user.id)
-        if (ticket !== epoch || state.user?.id !== user.id) return
-        const previous = find(user.id)
-        let snapshot = mergeGardenSnapshots(previous?.snapshot ?? empty(), remote)
-        const imported = choice === 'import' ? guest.loadFriends() : []
-        if (imported.length > 0) {
-          snapshot = mergeGardenSnapshots(snapshot, recordGardenChanges(empty(), imported, clock))
-        }
-        persist({ user, snapshot, enabled: true, pending: previous?.pending === true || imported.length > 0 })
-        paused = false
-        show(user.id)
-        await sync()
-      } catch (error) {
-        if (ticket === epoch) publish({ phase: 'offline', error: message(error) })
-      } finally {
-        if (consent === pending) consent = null
-        release()
-      }
-    },
+    enable: (choice: SyncChoice) => enable(choice),
     async signOut() {
       if (signingOut) return
       signingOut = true
+      consentConflict = null
       ++epoch
       paused = true
       const user = state.user
@@ -243,15 +225,59 @@ export function createGardenAccount(options: {
       if (state.user && state.user.id !== userId) return
       const cached = find(userId)
       if (!cached) return
+      if (consentConflict?.userId !== userId) consentConflict = null
       ++epoch
       show(userId)
       publish({ phase: 'offline', error: 'Showing the saved copy on this device. Reconnect to sync changes.' })
     },
     savedAccounts: () => saved.accounts.map((entry) => entry.user),
     sync: () => sync(),
-    recoverCollision: () => sync(true),
+    recoverCollision: () => {
+      const retry = consentConflict
+      if (state.phase === 'conflict' && retry && retry.userId === state.user?.id) return enable('account', retry)
+      return sync(true)
+    },
     client,
-    pause() { ++epoch },
+    pause() { ++epoch; consentConflict = null },
+  }
+
+  async function enable(choice: SyncChoice, recovery?: NonNullable<typeof consentConflict>) {
+      const user = state.user
+      if (!user || consent || signingOut || state.phase === 'checking' || state.phase === 'syncing') return
+      const ticket = epoch
+      consentConflict = recovery ?? null
+      let release!: () => void
+      const pending = new Promise<void>((resolve) => { release = resolve })
+      // A foreground identity check must not invalidate an explicit import mid-read.
+      consent = pending
+      let imported: SyncSnapshot | null = recovery?.imported ?? null
+      try {
+        if (!recovery && choice === 'import') imported = recordGardenChanges(empty(), guest.loadFriends(), clock)
+        publish({ phase: 'checking', error: null })
+        const remote = await client.read(user.id)
+        if (ticket !== epoch || state.user?.id !== user.id) return
+        const previous = find(user.id)
+        const cached = previous?.snapshot ?? empty()
+        let snapshot = mergeGardenSnapshots(recovery ? recoverLocalSyncCollisions(cached, remote, () => clock().changeId) : cached, remote)
+        if (imported) snapshot = mergeGardenSnapshots(snapshot, recovery
+          ? recoverLocalSyncCollisions(imported, snapshot, () => clock().changeId) : imported)
+        persist({ user, snapshot, enabled: true, pending: Boolean(recovery) || previous?.pending === true || Boolean(imported?.friends.length) })
+        consentConflict = null
+        paused = false
+        show(user.id)
+        await sync()
+      } catch (error) {
+        if (ticket === epoch && error instanceof SyncCollisionError) {
+          consentConflict = { userId: user.id, imported }
+          publish({ phase: 'conflict', error: 'A saved account edit has the same sync version as another edit. Nothing was uploaded.' })
+        } else if (ticket === epoch) {
+          if (error instanceof AccountRequestError && (error.status === 401 || error.code === 'ACCOUNT_CHANGED')) consentConflict = null
+          publish({ phase: consentConflict ? 'conflict' : 'offline', error: message(error) })
+        }
+      } finally {
+        if (consent === pending) consent = null
+        release()
+      }
   }
 }
 

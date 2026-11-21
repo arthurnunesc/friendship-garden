@@ -26,26 +26,27 @@ export default function AccountSection({ account, state }: { account: GardenAcco
       <div className="account-content">
         {state.user ? <>
           <p>signed in as <span className="account-email">{state.user.email}</span></p>
-          {viewingAccount ? <>
+          {viewingAccount && state.syncEnabled ? <>
             <p>this account garden is saved here and synced across your devices. your original local garden is kept separately.</p>
             {state.pending && <p role="status">changes waiting to sync. they are saved on this device.</p>}
             <button type="button" className="tool-button" disabled={busy} onClick={() => void account.sync()}>
               {state.phase === 'syncing' ? 'syncing…' : 'sync now'}
             </button>
-            {state.phase === 'conflict' && <>
-              <p>retry with this device’s edits for matching versions. newer edits from other devices still take priority.</p>
-              <button type="button" className="tool-button" onClick={() => void account.recoverCollision()}>retry with this device’s edits</button>
-            </>}
           </> : <>
-            <p>signing in has not uploaded your local garden.</p>
+            <p>{viewingAccount ? 'sync is paused for this saved account garden.' : 'signing in has not uploaded your local garden.'}</p>
+            {viewingAccount && state.pending && <p role="status">changes waiting to sync. they are saved on this device.</p>}
             <p>choose whether to sync. syncing stores friendship details on our server. either sync option keeps your original local garden on this device.</p>
             <div className="account-actions">
               <button type="button" className="tool-button" disabled={busy} onClick={() => void account.enable('import')}>merge local garden &amp; sync</button>
               <button type="button" className="tool-button" disabled={busy} onClick={() => void account.enable('account')}>use account garden only</button>
               <button type="button" className="tool-button" disabled={busy} onClick={() => {
                 if (disclosure.current) { disclosure.current.open = false; disclosure.current.querySelector('summary')?.focus() }
-              }}>keep using this local garden</button>
+              }}>{viewingAccount ? 'keep using this saved copy' : 'keep using this local garden'}</button>
             </div>
+          </>}
+          {state.phase === 'conflict' && <>
+            <p>retry with this device’s edits for matching versions. newer edits from other devices still take priority.</p>
+            <button type="button" className="tool-button" onClick={() => void account.recoverCollision()}>retry with this device’s edits</button>
           </>}
           {account.client.emailReminders && <EmailReminders key={JSON.stringify([state.user.id, state.user.email])} client={account.client.emailReminders} user={state.user} />}
           <button type="button" className="tool-button" disabled={sending || state.phase === 'checking'} onClick={() => void account.signOut()}>sign out &amp; return to local garden</button>

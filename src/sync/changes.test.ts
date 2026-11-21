@@ -10,6 +10,12 @@ const clockAt = (updatedAt = date) => vi.fn(() => ({ updatedAt, changeId: 'devic
 const empty: SyncSnapshot = { version: 1, friends: [], interactions: [] }
 
 describe('recordGardenChanges', () => {
+  it('retains a newer legacy last-contact date when the year has six digits', () => {
+    const lastInteractionAt = '+010000-01-01T00:00:00.000Z'
+    const backup = [friend({ lastInteractionAt, interactions: [{ id: 'old', date: '9999-12-31T00:00:00.000Z' }] })]
+    const result = recordGardenChanges(empty, backup, clockAt())
+    expect(result.interactions).toContainEqual(expect.objectContaining({ value: { date: lastInteractionAt } }))
+  })
   it('copies input and is idempotent without calling the clock for unchanged records', () => {
     const input = [friend({ birthday: '1990-04-12', interactions: [{ id: 'i1', date }] })]
     const inputCopy = structuredClone(input)
