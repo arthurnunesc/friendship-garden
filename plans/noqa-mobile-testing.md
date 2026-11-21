@@ -524,3 +524,13 @@ Two earlier Android attempts selected the label instead of the Switch and
 did not reach permission approval. The passing run selected the Switch from
 the full tree. No app change was needed. These checks do not verify actual
 notification delivery, signed-in sync, or email reminder preferences.
+
+### Mock signed-in account checks
+
+Disposable builds from `a3db174` used an in-memory account and preference
+client instead of hosted requests. The iOS 26.4 simulator and Android 17
+emulator both showed the first sign-in choices, closed them when the user
+chose to keep the local garden, and showed email reminders off by default.
+Explicit opt-in and opt-out updated the visible settings on both platforms.
+The simulator was deleted, the emulator and runner stopped, and the QA
+checkout restored. These checks do not verify provider sign-in or delivery.

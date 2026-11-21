@@ -103,7 +103,8 @@ part of this slice.
   apply. Web and native tests cover consent, queues, and recovery. The 164 web,
   156 API, and 240 mobile tests and all three type checks passed. Release
   builds passed local-garden and reminder scheduling smoke tests on the iOS
-  simulator and Android emulator.
+  simulator and Android emulator. Mock signed-in runs passed the keep-local
+  choice and email reminder opt-in and opt-out on both platforms.
 
 ## Durable Decisions
 
