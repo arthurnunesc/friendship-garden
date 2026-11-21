@@ -119,3 +119,19 @@ Production did not change. The feature branch contains the reminder code, but
 the retained preview still uses the previous source and has no reminder tables.
 Leave delivery off. A retained preview rollout needs separate approval for the
 guarded migrations and redeploy. No simulator or emulator checks ran here.
+
+## Retained preview rollout gate
+
+After approval, use the guarded development runner to inspect the migration
+ledger and apply `0003_email_reminders` and `0004_email_suppressions`. Stop if
+the pinned target or an existing checksum does not match. Deploy the feature
+branch, not `main`. Confirm delivery is off and that the preview home page and
+anonymous auth and garden requests behave as before. If the new app fails,
+restore the previous preview commit. Leave the additive tables in place;
+do not drop tables as part of rollback.
+
+Use a separate disposable hosted run for the positive delivery test. Use a
+Resend `delivered+…@resend.dev` address, confirm the provider's delivered
+event and a single submission across repeated job runs, then remove the test
+resources and restore the retained preview. This verifies the provider test
+path, not a personal inbox. No phone or personal account is needed.
