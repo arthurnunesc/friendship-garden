@@ -9,7 +9,7 @@ import {
   Pressable,
 } from "react-native";
 import type { Friend, WateringState, InteractionType } from "../garden/Friend";
-import { INTERACTION_TYPES } from "../garden/Friend";
+import { INTERACTION_TYPES, isCalendarBirthday } from "../garden/Friend";
 import { getWateringEmoji, getWateringLabel } from "./WateringIcon";
 import { formatRelativeDate } from "../garden/date";
 import { InteractionHistory } from "./InteractionHistory";
@@ -43,6 +43,7 @@ export function FriendListItem({
   const [showEdit, setShowEdit] = useState(false);
   const [editName, setEditName] = useState(friend.name);
   const [editBirthday, setEditBirthday] = useState(friend.birthday ?? "");
+  const invalidBirthday = editBirthday.trim() !== "" && !isCalendarBirthday(editBirthday.trim());
   const [editCadenceIndex, setEditCadenceIndex] = useState(() => {
     const idx = CADENCE_VALUES.indexOf(friend.cadenceDays);
     return idx >= 0 ? idx : 1;
@@ -100,12 +101,12 @@ export function FriendListItem({
 
   const handleEditSave = useCallback(() => {
     const trimmed = editName.trim();
-    if (!trimmed) return;
+    if (!trimmed || invalidBirthday) return;
     void runSave(
-      () => onEdit(friend.id, trimmed, editBirthday || undefined as unknown as string, CADENCE_VALUES[editCadenceIndex]),
+      () => onEdit(friend.id, trimmed, editBirthday.trim(), CADENCE_VALUES[editCadenceIndex]),
       () => setShowEdit(false),
     );
-  }, [friend.id, editName, editBirthday, editCadenceIndex, onEdit, runSave]);
+  }, [friend.id, editName, editBirthday, editCadenceIndex, invalidBirthday, onEdit, runSave]);
 
   const handleRemove = useCallback(() => {
     void runSave(() => onRemove(friend.id), () => setShowRemoveConfirm(false));
@@ -340,11 +341,11 @@ export function FriendListItem({
               <TouchableOpacity
                 style={[
                   styles.saveButton,
-                  !editName.trim() && styles.saveButtonDisabled,
+                  (!editName.trim() || invalidBirthday) && styles.saveButtonDisabled,
                   saving && styles.saveButtonDisabled,
                 ]}
                 onPress={handleEditSave}
-                disabled={!editName.trim() || saving}
+                disabled={!editName.trim() || invalidBirthday || saving}
                 activeOpacity={0.7}
               >
                 <Text style={styles.saveButtonText}>{saving ? "saving…" : "save"}</Text>
@@ -353,6 +354,7 @@ export function FriendListItem({
                 <Text style={styles.cancelText}>cancel</Text>
               </TouchableOpacity>
             </View>
+            {invalidBirthday && <Text accessibilityRole="alert" style={styles.saveError}>enter a valid birthday (YYYY-MM-DD), or leave it blank.</Text>}
             {saveError && <Text accessibilityRole="alert" style={styles.saveError}>could not save. please try again.</Text>}
           </Pressable>
         </Pressable>

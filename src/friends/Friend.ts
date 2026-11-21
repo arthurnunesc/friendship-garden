@@ -1,4 +1,4 @@
-import { normalizeBackupDates } from '../../packages/garden-sync/src/changes'
+import { isCalendarBirthday, normalizeBackupDates } from '../../packages/garden-sync/src/changes'
 
 export const INTERACTION_TYPES = ['message', 'call', 'in-person'] as const
 export type InteractionType = (typeof INTERACTION_TYPES)[number]
@@ -121,7 +121,7 @@ export function hasUpcomingBirthday(
   friend: Friend,
   now: Date = new Date(),
 ): boolean {
-  if (!friend.birthday) return false
+  if (!friend.birthday || !isCalendarBirthday(friend.birthday)) return false
 
   const birthDate = new Date(friend.birthday)
   const todayNoon = new Date(now)
@@ -147,13 +147,12 @@ export function hasUpcomingBirthday(
 
 export function deleteInteraction(friend: Friend, interactionId: string): Friend {
   const remaining = friend.interactions.filter((i) => i.id !== interactionId)
-  const lastInteractionAt =
-    remaining.length > 0
-      ? remaining.reduce(
-          (latest, i) => (i.date > latest ? i.date : latest),
-          remaining[0].date,
-        )
-      : undefined
+  let lastInteractionAt: string | undefined
+  let latest = -Infinity
+  for (const { date } of remaining) {
+    const time = Date.parse(date)
+    if (time > latest) { latest = time; lastInteractionAt = date }
+  }
   return {
     ...friend,
     interactions: remaining,
@@ -228,6 +227,7 @@ export function isValidFriend(item: unknown): item is Friend {
 
 export function validateAndImportGarden(
   payload: unknown,
+  accountGarden = false,
 ): ImportResult | ImportError {
   if (!payload || typeof payload !== 'object') {
     return { success: false, error: 'Invalid garden backup: not a valid JSON object' }
@@ -247,10 +247,13 @@ export function validateAndImportGarden(
     if (!isValidFriend(item)) {
       return { success: false, error: `Invalid friend entry in backup: missing required fields` }
     }
+    if (accountGarden && item.birthday !== undefined && !isCalendarBirthday(item.birthday)) {
+      return { success: false, error: 'A birthday in this backup is not a valid YYYY-MM-DD date. Restore it to your local garden and correct the birthday before syncing.' }
+    }
   }
 
   try {
-    return { success: true, friends: normalizeBackupDates(p.friends as Friend[]) }
+    return { success: true, friends: normalizeBackupDates(p.friends as Friend[], accountGarden) }
   } catch {
     return { success: false, error: 'Invalid garden backup: check dates, names, cadence, and duplicate IDs.' }
   }

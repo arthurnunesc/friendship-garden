@@ -41,7 +41,7 @@ export function BackupSection({ friends, onImport, accountGarden = false }: Back
     try { payload = JSON.parse(text) } catch {
       throw new Error('This backup is not valid JSON. Choose a garden export or check the pasted text.')
     }
-    const result = validateAndImportGarden(payload)
+    const result = validateAndImportGarden(payload, accountGarden)
     if (!result.success) throw new Error(result.error)
     setPending(result.friends)
   }

@@ -165,7 +165,7 @@ function App({ storage = localStorageStore, account: injectedAccount }: AppProps
       if (request !== importRequest.current) return
       try {
         const json = JSON.parse(reader.result as string)
-        const result = validateAndImportGarden(json)
+        const result = validateAndImportGarden(json, Boolean(accountState?.viewAccount))
         if (!result.success) {
           showFeedback(result.error, 'error')
           return

@@ -234,6 +234,10 @@ describe('sortFriendsByUrgency', () => {
 })
 
 describe('hasUpcomingBirthday', () => {
+  it('does not highlight preserved impossible legacy dates', () => {
+    const friend = createFriend({ name: 'Legacy birthday', birthday: '2025-02-30' })
+    expect(hasUpcomingBirthday(friend, new Date(2025, 2, 1))).toBe(false)
+  })
   it('returns false when friend has no birthday', () => {
     const friend = createFriend({ name: 'Alice' })
     expect(hasUpcomingBirthday(friend, new Date('2025-06-15T12:00:00Z'))).toBe(false)
@@ -549,7 +553,6 @@ describe('validateAndImportGarden', () => {
     ['non-finite cadence', { cadenceDays: Infinity }],
     ['invalid created date', { createdAt: 'not-a-date' }],
     ['invalid last interaction date', { lastInteractionAt: 'not-a-date' }],
-    ['invalid birthday date', { birthday: '2025-02-30' }],
   ])('rejects a friend with %s', (_reason, changes) => {
     const result = validateAndImportGarden({
       version: 1,
@@ -564,6 +567,13 @@ describe('validateAndImportGarden', () => {
     })
 
     expect(result.success).toBe(false)
+  })
+
+  it('restores legacy mobile birthday strings locally but not into an account', () => {
+    const friend = createFriend({ name: 'Legacy birthday', birthday: '2025-02-30' })
+    const backup = JSON.parse(JSON.stringify(exportGarden([friend])))
+    expect(validateAndImportGarden(backup)).toEqual({ success: true, friends: [friend] })
+    expect(validateAndImportGarden(backup, true)).toMatchObject({ success: false, error: expect.stringContaining('birthday') })
   })
 
   it('rejects invalid interaction dates and duplicate ids', () => {
