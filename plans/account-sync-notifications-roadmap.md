@@ -88,12 +88,12 @@ part of this slice.
   hosted tests. Final physical-phone, personal-inbox, and real Google-consent
   checks remain unverified. They are not part of this acceptance pass.
 - **Email reminders:** settings, delivery deduplication, and suppression are
-  implemented. Hosted testing passed with a Resend bounce sink. Positive
-  reminder delivery is not yet verified. The retained preview was restored to
-  its older app version. Approval is required before applying reminder
-  migrations `0003` and `0004` to the retained development database and
-  redeploying. Keep delivery off. Real-address delivery and production rollout
-  are separate decisions, not part of the preview implementation.
+  implemented. The Netlify preview job passed a Resend bounce test. A separate
+  disposable run of the job and sender confirmed delivery to the Resend test
+  inbox. The retained development database now has migrations `0003` and
+  `0004`, and the feature preview has the reminder and sync updates. Delivery
+  remains off. Real-address delivery and production rollout are separate
+  decisions, not part of the preview implementation.
 - **Sync refinement (`a3db174`):** first sign-in offers an explicit choice to
   keep the local garden, merge it, or use the account garden. The status shows
   edits queued on the device, including after an offline restart. A version

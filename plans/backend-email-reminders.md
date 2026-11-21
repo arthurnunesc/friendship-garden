@@ -135,3 +135,21 @@ Resend `delivered+…@resend.dev` address, confirm the provider's delivered
 event and a single submission across repeated job runs, then remove the test
 resources and restore the retained preview. This verifies the provider test
 path, not a personal inbox. No phone or personal account is needed.
+
+## Retained preview and positive delivery — 2026-11-21
+
+Applied migrations `0003` and `0004` to the retained development database with
+the guarded runner. A second dry run reported all four migrations applied.
+Feature source `ee6fcc8` deployed as `6b016ce1bbb331413cddbd74`. The preview
+home and anonymous session returned 200, protected routes returned 401, and
+the disabled feedback endpoint returned 404. No reminder delivery settings
+were enabled on the preview. Production did not change.
+
+Ran the application reminder job and Resend adapter from the server against
+disposable schema-only branch `br-fragrant-firefly-baocrfov`. The default-off
+check skipped, one explicit opt-in produced one submission, and the repeat
+and opt-out checks skipped. The Resend CLI confirmed message
+`01a1fd93-cb26-71fb-9ccf-bfe1919f8353` was `delivered` to the provider test
+inbox. The disposable branch was removed. No additional Netlify deployment
+or webhook was needed. This verifies a positive delivery with the same job and
+sender, not a second Netlify scheduler invocation or personal-inbox delivery.
