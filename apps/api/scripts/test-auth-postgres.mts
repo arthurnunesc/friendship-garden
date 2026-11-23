@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
 import { getMigrations } from 'better-auth/db/migration'
@@ -9,11 +10,12 @@ import { authPoolConfig } from '../src/authDatabase.ts'
 import { applyAuthMigration } from '../src/authMigration.ts'
 import { checkGardenPostgres } from './garden-postgres-checks.mts'
 
-const usage = `Usage: node --experimental-strip-types scripts/test-auth-postgres.mts --run
+const usage = `Usage: node --experimental-strip-types scripts/test-auth-postgres.mts --run|--release-bootstrap
 
 Creates a schema-only test branch in the pinned development project, runs
 PostgreSQL authentication and garden sync checks, then deletes only that owned branch.
 Requires an authenticated Neon CLI. Does not load .env files or send email.
+Use --release-bootstrap to rehearse the initial release bootstrap and limited-role sign-in and sync.
 
 Examples:
   node --experimental-strip-types scripts/test-auth-postgres.mts --run
@@ -33,7 +35,8 @@ function neon(arguments_: string[]): unknown {
 
 async function main() {
   if (process.argv.slice(2).join(' ') === '--help') { console.log(usage); return }
-  if (process.argv.length !== 3 || process.argv[2] !== '--run') throw new Error(usage)
+  const mode = process.argv[2]
+  if (process.argv.length !== 3 || (mode !== '--run' && mode !== '--release-bootstrap')) throw new Error(usage)
   const manifest = JSON.parse(await readFile(new URL('../development-database.json', import.meta.url), 'utf8')) as {
     purpose: string, projectId: string, branchId: string, host: string, database: string,
   }
@@ -106,6 +109,70 @@ async function main() {
     verificationStage = 'owned disposable schema reset'
     // This schema exists only on our newly created schema-only disposable branch.
     await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public')
+    if (mode === '--release-bootstrap') {
+      verificationStage = 'release bootstrap dry-run, apply, and repeat'
+      const owner = spawnSync('neon', ['connection-string', ownedBranch, '--project-id', manifest.projectId], {
+        encoding: 'utf8', timeout: 60_000, stdio: ['ignore', 'pipe', 'pipe'],
+      })
+      assert.equal(owner.status, 0)
+      const ownerURL = owner.stdout.trim()
+      const runtimePassword = randomBytes(32).toString('hex')
+      const bootstrap = (mode: '--dry-run' | '--apply', target = host) => spawnSync(process.execPath, [
+        '--experimental-strip-types', fileURLToPath(new URL('./bootstrap-release-db.mts', import.meta.url)), mode, target, manifest.database,
+      ], { encoding: 'utf8', input: `${ownerURL}\n${mode === '--apply' ? `${runtimePassword}\n` : ''}`, timeout: 90_000 })
+      assert.equal(bootstrap('--dry-run', manifest.host).status, 1)
+      const expectBootstrap = (mode: '--dry-run' | '--apply', output: string) => {
+        const result = bootstrap(mode)
+        if (result.status !== 0) console.error(mode, output, result.stderr.trim()) // Only the stage and SQLSTATE.
+        assert.equal(result.status, 0)
+        assert(result.stdout.includes(output))
+      }
+      expectBootstrap('--dry-run', '0004_email_suppressions: pending (read-only)')
+      assert.equal((await pool.query("SELECT to_regclass('public.gardens') AS relation")).rows[0].relation, null)
+      await pool.query('GRANT CREATE ON SCHEMA public TO PUBLIC')
+      const refused = bootstrap('--apply')
+      assert.equal(refused.status, 1)
+      assert(refused.stderr.includes('runtime grant verification'))
+      assert.equal((await pool.query("SELECT to_regclass('public.gardens') AS relation")).rows[0].relation, null)
+      assert.equal((await pool.query("SELECT 1 FROM pg_roles WHERE rolname='friendship_garden_app'")).rowCount, 0)
+      await pool.query('REVOKE CREATE ON SCHEMA public FROM PUBLIC')
+      expectBootstrap('--apply', 'Runtime login verified')
+      expectBootstrap('--dry-run', '0004_email_suppressions: already applied (checksums matched)')
+      expectBootstrap('--apply', 'Runtime login verified')
+      const ledger = await pool.query('SELECT count(*)::int AS n FROM public.friendship_garden_migrations')
+      assert.equal(ledger.rows[0].n, 4)
+
+      verificationStage = 'release runtime role through Neon pooler'
+      const appURL = new URL(databaseURL)
+      appURL.username = 'friendship_garden_app'
+      appURL.password = runtimePassword
+      const appPool = new Pool(authPoolConfig(appURL.href))
+      try {
+        const links: { email: string; url: string }[] = []
+        const base = 'https://release.example.invalid'
+        const runtimeAuth = createAuth({ baseURL: base, databaseURL: appURL.href, secret: 'test-release-secret-'.repeat(3),
+          googleClientId: 'fixture', googleClientSecret: 'fixture', resendApiKey: 'unused', emailFrom: 'sign-in@release.example.invalid',
+        }, appPool, async data => { links.push(data) })
+        const headers = { origin: base, 'content-type': 'application/json', 'x-auth-client-ip': '192.0.2.1' }
+        assert.equal((await runtimeAuth.handler(new Request(`${base}/api/auth/sign-in/magic-link`, {
+          method: 'POST', headers, body: JSON.stringify({ email: 'bootstrap@example.invalid', callbackURL: '/' }),
+        }))).status, 200)
+        assert.equal(links.length, 1)
+        const response = await runtimeAuth.handler(new Request(links[0]!.url))
+        assert.equal(response.status, 302)
+        const cookie = response.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
+        const session = await (await runtimeAuth.handler(new Request(`${base}/api/auth/get-session`, { headers: { ...headers, cookie } }))).json()
+        assert.equal(session?.user?.email, 'bootstrap@example.invalid')
+        await checkGardenPostgres(appPool, runtimeAuth, base, session.user.id, cookie, links, pool)
+        await assert.rejects(appPool.query('SELECT version FROM public.friendship_garden_migrations'), { code: '42501' })
+        await assert.rejects(appPool.query('CREATE TABLE public.test_ddl (id int)'), { code: '42501' })
+      } finally { await appPool.end() }
+      await pool.query("UPDATE public.friendship_garden_migrations SET checksum='fixture-mismatch' WHERE version='0004_email_suppressions'")
+      assert.equal(bootstrap('--dry-run').status, 1)
+      assert.equal(bootstrap('--apply').status, 1)
+      console.log('Release bootstrap passed: retained target refused, all four migrations applied, rollback and checksum guards, pooled limited-role sign-in and garden sync. No mail sent.')
+      return
+    }
     const sql = await readFile(new URL('../migrations/0001_auth.sql', import.meta.url), 'utf8')
     const options = { databaseURL, target: { purpose: 'development' as const, host, database: manifest.database }, sql }
     verificationStage = 'migration dry run'

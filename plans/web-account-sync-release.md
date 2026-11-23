@@ -27,13 +27,11 @@ production setup and release.** The feature preview is not production.
   development database or a branch of it. Record its identity and recovery
   procedure privately. Check the backup/restore policy and confirm that the
   app runtime role can only access the database it needs.
-- [ ] Have the owner review a production-only migration procedure with a
-  pinned target, an ordered migration ledger, checksums, and a transaction.
-  Rehearse it on a disposable database. Apply and verify `0001_auth.sql`,
+- [ ] Run the [owner database bootstrap](#owner-database-bootstrap) before
+  enabling the production account API. It applies `0001_auth.sql`,
   `0002_gardens.sql`, `0003_email_reminders.sql`, and
-  `0004_email_suppressions.sql` before enabling the production account API.
-  The existing `db:migrate:dev` command rejects production. Do not weaken its
-  guard or run migrations in Netlify build or request handlers.
+  `0004_email_suppressions.sql`. The existing development command still
+  refuses production. Migrations never run in Netlify builds or requests.
 - [ ] Have the owner configure production-only server values for
   `DATABASE_URL`, `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`,
   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, and
@@ -51,6 +49,71 @@ production setup and release.** The feature preview is not production.
 - [ ] Confirm the privacy notice describes what opt-in sync stores and how
   users can request export or deletion. Approve a support contact and a
   retention policy before accepting other users' data.
+
+## Owner database bootstrap
+
+This procedure is only for a fresh, separate Neon project. Do not run
+`neon init`, `neon deploy`, or `neon env pull`: the application already uses
+PostgreSQL, and these commands can copy production credentials into local
+files. Do not use the development project, the admin URL in Netlify, or a
+production URL in an `.env` file. Leave the release PR in draft.
+
+1. In Neon, select the **production project**, then its **production** branch
+   and `neondb`. In **Connect**, select the database owner and turn off
+   **Connection pooling**. Confirm the branch and direct hostname in Neon.
+   Save the owner connection string privately. The command below asks for the
+   hostname separately so it can compare it with the connection string.
+2. In the repository checkout containing this script, use Node 22.13+ on the
+   Node 22 line, or Node 24+, and run `npm --prefix apps/api ci`.
+3. In the same terminal, enter `bash`, then paste this function definition.
+   The hidden prompts do not save either value in shell history or an env file.
+
+   ```bash
+   bootstrap_garden() (
+     set +x
+     set -o pipefail
+     if [[ ${1:-} != --dry-run && ${1:-} != --apply ]]; then
+       echo 'Use --dry-run or --apply.' >&2
+       exit 1
+     fi
+     IFS= read -r -p 'Verified direct production hostname (no URL): ' host </dev/tty || exit 1
+     IFS= read -rs -p 'Direct database owner connection string (hidden): ' owner_url </dev/tty || exit 1
+     printf '\n' >/dev/tty
+     if [[ $1 == --apply ]]; then
+       IFS= read -rs -p 'Runtime role password (hidden): ' app_password </dev/tty || exit 1
+       printf '\n' >/dev/tty
+       printf '%s\n' "$owner_url" "$app_password"
+     else
+       printf '%s\n' "$owner_url"
+     fi | npm --prefix apps/api run db:bootstrap:release -- "$1" "$host" neondb
+   )
+   ```
+
+4. Run `bootstrap_garden --dry-run`. On a fresh target, expect four lines
+   ending in `pending (read-only)`. The command rejects the pinned development
+   host, the pooler, a non-owner connection, and unexpected public relations
+   or ledger checksums. If it stops, do not proceed. Send only the stage and
+   SQLSTATE.
+5. Run `openssl rand -hex 32` and save that output privately as the new
+   `friendship_garden_app` password. This is **not** `BETTER_AUTH_SECRET`.
+   Run `bootstrap_garden --apply` with the same verified endpoint and enter the
+   new runtime password when asked. Apply creates the four schema versions and
+   limited role in one transaction. Expect four `applied` lines and `Runtime
+   login verified`. A second dry run must report four `already applied`
+   lines. If apply stops at `runtime login after commit`, the schema may
+   already be in place. Do not drop it or generate a new password; report the
+   stage and use the same saved runtime password for a retry.
+6. In Neon **Connect**, choose `friendship_garden_app` and turn on
+   **Connection pooling**. Save the pooled URL with that role's password (the
+   password is hex and needs no escaping). If the dialog does not show the
+   SQL-created role or its password, keep the pooled hostname, port, database,
+   and query options shown for `neondb`, but replace the username and password
+   with those for `friendship_garden_app`. Enter only this URL in Netlify as
+   the Production value of `DATABASE_URL`. Leave preview keys unchanged.
+
+The runtime role can read and write the app tables, but not change the schema
+or read the migration ledger. A matching rerun verifies the ledger and will
+not rotate the role password. Keep the owner credentials outside the app.
 
 ## Smoke checks after the owner's release
 
@@ -94,3 +157,10 @@ failed and restored deploys privately and confirm the impact before retrying.
   browser layout and click behavior, not hosted or physical-device behavior.
 - The web build and all three type checks passed. Test suites passed: 173 web,
   156 API, and 247 mobile (576 total).
+- On 2026-11-23, `npm --prefix apps/api run test:postgres:release` passed on
+  disposable branch `br-nameless-water-ba3g6cew`, which was then deleted. It
+  checked the four migrations, rollback, checksum checks, and synthetic
+  sign-in and garden sync through the limited runtime role. The database
+  bootstrap was not run on production. The API's 156 tests, type check, and
+  web build also passed. Resolve the separate PostgreSQL auth acceptance
+  failure before public sign-in is enabled.

@@ -12,6 +12,7 @@ export async function checkGardenPostgres(
   firstUserId: string,
   firstCookie: string,
   capturedEmails: { email: string, url: string }[],
+  fixtureAdmin = pool,
 ): Promise<void> {
   const empty = (): SyncSnapshot => ({ version: 1, friends: [], interactions: [] })
   const friend = (id: string, name = id): SyncSnapshot => ({ ...empty(), friends: [{
@@ -91,7 +92,7 @@ export async function checkGardenPostgres(
   assert.deepEqual(await store.merge(firstUserId, friend('one')), current, 'Stale clients cannot resurrect tombstones.')
   assert.deepEqual(await store.merge(firstUserId, empty()), current, 'Omissions cannot delete records.')
 
-  await pool.query(`CREATE FUNCTION public.reject_garden_update() RETURNS trigger LANGUAGE plpgsql AS $$
+  await fixtureAdmin.query(`CREATE FUNCTION public.reject_garden_update() RETURNS trigger LANGUAGE plpgsql AS $$
     BEGIN RAISE EXCEPTION 'synthetic garden write failure'; END $$;
     CREATE TRIGGER reject_garden_update BEFORE UPDATE ON public.gardens
       FOR EACH ROW EXECUTE FUNCTION public.reject_garden_update()`)
@@ -99,7 +100,7 @@ export async function checkGardenPostgres(
     await assert.rejects(store.merge(firstUserId, friend('will-rollback')))
     assert.deepEqual(await store.read(firstUserId), current, 'Failed writes must roll back atomically.')
   } finally {
-    await pool.query('DROP TRIGGER reject_garden_update ON public.gardens; DROP FUNCTION public.reject_garden_update()')
+    await fixtureAdmin.query('DROP TRIGGER reject_garden_update ON public.gardens; DROP FUNCTION public.reject_garden_update()')
   }
   await assert.rejects(store.merge('nonexistent-user', empty()), { code: '23503' })
   await assert.rejects(pool.query('UPDATE public.gardens SET snapshot = $2::jsonb WHERE user_id = $1', [
