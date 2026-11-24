@@ -7,6 +7,7 @@ import { Pool } from 'pg'
 import { getMigrations } from 'better-auth/db/migration'
 import { createAuth } from '../src/auth/auth.ts'
 import { authPoolConfig } from '../src/authDatabase.ts'
+import { createAuthHandler } from '../src/authHandler.ts'
 import { applyAuthMigration } from '../src/authMigration.ts'
 import { checkGardenPostgres } from './garden-postgres-checks.mts'
 
@@ -197,6 +198,10 @@ async function main() {
       googleClientId: 'test-google-client', googleClientSecret: 'test-google-secret',
       resendApiKey: 'test-not-used', emailFrom: 'sign-in@garden.example',
     }, pool, async (email) => { emails.push(email) })
+    // Match Netlify's trusted client address. Direct calls without an address
+    // share a fallback rate-limit bucket across otherwise independent cases.
+    const handleAuth = createAuthHandler(() => ({ baseURL, handle: auth.handler }))
+    const verifyLink = (url: string, clientIP = '192.0.2.1') => handleAuth(new Request(url), clientIP)
     const drift = await getMigrations(auth.options)
     assert.equal(drift.toBeCreated.length, 0)
     assert.equal(drift.toBeAdded.length, 0)
@@ -218,7 +223,7 @@ async function main() {
     const stored = await pool.query('SELECT identifier, value FROM verification')
     assert(!JSON.stringify(stored.rows).includes(rawToken), 'Raw magic-link token must not be stored.')
     verificationStage = 'verify magic link and session'
-    const verified = await auth.handler(new Request(link))
+    const verified = await verifyLink(link)
     assert.equal(verified.status, 302)
     const cookies = verified.headers.getSetCookie()
     assert(cookies.some((cookie) => cookie.includes('HttpOnly') && cookie.includes('Secure')))
@@ -226,7 +231,7 @@ async function main() {
     const session = await auth.handler(request('/get-session', { headers: { cookie } }))
     const sessionData = (await session.json()) as { user: { id: string, email: string } }
     assert.equal(sessionData.user.email, email)
-    const replay = await auth.handler(new Request(link))
+    const replay = await verifyLink(link)
     assert(replay.headers.get('location')?.includes('INVALID_TOKEN'))
     verificationStage = 'account-isolated garden storage and HTTP'
     await checkGardenPostgres(pool, auth, baseURL, sessionData.user.id, cookie, emails)
@@ -237,7 +242,7 @@ async function main() {
     const expiredLink = emails.at(-1)?.url
     assert(expiredLink)
     await pool.query('UPDATE verification SET "expiresAt" = now() - interval \'1 minute\'')
-    assert((await auth.handler(new Request(expiredLink))).headers.get('location')?.includes('INVALID_TOKEN'))
+    assert((await verifyLink(expiredLink)).headers.get('location')?.includes('INVALID_TOKEN'))
     verificationStage = 'sequential database rate limit'
     const limitedSignIn = () => auth.handler(request('/sign-in/magic-link', {
       method: 'POST', headers: { 'x-auth-client-ip': '198.51.100.41' },
@@ -261,7 +266,9 @@ async function main() {
     }))).status, 200)
     const concurrentLink = emails.at(-1)?.url
     assert(concurrentLink)
-    const competing = await Promise.all([auth.handler(new Request(concurrentLink)), auth.handler(new Request(concurrentLink))])
+    const competing = await Promise.all([verifyLink(concurrentLink, '198.51.100.43'), verifyLink(concurrentLink, '198.51.100.43')])
+    verificationStage = `concurrent magic-link consume (HTTP ${competing.map(response => response.status).join(', ')})`
+    assert(competing.every(response => response.status === 302), 'Both verifications must reach the link handler.')
     assert.equal(competing.filter(response => response.status === 302 && response.headers.get('set-cookie')?.includes('session_token=')).length, 1, 'Only one concurrent verification may issue a session.')
     assert.equal(competing.filter(response => response.headers.get('location')?.includes('INVALID_TOKEN')).length, 1)
     const sessions = await pool.query('SELECT count(*)::int AS count FROM session s JOIN "user" u ON u.id=s."userId" WHERE u.email=$1', ['concurrent-consume@example.invalid'])

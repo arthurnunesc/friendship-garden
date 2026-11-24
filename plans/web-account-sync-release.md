@@ -162,5 +162,11 @@ failed and restored deploys privately and confirm the impact before retrying.
   checked the four migrations, rollback, checksum checks, and synthetic
   sign-in and garden sync through the limited runtime role. The database
   bootstrap was not run on production. The API's 156 tests, type check, and
-  web build also passed. Resolve the separate PostgreSQL auth acceptance
-  failure before public sign-in is enabled.
+  web build also passed.
+- On 2026-11-24, `npm --prefix apps/api run test:postgres` passed on disposable
+  branch `br-orange-mud-ba8cuzth`, which was then deleted. The test now uses the
+  same trusted client address handling as Netlify, so unrelated cases do not
+  share a rate-limit bucket. It confirmed that one email link creates only
+  one session and that the rate limit still works. This was a test-only change.
+  No mail was sent. Real Google consent and personal-inbox sign-in still need
+  owner verification.
