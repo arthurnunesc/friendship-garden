@@ -11,15 +11,160 @@ This document is an implementation handoff for future planning. It records decis
 ## Current Roadmap
 
 1. **Basic web app**: done. The current Vite + React app remains the stable local-first fallback.
-2. **Native mobile migration**: in progress/planned. Move toward an Expo + React Native app for better day-to-day use and native local notifications.
+2. **Native mobile migration**: as of 2026-10-16, Phases 1–6 are implemented and Phase 7 is complete within the agreed simulator/emulator scope. See `plans/native-mobile-migration.md` for current status and `plans/noqa-mobile-testing.md` for evidence and limits. Physical testing is excluded, not claimed as passed; this is not production-release validation. Shared-core extraction remains optional.
 3. **Account-backed sync foundation**: add Better Auth, Netlify Functions, and Neon so a single user can sync their own garden across devices.
 4. **Backend notification channels**: extend reminders beyond native local notifications through a pluggable backend notification layer, with email as the first implemented channel.
 5. **Sync refinement**: improve conflict handling, first-sign-in import flows, and cross-device UX after the foundation exists.
 
+### Active implementation — 2026-11-03
+
+The first account-sync foundation chunk is implemented: an isolated merge
+contract in `apps/api`, committed as `4be7258`. Authentication bootstrap now
+adds Google + Resend magic links and a fail-closed Netlify handler, with
+**140 API tests** passing. PostgreSQL migrations now pass real isolated tests
+and are applied to the separate development project. Branch-only credentials
+are configured; hosted passwordless sign-in and real Resend test-inbox delivery
+pass. Account-scoped storage and transactional garden merges now also pass
+real PostgreSQL checks, including concurrent writes and account isolation.
+Web sign-in, explicit import consent, account-isolated offline queues, and
+sync controls now pass **159 web tests** and synthetic browser checks. Native
+provider authentication, correlated secure callbacks, account controls, and the
+async persistence/queue/transport integration pass **232 mobile tests** and both
+Release builds. Sign-in still requires explicit sync consent; local gardens and
+reminders remain independent. Completed Google consent, personal inbox delivery,
+and physical-phone checks remain deferred to one final user-run pass. See
+`plans/account-sync-foundation.md` for chunk status, invariants, and remaining
+setup questions. Native Phase 7 is committed in `89462d9`
+(fix/tests) and `e3f497b` (roadmap/evidence). Account sync is available only in
+explicitly configured builds and remains opt-in.
+
+Hosted native-protocol consent, offline merging, tombstones, and revocation now
+pass with real backend/provider test-sink delivery and injected client stores.
+A focus/foreground consent-cancellation race is fixed in both clients. The
+post-fix hosted browser email, consent, import, and sign-out round trip passes.
+Focused review fixes also protect consent cleanup and in-progress sign-out;
+real hosted browser checks pass with focus events during both operations.
+Android and iOS simulator Google launch/cancellation pass without credentials;
+completed provider consent, personal inbox/Mail-app delivery, and phone acceptance
+stay open.
+
+Actual Android/iOS simulator email browser-to-app return, credential recovery
+after process restart, same-account garden retrieval, and sign-out restoration
+now pass against a disposable hosted database. This exposed and fixed the native
+fetch polyfill's cache-busting query, which the strict garden endpoint rejected.
+Personal inbox/Mail-app delivery and physical-phone behavior remain unverified.
+The API security update pins Better Auth/Expo **1.7.14** together and Vitest
+**4.1.12**, resolving the five findings; the API audit now reports **zero**.
+The mobile SDK is unchanged. Legacy sessions survive the update, but pending
+magic links and OAuth attempts must restart after deployment. Real PostgreSQL
+schema/concurrency and disposable hosted email/native-callback/sync checks pass.
+The preview is restored to its retained database and production is unchanged.
+See the foundation plan for rollout evidence and user-test limits.
+
+The approved feature-branch preview is now live at
+<https://feature-mobile-app-creation--friendship-garden.netlify.app>.
+Resend domain `auth.friendship-garden.arthurnun.es` and its DNS records are
+verified. Server configuration and development database setup are present;
+hosted passwordless session creation, replay rejection, and sign-out pass on
+an owned disposable test database, since deleted. The preview is restored to
+its retained development database. The user approved masked
+branch-only secrets with build access to stay on Netlify Free. Production
+remains on its previous `main` deployment.
+
+### Next phase — 2026-11-20
+
+Use automated tests, the iOS simulator, and the Android emulator for the
+account-sync acceptance pass. The owner does not want a phone test handoff.
+Real Google consent, personal inbox delivery, and physical-phone behavior
+remain unverified. They do not block local development of backend reminders.
+
+Start the [email reminder slice](backend-email-reminders.md) with a fake
+delivery channel. Do not activate scheduled jobs or send real reminders as
+part of this slice.
+
+### Roadmap closeout — 2026-11-21
+
+- **Account sync:** implemented and verified within the preview scope,
+  including the merged backup and conflict recovery checks below. Physical
+  phones, personal inbox delivery, and completed Google consent remain
+  unverified. They are not part of this acceptance pass.
+- **Email reminders:** settings, delivery deduplication, and suppression are
+  implemented. The Netlify preview job passed a Resend bounce test. A separate
+  disposable run of the job and sender confirmed delivery to the Resend test
+  inbox. The retained development database now has migrations `0003` and
+  `0004`, and the feature preview has the reminder and sync updates. Delivery
+  remains off. Real-address delivery and production rollout are separate
+  decisions, not part of the preview implementation.
+- **Sync refinement (`a3db174`):** first sign-in offers an explicit choice to
+  keep the local garden, merge it, or use the account garden. The status shows
+  edits queued on the device, including after an offline restart. A version
+  collision keeps local data and offers an explicit retry with this device's
+  edits. Retry changes only IDs of records with matching versions and different
+  payloads. It keeps timestamps, so newer versions and tombstone rules still
+  apply. Web and native tests cover consent, queues, and recovery. The 164 web,
+  156 API, and 240 mobile tests and all three type checks passed. Release
+  builds passed local-garden and reminder scheduling smoke tests on the iOS
+  simulator and Android emulator. Mock signed-in runs passed the keep-local
+  choice and email reminder opt-in and opt-out on both platforms.
+
+### Backup and consent cleanup
+
+Web import now reviews a backup before replacing the open garden. Both
+clients validate identities and normalize legacy ISO timestamps before
+import, and explain that an account replacement can sync deletions. A backup
+preview for one garden cannot apply to a different garden. First-time sync
+uses the local snapshot chosen at consent, not edits made while the account
+read is pending. A paused saved account copy offers re-enablement and explicit
+conflict recovery without silently uploading data.
+
+#### Post-merge preview verification — 2026-11-21
+
+[PR #20](https://github.com/arthurnunesc/friendship-garden/pull/20) passed on
+merge commit `717d7cbe44d90da04f28f43fcfa25ef3aa59b28b`. All 576 automated
+tests passed (173 web, 156 API, 247 mobile), and all three type checks passed.
+
+The hosted desktop browser used a synthetic account on a disposable database.
+Re-enabling sync showed the conflict and left the server row unchanged. The
+explicit retry synced the device edit. Reviewing and canceling a backup left
+the recovered row unchanged. Confirming the backup synced the replacement and
+deletion records for omitted friends and their conversation history. Signing
+out restored the untouched guest garden. The successful run used keyboard
+activation for backup cancellation and confirmation at a desktop viewport;
+pointer activation at the smaller automation viewport was not verified.
+
+The initial branch deploy was `6b01b23176c780959ff65322`. Each disposable
+deploy and database below was deleted after its restore deploy passed smoke
+checks. Earlier runs stopped at browser automation or test-script errors.
+
+| Run | Disposable deploy (deleted) | Database branch (deleted) | Restore deploy |
+| --- | --- | --- | --- |
+| Incomplete | `6b01b3ee9e05a1e042df7d60` | `br-muddy-credit-basu0i2z` | `6b01b454bbb28f7994c3a2d4` |
+| Incomplete | `6b01b582f66a64be2dbd4ddc` | `br-bold-tree-ba1j9tyr` | `6b01b5e16160f9feb1927d6d` |
+| Incomplete | `6b01b6b95326ddbfbf92de19` | `br-billowing-art-ba79waov` | `6b01b70cbc567b603643360f` |
+| Incomplete | `6b01b7982798d8db01c3a64f` | `br-lingering-cake-bar84fgp` | `6b01b7dc278877b02579484c` |
+| Incomplete | `6b01f381adb7317407227e52` | `br-damp-darkness-bavd1k18` | `6b01f3eda42ef0fabd1bb287` |
+| Incomplete | `6b01f4799f9ccc6159f37f88` | `br-noisy-wind-bau9eu7i` | `6b01f4d9bff074ee68aa3b1b` |
+| Incomplete | `6b01f559a5a45ccca0a9dbe8` | `br-cool-pond-baoytsko` | `6b01f59f8e54b0c01b02a21a` |
+| Incomplete | `6b01f626f5a2ba0b3ac3a168` | `br-mute-glade-bark2sqd` | `6b01f66a93c8993694794b38` |
+| Passed | `6b01f6dd14f2a294cb0a9fba` | `br-holy-mountain-ba5xavze` | `6b01f72ebb5ceaab5222802f` |
+
+The final restore uses the same merge commit and the retained development
+database. The home page returned 200, the session endpoint returned 200 with
+no session (including with the disposable cookie), the anonymous garden
+endpoint returned 401, and the disabled reminder webhook returned 404. Only
+the retained database branch remains. No email was sent; production deploy
+`6a1df450234f820008eea876` was unchanged. This completes the agreed preview
+checks, not production release validation or delivery to real addresses.
+
+The [draft web release checklist](web-account-sync-release.md) covers the
+narrow-screen pointer follow-up, owner prerequisites, smoke checks, and
+rollback. It does not authorize production changes.
+
 ## Durable Decisions
 
+- **Verification timing** (2026-10-17): continue implementation with agent-run automated checks; defer user-run Google/inbox/device verification until the integrated flow is ready. The user will then test Android and iPhone. Track pending manual checks explicitly and fix failures before closing that pass; do not block independent implementation on those checks now.
 - **Auth provider**: Better Auth, not Clerk.
-- **Initial auth methods**: Google OAuth, Apple OAuth, and passwordless email fallback.
+- **Auth rollout**: Google OAuth and passwordless email through Resend first. Apple OAuth remains planned but was explicitly deferred on 2026-10-16.
 - **Backend runtime**: Netlify Functions.
 - **Database**: Neon Postgres.
 - **Sync scope**: single-user account sync only.
@@ -78,11 +223,18 @@ Encrypted sync may be revisited later, but it should not block the first useful 
 - Last-write-wins is intentionally simple. The app is scoped to a small personal garden, not collaborative document editing.
 - Server-side structured data is a deliberate privacy compromise made for practical sync and notification support.
 
-## Open Questions For The Next Planning Session
+## Remaining release checks and deferred decisions
 
-- Which passwordless email provider should Better Auth use?
-- Should Apple OAuth be implemented immediately, or deferred until native distribution setup is in place?
-- What user-facing copy explains the privacy change when enabling sync?
-- What reminder preferences belong locally only versus synced across devices?
-- What is the minimum useful backend notification channel after email?
-- Should signed-in users still be able to export/import JSON manually?
+- Resend's domain/key, branch configuration, and development schema are set up. Hosted delivery to the provider test inbox and passwordless sessions pass; completed Google consent and personal inbox delivery remain unverified.
+- Apple OAuth is deferred from the first auth chunk; its later provider setup and HTTPS return URL remain to be arranged.
+- First sign-in explains that sync stores friendship details on the server.
+  The user can keep using the local garden without uploading it.
+- Local notification preferences stay on the device. Email reminders use a
+  separate account preference and do not turn on local notifications.
+- Web and native backups apply to the open garden. Import validates the backup
+  and requires confirmation before replacement. On an account garden,
+  replacement can sync changes and deletion records to other devices. The
+  separate local garden is not affected by that account replacement.
+- Other notification channels, Apple sign-in, shared-core extraction, and
+  social features stay deferred or optional. Real recipients and production
+  rollout are outside the preview scope.

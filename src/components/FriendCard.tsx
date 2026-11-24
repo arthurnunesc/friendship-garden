@@ -12,8 +12,8 @@ import { TYPE_LABELS } from './interactionDisplay'
 
 interface FriendCardProps {
   friend: Friend
-  onWater: (friendId: string, input?: LogInteractionInput) => void
-  onEdit: (friendId: string, input: EditFriendInput) => void
+  onWater: (friendId: string, input?: LogInteractionInput) => boolean | void
+  onEdit: (friendId: string, input: EditFriendInput) => boolean | void
   onRemove: (friendId: string) => void
   onRemoveInteraction: (friendId: string, interactionId: string) => void
   wateringState: WateringState
@@ -69,7 +69,7 @@ function FriendCard({
 
   const handleWaterClick = () => {
     if (showWaterPopup) {
-      onWater(friend.id)
+      if (onWater(friend.id) === false) return
       onToggleWater()
       showWateredToast()
       return
@@ -84,7 +84,7 @@ function FriendCard({
     const input: LogInteractionInput = {}
     if (type) input.type = type
     if (note.trim()) input.note = note.trim()
-    onWater(friend.id, input)
+    if (onWater(friend.id, input) === false) return
     onToggleWater()
     setType('')
     setNote('')
@@ -117,11 +117,12 @@ function FriendCard({
   const handleSaveEdit = () => {
     const trimmed = editName.trim()
     if (trimmed.length === 0) return
-    onEdit(friend.id, {
+    const saved = onEdit(friend.id, {
       name: trimmed,
       birthday: editBirthday || undefined,
       cadenceDays: Number(editCadence) || undefined,
     })
+    if (saved === false) return
     setEditing(false)
   }
 

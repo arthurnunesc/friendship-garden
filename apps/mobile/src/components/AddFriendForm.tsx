@@ -1,0 +1,264 @@
+import { useRef, useState } from "react";
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from "react-native";
+import { DEFAULT_CADENCE_DAYS, isCalendarBirthday } from "../garden/Friend";
+
+interface AddFriendFormProps {
+  onSubmit: (data: { name: string; birthday?: string; cadenceDays?: number }) => Promise<boolean> | boolean | void;
+  onCancel: () => void;
+}
+
+const CADENCE_OPTIONS: { label: string; days: number }[] = [
+  { label: "every week", days: 7 },
+  { label: "every 2 weeks", days: 14 },
+  { label: "every 3 weeks", days: 21 },
+  { label: "every month", days: 30 },
+  { label: "every 2 months", days: 60 },
+];
+
+export function AddFriendForm({ onSubmit, onCancel }: AddFriendFormProps) {
+  const [name, setName] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [cadenceDays, setCadenceDays] = useState(DEFAULT_CADENCE_DAYS);
+  const [showDetails, setShowDetails] = useState(false);
+  const [cadenceIndex, setCadenceIndex] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const submitting = useRef(false);
+
+  const trimmed = name.trim();
+  const invalidBirthday = birthday.trim() !== "" && !isCalendarBirthday(birthday.trim());
+  const isValid = trimmed.length > 0 && !invalidBirthday;
+
+  const handleSubmit = async () => {
+    if (!isValid || submitting.current) return;
+    submitting.current = true;
+    setSaving(true);
+    setSaveError(false);
+    try {
+      const result = await onSubmit({
+        name: trimmed,
+        birthday: birthday.trim() || undefined,
+        cadenceDays,
+      });
+      if (result === false) setSaveError(true);
+    } catch {
+      setSaveError(true);
+    } finally {
+      submitting.current = false;
+      setSaving(false);
+    }
+  };
+
+  const handleCadenceChange = (index: number) => {
+    setCadenceIndex(index);
+    setCadenceDays(CADENCE_OPTIONS[index].days);
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.wrapper}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.heading}>add someone to your garden</Text>
+
+        <Text style={styles.label}>name</Text>
+        <TextInput
+          style={styles.input}
+          value={name}
+          editable={!saving}
+          onChangeText={setName}
+          placeholder="friend's name"
+          placeholderTextColor="#aaa"
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={handleSubmit}
+        />
+
+        <TouchableOpacity
+          style={styles.detailsToggle}
+          onPress={() => setShowDetails(!showDetails)}
+          disabled={saving}
+        >
+          <Text style={styles.detailsToggleText}>
+            {showDetails ? "▾ less options" : "▸ more options"}
+          </Text>
+        </TouchableOpacity>
+
+        {showDetails && (
+          <View style={styles.detailsSection}>
+            <Text style={styles.label}>birthday</Text>
+            <TextInput
+              style={styles.input}
+              value={birthday}
+              editable={!saving}
+              onChangeText={setBirthday}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#aaa"
+              keyboardType="numbers-and-punctuation"
+              returnKeyType="done"
+            />
+
+            <Text style={styles.label}>contact cadence</Text>
+            <View style={styles.cadenceRow}>
+              {CADENCE_OPTIONS.map((option, index) => (
+                <TouchableOpacity
+                  key={option.days}
+                  style={[
+                    styles.cadenceChip,
+                    index === cadenceIndex && styles.cadenceChipActive,
+                  ]}
+                  onPress={() => handleCadenceChange(index)}
+                  disabled={saving}
+                >
+                  <Text
+                    style={[
+                      styles.cadenceChipText,
+                      index === cadenceIndex && styles.cadenceChipTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.submitButton, (!isValid || saving) && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={!isValid || saving}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.submitText}>{saving ? "saving…" : "add to garden"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelButton} disabled={saving}
+            onPress={() => { if (!submitting.current) onCancel(); }}>
+            <Text style={styles.cancelText}>cancel</Text>
+          </TouchableOpacity>
+        </View>
+        {invalidBirthday && <Text accessibilityRole="alert" style={styles.errorText}>enter a valid birthday (YYYY-MM-DD), or leave it blank.</Text>}
+        {saveError && <Text accessibilityRole="alert" style={styles.errorText}>could not save. please try again.</Text>}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  container: {
+    padding: 24,
+    paddingBottom: 48,
+  },
+  heading: {
+    fontSize: 22,
+    fontWeight: "600",
+    color: "#1a1a1a",
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#888",
+    marginBottom: 6,
+    marginTop: 16,
+  },
+  input: {
+    fontSize: 17,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    color: "#1a1a1a",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  detailsToggle: {
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  detailsToggleText: {
+    fontSize: 15,
+    color: "#4a7c59",
+    fontWeight: "500",
+  },
+  detailsSection: {
+    marginBottom: 8,
+  },
+  cadenceRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  cadenceChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  cadenceChipActive: {
+    backgroundColor: "#e8f4ea",
+    borderColor: "#4a7c59",
+  },
+  cadenceChipText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  cadenceChipTextActive: {
+    color: "#4a7c59",
+    fontWeight: "500",
+  },
+  actions: {
+    marginTop: 32,
+    gap: 12,
+  },
+  submitButton: {
+    paddingVertical: 16,
+    borderRadius: 14,
+    backgroundColor: "#4a7c59",
+    alignItems: "center",
+  },
+  submitButtonDisabled: {
+    backgroundColor: "#a0c4a0",
+  },
+  submitText: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  cancelButton: {
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  cancelText: {
+    fontSize: 15,
+    color: "#999",
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#d9744a",
+    marginTop: 12,
+  },
+});

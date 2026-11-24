@@ -163,6 +163,18 @@ body {
   background: oklch(0.55 0.12 145 / 0.06);
 }
 
+.backup-preview {
+  flex-shrink: 0;
+  width: min(100%, 22rem);
+  max-height: 30dvh;
+  overflow-y: auto;
+  margin-top: 0.75rem;
+  text-align: start;
+}
+
+.garden--populated:has(.backup-preview) { overflow-y: auto; }
+.backup-preview .tool-button { min-height: 2.75rem; }
+
 .feedback {
   margin-top: 0.5rem;
   font-size: 0.75rem;

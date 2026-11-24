@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createFriend, logInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, editFriend, exportGarden, validateAndImportGarden, DEFAULT_CADENCE_DAYS } from './Friend'
+import { createFriend, logInteraction, deleteInteraction, deriveWateringState, sortFriendsByUrgency, hasUpcomingBirthday, editFriend, exportGarden, validateAndImportGarden, DEFAULT_CADENCE_DAYS } from './Friend'
 import type { Friend } from './Friend'
 
 describe('createFriend', () => {
@@ -406,6 +406,31 @@ describe('exportGarden', () => {
 })
 
 describe('validateAndImportGarden', () => {
+  it('keeps the true latest contact after deleting a different restored interaction', () => {
+    const latest = '+020000-01-01T00:00:00.000Z'
+    const friend = { ...createFriend({ name: 'Test' }), interactions: [
+      { id: 'invalid', date: '' }, { id: 'old', date: '2020-01-01T00:00:00.000Z' }, { id: 'latest', date: latest },
+      { id: 'remove', date: '2021-01-01T00:00:00.000Z' },
+    ] }
+    expect(deleteInteraction(friend, 'remove').lastInteractionAt).toBe(latest)
+  })
+  it('round-trips canonical expanded years and preserves legacy birthday text locally', () => {
+    const friend = { ...createFriend({ name: 'Legacy', birthday: 'Feb 5' }), createdAt: '0000-01-01T00:00:00+01:00' }
+    const result = validateAndImportGarden(exportGarden([friend]))
+    expect(result).toMatchObject({ success: true, friends: [{ createdAt: '-000001-12-31T23:00:00.000Z', birthday: 'Feb 5' }] })
+    if (!result.success) throw new Error('Expected successful import')
+    expect(validateAndImportGarden(exportGarden(result.friends))).toEqual(result)
+    expect(validateAndImportGarden(exportGarden([friend]), true)).toMatchObject({ success: false, error: expect.stringContaining('birthday') })
+  })
+  it('normalizes legacy ISO dates and rejects duplicates or impossible dates', () => {
+    const friend = { ...createFriend({ name: 'Legacy' }), createdAt: '2025-01-01',
+      interactions: [{ id: 'chat', date: '2025-02-01T12:00:00+02:00' }] }
+    expect(validateAndImportGarden({ version: 1, friends: [friend] })).toMatchObject({ success: true, friends: [{
+      createdAt: '2025-01-01T00:00:00.000Z', interactions: [{ date: '2025-02-01T10:00:00.000Z' }],
+    }] })
+    expect(validateAndImportGarden({ version: 1, friends: [friend, friend] }).success).toBe(false)
+    expect(validateAndImportGarden({ version: 1, friends: [{ ...friend, createdAt: '2025-02-30' }] }).success).toBe(false)
+  })
   it('returns success for a valid payload', () => {
     const payload = exportGarden([
       {

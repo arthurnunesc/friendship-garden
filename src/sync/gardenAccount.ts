@@ -1,0 +1,284 @@
+import { materializeGarden, mergeGardenSnapshots, recoverLocalSyncCollisions, SyncCollisionError, type SyncSnapshot } from '../../packages/garden-sync/src/snapshot'
+import { recordGardenChanges } from '../../packages/garden-sync/src/changes'
+import type { GardenStorage } from '../friends/storage'
+import { AccountRequestError, type AccountClient, type AccountUser } from './accountClient'
+
+const KEY = 'friendship-garden:v1:account-gardens'
+const empty = (): SyncSnapshot => ({ version: 1, friends: [], interactions: [] })
+interface SavedAccount {
+  user: AccountUser
+  enabled: boolean
+  pending: boolean
+  snapshot: SyncSnapshot
+}
+interface SavedState { version: 1, accounts: SavedAccount[] }
+type SyncChoice = 'import' | 'account'
+export interface GardenAccountState {
+  user: AccountUser | null
+  viewAccount: AccountUser | null
+  storage: GardenStorage
+  phase: 'local' | 'checking' | 'ready' | 'syncing' | 'offline' | 'conflict'
+  pending: boolean
+  syncEnabled: boolean
+  error: string | null
+}
+
+/** Guest data stays in its original store; one atomic envelope owns all account metadata. */
+export function createGardenAccount(options: {
+  guest: GardenStorage
+  persistence: Pick<Storage, 'getItem' | 'setItem'>
+  client: AccountClient
+  clock?: () => { updatedAt: string, changeId: string }
+}) {
+  const { guest, persistence, client } = options
+  const clock = options.clock ?? (() => ({ updatedAt: new Date().toISOString(), changeId: crypto.randomUUID() }))
+  let saved: SavedState = { version: 1, accounts: [] }
+  let damaged = false
+  try {
+    const raw = persistence.getItem(KEY)
+    if (raw) {
+      const value = JSON.parse(raw) as SavedState
+      if (value.version !== 1 || !Array.isArray(value.accounts)) throw new Error()
+      const ids = new Set<string>()
+      saved = { version: 1, accounts: value.accounts.map((entry) => {
+        if (!entry.user || typeof entry.user.id !== 'string' || !entry.user.id.trim()
+          || typeof entry.user.email !== 'string' || typeof entry.enabled !== 'boolean'
+          || typeof entry.pending !== 'boolean' || ids.has(entry.user.id)) throw new Error()
+        ids.add(entry.user.id)
+        return { ...entry, snapshot: mergeGardenSnapshots(empty(), entry.snapshot) }
+      }) }
+    }
+  } catch { damaged = true }
+
+  const listeners = new Set<() => void>()
+  let epoch = 0
+  let viewVersion = 0
+  let viewId: string | null = null
+  let friends = guest.loadFriends()
+  let flight: { epoch: number, promise: Promise<void> } | null = null
+  let consent: Promise<void> | null = null
+  let consentConflict: { userId: string; imported: SyncSnapshot | null } | null = null
+  let signingOut = false
+  let paused = false
+  let state: GardenAccountState
+  const find = (id: string) => saved.accounts.find((entry) => entry.user.id === id)
+  const publish = (patch: Partial<GardenAccountState> = {}) => {
+    const viewed = viewId === null ? undefined : find(viewId)
+    state = { ...state, ...patch, pending: viewed?.pending === true, syncEnabled: !paused && viewed?.enabled === true }
+    listeners.forEach((listener) => listener())
+  }
+  function persist(entry: SavedAccount) {
+    if (damaged) throw new Error('Saved account data could not be read. It has not been replaced.')
+    const next: SavedState = { version: 1, accounts: [...saved.accounts.filter((item) => item.user.id !== entry.user.id), entry] }
+    persistence.setItem(KEY, JSON.stringify(next))
+    saved = next
+  }
+  function binding(): GardenStorage {
+    const version = viewVersion
+    const owner = viewId
+    const initial = friends
+    return {
+      loadFriends: () => version === viewVersion ? friends : initial,
+      subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+      saveFriends(next) {
+        if (version !== viewVersion || owner !== viewId) throw new Error('Your garden changed. Try again.')
+        if (owner === null) {
+          guest.saveFriends(next)
+        } else {
+          const current = find(owner)
+          if (!current) throw new Error('Saved account garden is unavailable.')
+          const snapshot = recordGardenChanges(current.snapshot, next, clock)
+          persist({ ...current, snapshot, pending: true })
+        }
+        friends = next
+        publish()
+        if (owner !== null && state.user?.id === owner) void sync()
+      },
+    }
+  }
+  state = { user: null, viewAccount: null, storage: binding(), phase: 'local', pending: false, syncEnabled: false,
+    error: damaged ? 'Saved account data could not be read. Your local garden is still available.' : null }
+
+  function show(id: string | null) {
+    if (id !== viewId) {
+      viewId = id
+      viewVersion += 1
+      friends = id === null ? guest.loadFriends() : materializeGarden(find(id)?.snapshot ?? empty())
+      publish({ storage: binding(), viewAccount: id === null ? null : find(id)?.user ?? null })
+    } else if (id !== null) {
+      friends = materializeGarden(find(id)?.snapshot ?? empty())
+      publish()
+    }
+  }
+  const message = (error: unknown) => error instanceof AccountRequestError ? error.message
+    : 'Could not save or sync your account garden. Your existing data has not been replaced. Try again.'
+
+  async function sync(recover = false): Promise<void> {
+    const user = state.user
+    const entry = user && find(user.id)
+    if (paused || consentConflict || !user || viewId !== user.id || !entry?.enabled || (recover && state.phase !== 'conflict')) return
+    const ticket = epoch
+    if (flight?.epoch === ticket) return flight.promise
+    const task = (async () => {
+      publish({ phase: 'syncing', error: null })
+      try {
+        if (recover) {
+          const remote = await client.read(user.id)
+          if (ticket !== epoch || viewId !== user.id) return
+          const current = find(user.id)
+          if (!current?.enabled) return
+          const snapshot = recoverLocalSyncCollisions(current.snapshot, remote, () => clock().changeId)
+          persist({ ...current, snapshot, pending: true })
+          show(user.id)
+        }
+        let again: boolean
+        do {
+          const current = find(user.id)
+          if (!current || ticket !== epoch || viewId !== user.id) return
+          const sent = current.snapshot
+          const remote = await client.merge(user.id, sent)
+          if (ticket !== epoch || viewId !== user.id) return
+          const latest = find(user.id)
+          if (!latest) return
+          again = latest.snapshot !== sent
+          persist({ ...latest, snapshot: mergeGardenSnapshots(latest.snapshot, remote), pending: again })
+          show(user.id)
+        } while (again)
+        publish({ phase: 'ready', error: null })
+      } catch (error) {
+        if (ticket !== epoch) return
+        if (error instanceof AccountRequestError && (error.status === 401 || error.code === 'ACCOUNT_CHANGED')) {
+          epoch += 1
+          show(null)
+          publish({ user: null, phase: 'local', error: message(error) })
+        } else if (error instanceof SyncCollisionError || (error instanceof AccountRequestError && error.code === 'SYNC_COLLISION')) {
+          publish({ phase: 'conflict', error: 'Two edits have the same sync version. Your changes are still on this device.' })
+        } else {
+          publish({ phase: 'offline', error: message(error) })
+        }
+      }
+    })()
+    flight = { epoch: ticket, promise: task }
+    await task
+    if (flight?.promise === task) flight = null
+  }
+
+  return {
+    getSnapshot: () => state,
+    subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } },
+    async refresh() {
+      if (signingOut) return
+      if (consent) {
+        const waiting = epoch
+        await consent
+        if (waiting !== epoch) return
+      }
+      const ticket = ++epoch
+      publish({ phase: 'checking' })
+      try {
+        const user = await client.session()
+        if (ticket !== epoch) return
+        if (viewId !== user?.id) show(null)
+        if (consentConflict && consentConflict.userId === user?.id) {
+          publish({ user, phase: 'conflict', error: 'A saved account edit has the same sync version as another edit. Nothing was uploaded.' })
+          return
+        }
+        consentConflict = null
+        publish({ user, error: damaged ? state.error : null, phase: 'local' })
+        if (user && find(user.id)?.enabled && !damaged && !paused) {
+          show(user.id)
+          await sync()
+        }
+      } catch (error) {
+        if (ticket === epoch) publish({ phase: consentConflict ? 'conflict' : 'offline', error: message(error) })
+      }
+    },
+    enable: (choice: SyncChoice) => enable(choice),
+    async signOut() {
+      if (signingOut) return
+      signingOut = true
+      consentConflict = null
+      ++epoch
+      paused = true
+      const user = state.user
+      let localFailure = false
+      try {
+        if (user) {
+          const entry = find(user.id)
+          if (entry) {
+            try { persist({ ...entry, enabled: false }) } catch { localFailure = true }
+          }
+        }
+        show(null)
+        publish({ phase: 'checking', error: null })
+        await client.signOut()
+        publish({ user: null, phase: 'local', error: localFailure
+          ? 'Signed out. Saved account settings could not be updated on this device.' : null })
+      } catch (error) {
+        show(null)
+        publish({ phase: 'offline', error: message(error) })
+      } finally {
+        signingOut = false
+      }
+    },
+    openOffline(userId: string) {
+      if (state.user && state.user.id !== userId) return
+      const cached = find(userId)
+      if (!cached) return
+      if (consentConflict?.userId !== userId) consentConflict = null
+      ++epoch
+      show(userId)
+      publish({ phase: 'offline', error: 'Showing the saved copy on this device. Reconnect to sync changes.' })
+    },
+    savedAccounts: () => saved.accounts.map((entry) => entry.user),
+    sync: () => sync(),
+    recoverCollision: () => {
+      const retry = consentConflict
+      if (state.phase === 'conflict' && retry && retry.userId === state.user?.id) return enable('account', retry)
+      return sync(true)
+    },
+    client,
+    pause() { ++epoch; consentConflict = null },
+  }
+
+  async function enable(choice: SyncChoice, recovery?: NonNullable<typeof consentConflict>) {
+      const user = state.user
+      if (!user || consent || signingOut || state.phase === 'checking' || state.phase === 'syncing') return
+      const ticket = epoch
+      consentConflict = recovery ?? null
+      let release!: () => void
+      const pending = new Promise<void>((resolve) => { release = resolve })
+      // A foreground identity check must not invalidate an explicit import mid-read.
+      consent = pending
+      let imported: SyncSnapshot | null = recovery?.imported ?? null
+      try {
+        if (!recovery && choice === 'import') imported = recordGardenChanges(empty(), guest.loadFriends(), clock)
+        publish({ phase: 'checking', error: null })
+        const remote = await client.read(user.id)
+        if (ticket !== epoch || state.user?.id !== user.id) return
+        const previous = find(user.id)
+        const cached = previous?.snapshot ?? empty()
+        let snapshot = mergeGardenSnapshots(recovery ? recoverLocalSyncCollisions(cached, remote, () => clock().changeId) : cached, remote)
+        if (imported) snapshot = mergeGardenSnapshots(snapshot, recovery
+          ? recoverLocalSyncCollisions(imported, snapshot, () => clock().changeId) : imported)
+        persist({ user, snapshot, enabled: true, pending: Boolean(recovery) || previous?.pending === true || Boolean(imported?.friends.length) })
+        consentConflict = null
+        paused = false
+        show(user.id)
+        await sync()
+      } catch (error) {
+        if (ticket === epoch && error instanceof SyncCollisionError) {
+          consentConflict = { userId: user.id, imported }
+          publish({ phase: 'conflict', error: 'A saved account edit has the same sync version as another edit. Nothing was uploaded.' })
+        } else if (ticket === epoch) {
+          if (error instanceof AccountRequestError && (error.status === 401 || error.code === 'ACCOUNT_CHANGED')) consentConflict = null
+          publish({ phase: consentConflict ? 'conflict' : 'offline', error: message(error) })
+        }
+      } finally {
+        if (consent === pending) consent = null
+        release()
+      }
+  }
+}
+
+export type GardenAccount = ReturnType<typeof createGardenAccount>

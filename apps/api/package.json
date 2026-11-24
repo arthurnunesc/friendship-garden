@@ -1,0 +1,29 @@
+{
+  "name": "friendship-garden-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=24.0.0"
+  },
+  "scripts": {
+    "db:bootstrap:release": "node --experimental-strip-types scripts/bootstrap-release-db.mts",
+    "db:migrate:dev": "node --experimental-strip-types --env-file=.env.local scripts/migrate-auth.mts",
+    "test": "vitest run",
+    "test:postgres": "node --experimental-strip-types scripts/test-auth-postgres.mts --run",
+    "test:postgres:release": "node --experimental-strip-types scripts/test-auth-postgres.mts --release-bootstrap",
+    "ts:check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "typescript": "~5.8.3",
+    "vitest": "4.1.12"
+  },
+  "dependencies": {
+    "@better-auth/expo": "1.7.14",
+    "better-auth": "1.7.14",
+    "pg": "^8.23.1",
+    "resend": "^6.32.1"
+  }
+}

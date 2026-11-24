@@ -6,8 +6,8 @@ import './FriendList.css'
 
 interface FriendListProps {
   friends: Friend[]
-  onWater: (friendId: string, input?: LogInteractionInput) => void
-  onEdit: (friendId: string, input: EditFriendInput) => void
+  onWater: (friendId: string, input?: LogInteractionInput) => boolean | void
+  onEdit: (friendId: string, input: EditFriendInput) => boolean | void
   onRemove: (friendId: string) => void
   onRemoveInteraction: (friendId: string, interactionId: string) => void
 }

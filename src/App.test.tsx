@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
-import type { Friend } from './friends/Friend'
+import { createFriend, type Friend } from './friends/Friend'
 import type { GardenStorage } from './friends/storage'
 import { createFakeStorage } from './test/fakeStorage'
 
@@ -144,6 +144,25 @@ describe('App', () => {
   })
 
   describe('import', () => {
+    it('requires confirmation before replacing a valid backup, and can cancel without changes', async () => {
+      const user = userEvent.setup()
+      const original = createFriend({ name: 'Original' })
+      const next = createFriend({ name: 'Replacement' })
+      const storage = createFakeStorage([original])
+      render(<App storage={storage} />)
+      const upload = () => user.upload(screen.getByTestId('import-input'),
+        new File([JSON.stringify({ version: 1, friends: [next] })], 'garden.json', { type: 'application/json' }))
+
+      await upload()
+      expect(await screen.findByRole('region', { name: 'Review garden backup' })).toHaveTextContent('this replaces your local garden')
+      expect(storage.loadFriends()).toEqual([original])
+      await user.click(screen.getByRole('button', { name: 'cancel import' }))
+      expect(storage.loadFriends()).toEqual([original])
+      await upload()
+      await user.click(await screen.findByRole('button', { name: 'replace garden' }))
+      expect(storage.loadFriends().map(friend => friend.name)).toEqual(['Replacement'])
+    })
+
     it('shows error feedback for invalid json files', async () => {
       const user = userEvent.setup()
       render(<App storage={createFakeStorage()} />)

@@ -1,0 +1,1065 @@
+# Account Sync Foundation
+
+Source: `plans/account-sync-notifications-roadmap.md`.
+
+## Acceptance scope — 2026-11-20
+
+The owner requested agent-run verification without physical phones. Use
+disposable simulators and emulators and synthetic fixtures for the checks
+below. An automated fixture can verify app behavior, but not personal inbox
+delivery, completed Google consent, physical-device behavior, or production
+readiness. Keep those checks unverified. They do not block local development
+of the next roadmap phase.
+
+- Automated checks: 159 web, 144 API, and 233 mobile tests passed. The web
+  build and both API and mobile type checks passed. The two-device mobile
+  fixture uses independent local stores and a shared in-memory server. Both
+  offline additions survive reconnect, and a stale copy does not restore a
+  deleted friend.
+- Both native Release builds passed from `b146d7f`. A fresh iOS simulator
+  showed the empty guest garden. The test tap did not open the add-friend
+  form; this attempt does not establish a UI failure or a pass for the
+  add-friend flow. The simulator was deleted and the test runner stopped.
+- Android: the Release APK installed on a disposable emulator, but the
+  launch command did not resolve the launcher activity. The APK contains
+  the launcher activity. A retry with an explicit activity could not reach
+  the launch step because the emulator did not finish booting in 300 seconds.
+  No new Android UI result is counted. The emulator and runner stopped.
+
+## Status — 2026-11-03
+
+Native Phase 7 is committed in `89462d9` (fix/tests) and `e3f497b`
+(roadmap/evidence). The isolated merge module below is implemented in
+`apps/api/src/gardenSync.ts`, committed together with this status update.
+Account-scoped backend storage, transactional sync, and the first web client
+integration are implemented and automatically checked. Native sign-in, secure
+callback handling, account controls, and storage integration are implemented.
+Final provider/inbox and user-run Android/iPhone verification remain pending.
+
+Agent verification (October 19): hosted native-protocol/account round trips,
+real browser consent/sign-out, and native Google launch/cancel passed within
+the scopes below. Each hosted test database was disposable; the retained preview
+was restored before removal. These checks do not complete Google consent or
+personal-inbox/physical-phone acceptance.
+
+### API dependency security update — 2026-11-03
+
+- Updated only the API package: Better Auth and its Expo server plugin are pinned
+  together at **`1.7.14`**, and Vitest at **`4.1.12`**. The existing three-day npm
+  release-age policy blocked newer auth releases; it was not bypassed. No mobile
+  SDK, web/mobile dependency file, auth configuration, or migration changed.
+- The five API findings recorded below are resolved: **`npm audit` reports 0**.
+  **140 API tests/typecheck**, **159 web tests/build**, and **232 mobile
+  tests/typecheck** pass. This is API audit evidence, not a new clean audit of
+  the unchanged web/mobile dependency trees.
+- An actual session issued by **1.6.23** remained valid and revocable under
+  **1.7.14**, using the same owned local database and secret. No schema additions
+  were required. An unexpired pre-upgrade email link was rejected, while a new
+  link worked. Exact disposable fixture files were removed by an exit/signal trap.
+- The isolated PostgreSQL suite passes with zero auth schema drift. Twelve
+  concurrent requests from one fresh IP allow exactly three emails and reject
+  nine; two simultaneous consumes of one link create exactly one session.
+  These concurrency checks also passed on the old baseline, so they are guards,
+  not claimed reproductions of an old exploit. The sequential quota check now
+  uses a fresh IP rather than depending on an earlier request staying in-window
+  throughout the longer garden suite. Cold test connections allow 15 seconds;
+  the production pool configuration is unchanged.
+- A real-auth regression rejects caller-influenced OAuth state used as an email
+  token, creates no user/session, and checks the separate `auth-state:` and
+  `magic-link:` storage namespaces. Google/native proxy, email consent, garden
+  transport, and sign-out integration tests still pass.
+- Read-only rollout preflight on the pinned development database found no
+  duplicate `(providerId, accountId)` keys or incompatible `issuer` column.
+  No account data was changed or exported. Test branches
+  `br-snowy-grass-badp7ua9`, `br-gentle-credit-ba5rcqwv`, and
+  `br-little-cloud-bad3bpb4` were deleted; only the retained development branch
+  remains. No physical device, personal inbox, or paid test run was used.
+- **Rollout:** wait for the feature deployment to be ready before requesting new
+  sign-in links or starting Google consent. Old pending magic links and OAuth
+  state cannot cross this update and must be restarted. Existing signed-in users
+  do not need a forced logout. Deploy the auth/plugin pair together; do not weaken
+  state validation to accept old flows or run mixed versions sharing verification
+  storage. Production remains outside this feature rollout.
+
+The focused review found no additional concrete issue beyond the expected
+pending-flow reset. The update is committed/pushed as **`9e85114`**.
+
+- Isolated feature deploy **`6aea5ae7a94503173d615471`** from that source passed
+  real Resend test-sink email delivery, correlated native callback and replay
+  rejection, no upload before consent, consented garden round trip, expected-account
+  mismatch rejection, guest restoration, and remote session revocation. The Google
+  proxy returned only its allowed authorization target and cancellation left no
+  signed-in session. Client stores/browser were injected; this is hosted protocol
+  evidence, not a new OS/physical-device or full Google-consent check.
+- Retained-preview restore **`6aea5b2988e16a379a2085c8`** reached ready before
+  deleting owned database **`br-orange-night-baak8mky`**. Cleanup and absence were
+  verified; only the retained development branch remains. No test server,
+  container, simulator, or emulator was created for this hosted protocol check.
+- Published production remains **`6a1df450234f820008eea876`**. Current full and
+  production-only API audits both report zero findings. Personal Google/inbox and
+  physical-phone acceptance remain pending; the dependency-audit follow-up below
+  is now historical and resolved by this update.
+
+### Native email handoff and persistence — 2026-11-02
+
+- Rebuilt both ARM64 Release clients and tested their actual OS browser-to-app
+  email-link handoff with delivered Resend test-sink messages. The app was
+  terminated before opening each link. Android and iOS both recovered the saved
+  pending attempt and signed in. Android's first sign-in left **zero garden rows**
+  until explicit import consent.
+- Found and fixed a real native-only transport bug: React Native's installed
+  `whatwg-fetch` adds a timestamp query to GET requests with `cache: 'no-store'`.
+  The strict garden endpoint correctly rejected it with **400**, preventing native
+  garden reads. Native transport now sends **`Cache-Control: no-store`** instead
+  of the URL-mutating cache option. The server's query/origin/account restrictions
+  are unchanged. A regression using the actual polyfill failed before the fix and
+  passes afterward; earlier Node-fetch protocol checks did not cover this behavior.
+- With the uninstrumented fix installed, Android explicitly imported its synthetic
+  guest and iOS chose **account garden only** for the same account. The Android
+  friend appeared on iOS through the real hosted service. Both clients recovered
+  their signed-in account after process restart using real SecureStore and
+  AsyncStorage adapters. Sign-out reduced server sessions **2 → 1 → 0**; another
+  restart restored Android's original guest and iOS's original empty garden.
+- Consent/sign-out changes briefly remount the settings view when active storage
+  changes, collapsing its account disclosure. Test helpers had to reopen that
+  disclosure before checking status. Those post-fix UI wait failures are not
+  counted as successful test commands; separate visible-state, server-state,
+  restart, and cross-device checks confirmed the completed operations.
+- **232 mobile tests/typecheck**, **159 web tests/build**, and **139 API
+  tests/typecheck** pass. Both native Release builds pass. The iOS rebuild first
+  failed because ignored `.xcode.env.local` referenced a removed Homebrew Node
+  binary; its backed-up local setting now uses `/opt/homebrew/bin/node`. No SDK
+  or dependency upgrade was made. The temporary payload-free trace is removed
+  from source and both final native binaries.
+- Tests used source `8ca6dac` plus the local transport fix, isolated deploy
+  **`6ae8518b5112b3570f5a77b2`**, and owned database
+  **`br-solitary-violet-banppdld`**. Preview restore
+  **`6ae857d961641beeb2c1a350`** reached ready before database deletion. The first
+  setup's cold database connection timed out; its owned branch
+  **`br-icy-moon-babxnaqp`** was removed without changing preview configuration.
+  Only the retained development database remains. Owned emulator **`emulator-5590`**,
+  simulator **`F4E2C674-8280-493C-9732-63DC61EDE577`**, supervisor, and loopback
+  control service are removed/stopped; private control credentials were removed.
+- The fix, regression, and verification notes are committed/pushed as
+  **`b505782`**. Feature deploy **`6ae8593e323fe7baae9786dd`** is ready from that
+  source; hosted home **200**, anonymous session **200/null**, and anonymous garden
+  **401** checks pass after restoration. Published production remains
+  **`6a1df450234f820008eea876`**.
+- These are simulator/emulator checks, including a simulator-only ad-hoc Keychain
+  entitlement. Links were retrieved from the provider test sink, not a personal
+  inbox or Mail app. Real inbox delivery, full Google consent, physical-phone
+  credential behavior, broader offline/concurrent device edits, backups, and
+  reminder reliability remain in the user pass. No paid device run was used.
+
+#### Dependency audit follow-up — 2026-11-02
+
+The unchanged API dependency tree now reports **5 findings**: 2 low, 2 moderate,
+and 1 critical. The earlier zero-finding audit below is historical, not a current
+security clearance. Do not force-upgrade the pinned authentication stack as part
+of the native transport fix; plan and verify coordinated auth/plugin and test-tool
+updates before widening the authentication rollout.
+
+- Better Auth's critical
+  [OAuth-state/Magic-Link advisory](https://github.com/advisories/GHSA-965c-763c-88jm)
+  lists an existing mitigation already used here: `magicLink.storeToken: 'hashed'`
+  with global `verification.storeIdentifier` unset. General OAuth Proxy and Device
+  Authorization plugins are not enabled. The Expo authorization proxy is a
+  different integration. This does not erase the version-range audit finding.
+- The PostgreSQL adapter's
+  [concurrent rate-limit advisory](https://github.com/advisories/GHSA-44jh-23m7-hpcf)
+  and Vitest/mocker advisories also require follow-up. No dependency or lockfile
+  changed in this pass, and no claim of a clean audit or production readiness is made.
+
+### Integrated verification and consent recovery — 2026-10-19
+
+- Real hosted native-protocol checks passed against an owned disposable database:
+  Resend test-sink email, two independent sessions, correlated callback/replay
+  rejection, no garden row before consent, import/account-only access, independent
+  offline edits, retained tombstones/stale retries, account mismatch with no write,
+  guest restoration, and remote session revocation. The runner uses the actual
+  native auth/account sources with injected memory stores; this does not verify
+  OS credential storage or native email app return.
+- The browser pass exposed a reproducible controller race: a focus/online refresh
+  could invalidate an explicit consent read and silently abandon import. Web and
+  native controllers now let consent finish before refreshing identity. Multiple
+  waiting refreshes coalesce; sign-out and pause still invalidate stale work.
+  Regression tests first failed on the old behavior and now pass.
+- A focused safety review then found two additional controller edges: a throwing
+  subscriber could bypass consent-latch release, and a foreground refresh during
+  sign-out could supersede its final local identity update. Both are fixed: consent
+  notifications are protected by latch cleanup, and refresh is suppressed while
+  revocation runs. Four regressions reproduced the failures before the fix; retry
+  checks prove a failed revocation releases the guard. The independent follow-up
+  review confirmed both findings resolved with no new concrete issue in scope.
+- **159 web tests/build**, **231 mobile tests/typecheck**, and **139 API
+  tests/typecheck/audit (0 findings)** pass. Both ARM64 Release builds pass after
+  the review fixes.
+  A real Better Auth integration test also verifies Google's native browser proxy
+  and cancellation without contacting Google or creating a session.
+- The rebuilt Android Release app passed actual Google page launch and
+  cancellation on the local emulator: returned to the guest garden, no credentials
+  entered, and no user created. Earlier assertions missed the offscreen cancel
+  notice; the runner now scrolls before checking it. This does not complete Google
+  consent/token exchange.
+- The iOS Release app from `a5ae7f3` also opened the real Google sign-in page and
+  returned to the guest garden after Cancel on an owned iPhone simulator. It used
+  the test-only ad-hoc Keychain entitlement documented in the device guide.
+  No credentials were entered. Owned simulator
+  **`D77220BA-E078-4B7B-880D-C4554B918274`** was deleted and its absence verified.
+- The full hosted Chromium email/consent round trip now passes: a real Resend
+  test-sink link signs in without creating a garden row; explicit merge imports
+  the synthetic guest to the real server; sign-out restores the original guest
+  and removes its session. Earlier delivery/wait failures are not counted as
+  passes; the final complete run passed with the longer bounded provider wait.
+- The consent fix, regression tests, and roadmap are committed/pushed as
+  **`a5ae7f3`**. The complete post-fix hosted run passed on isolated deploy
+  **`6ad5d0e409def4618dccac6d`** from that source. Retained-preview restore
+  **`6ad5d176fa9c95358190154b`** is ready from the same source, with anonymous
+  session **200/null**. Owned database **`br-sweet-violet-ba8hag7p`** was deleted
+  and its absence verified; owned Chromium and **`emulator-5588`** were closed.
+  Earlier failed scopes were also restored and removed.
+- Review follow-ups are committed/pushed as **`a2475d4`**. Native protocol and
+  rebuilt Android Google launch/cancel passed on isolated deploy
+  **`6ad5d406704d9ed8cab4d710`** from that source. The real browser round trip
+  then passed on **`6ad5d519c5af155a291127ef`**, including deliberate focus events
+  during consent's first garden read and during sign-out revocation. The first
+  stress runner clicked a disabled sign-out button; it now waits for the queued
+  foreground check to finish before testing sign-out.
+- A later Android repeat failed in **UIAutomator dump, exit 137**, not an app
+  assertion; it is not counted as a pass. The earlier passing Android check on
+  the same source remains the device evidence. No full device certification is
+  claimed. The final iOS binary was rebuilt after review fixes; its Google
+  launch/cancel inspection above was on the preceding `a5ae7f3` build.
+- Final retained-preview restore **`6ad5d57d92e75bb8d35e1bd8`** is ready from
+  `a2475d4`. Owned databases **`br-wild-sound-baz6aa04`** and
+  **`br-flat-bird-banrsblo`** were removed after restoration; the approved Neon
+  project contains only the retained development branch. Owned browsers,
+  emulator, simulator, and test/build processes are stopped/removed.
+- Production remains **`6a1df450234f820008eea876`**. Full Google consent,
+  personal-inbox delivery, native email app return/OS credential persistence,
+  and the consolidated physical-phone pass remain open.
+  No paid test run, SDK upgrade, personal credentials, or physical phone was used.
+
+## Work order
+
+1. **Merge contract** — complete. A tested, side-effect-free module under
+   `apps/api` implements structured, entity-level last-write-wins sync.
+2. **Authenticated storage** — implemented and automatically checked. Cookie
+   sessions select account-scoped garden reads and transactional merges. Both
+   PostgreSQL migrations are verified and applied to the separate development
+   project. Test with an isolated database, never production credentials or data.
+3. **Opt-in client sync** — web and native implemented and automatically checked.
+   Explicitly confirm local-data import; keep local persistence and
+   offline use working. Do not upload the local garden on sign-in.
+4. **Recovery and verification** — implemented for the preview scope. Automated
+   tests cover account changes, sign-out, retries, deletions, concurrent edits,
+   backup replacement, and reminder reconciliation. See the dated closeout in
+   `plans/account-sync-notifications-roadmap.md` for the simulator and hosted
+   checks. The owner-only release checks below remain unverified.
+
+Backend reminder delivery remains a later scope. Do not introduce it here.
+
+### Verification workflow — 2026-10-17
+
+The user wants implementation to proceed without user-run tests now. Batch
+hands-on verification into the final integration pass, then fix any failures.
+Pending Google consent or personal-inbox checks do not block independent
+storage, client authentication, or sync implementation.
+
+- Keep agent-run automated checks with each implementation chunk: account
+  isolation, transactions, conflict/deletion handling, offline state, and
+  existing web/mobile regressions. Keep isolated test-resource cleanup.
+- Keep small verified commits and roadmap updates. Distinguish **implemented**,
+  **automatically checked**, and **manually verified**; do not mark deferred
+  checks as passed or claim production readiness.
+- The user plans to test their own Android phone and iPhone thoroughly once
+  the integrated flow is ready. This does not authorize agent use of either
+  physical phone now. No paid device-testing runs are requested.
+
+Final user-run verification checklist (all **pending**; use configured native
+builds for the consolidated pass, not earlier local-only binaries):
+
+- [ ] Google consent/callback and email-link delivery to a personal inbox.
+- [ ] Explicit local-garden import consent; cancellation uploads nothing.
+- [ ] Same account on web, Android, and iPhone sees the expected garden.
+- [ ] Offline edits reconnect safely; concurrent edits/deletions converge.
+- [ ] Restart, retry, sign-out, and account switching do not expose another
+  account's data or lose the user's local garden.
+- [ ] Manual backups and import/export still work on both phones.
+- [ ] Reminder permissions, scheduling, edits/deletions, and delivery work
+  on both phones, including relevant background/battery restrictions.
+
+Fix reported failures and rerun the affected checks before closing that pass.
+Apple sign-in and backend reminder email remain deferred; neither belongs
+to the acceptance checklist for this implementation scope.
+
+#### Consolidated user pass
+
+Use the configured preview builds, not an older local-only binary. Agent tests
+have restored the retained preview database. Do not use production
+as the test target. Keep existing gardens and reminders; use clearly named
+synthetic friends for edits/deletions and export backups before testing imports.
+
+1. **Authentication without import:** test Google and email on web and the
+   installed native builds. Open the newest email link on the device that
+   requested it within five minutes. Confirm the correct identity, close the
+   account controls without choosing sync, and check that the local garden stays
+   unchanged. Signing in alone must not upload it.
+2. **Consent and shared data:** explicitly choose merge-local on the intended
+   source device. Sign into the same account on the others and choose account-only.
+   Confirm names, birthdays, cadence, and conversation history. The original
+   local copies must remain available after sign-out.
+3. **Offline/restart:** reopen a saved account copy in airplane mode, add a
+   synthetic friend or conversation, restart, then reconnect and retry sync.
+   The change must remain local during the outage and appear on the other device
+   after recovery. A failed save must keep its form draft and must not say saved.
+4. **Independent edits/deletion:** make different synthetic edits on two devices
+   while offline. Reconnect both. Independent changes should survive; a stale
+   unchanged copy must not restore a deleted synthetic friend or conversation.
+   Conflicting edits to one field use the documented last-write-wins rule.
+5. **Sign-out/account switching:** sign out and confirm the original local
+   garden returns. If testing another account, use only an account you own.
+   Confirm it cannot see the previous account's garden. A failed sign-out must
+   show an error, not a success claim; retry it when storage/network work again.
+6. **Backups/reminders:** check export/import with a disposable backup and confirm
+   permissions, scheduled reminder changes, deletion cancellation, and actual
+   delivery on Android and iPhone. Keep each phone's existing reminder preference;
+   account switching should reconcile the active garden, not enable reminders.
+
+Record the device/OS, step, expected result, and visible error for failures.
+Do not paste sign-in links, cookies, credentials, or private friendship details.
+Simulator/emulator results do not replace this phone acceptance pass.
+
+### Authentication bootstrap — implemented 2026-10-16
+
+The user selected **Resend** for passwordless sign-in and **deferred Apple
+OAuth**. Implement Google and email first; reminder email remains out of scope.
+This chunk adds the authentication factory, Resend sender, fail-closed Netlify
+handler, and setup examples, committed together with this status update. It
+does not add garden storage or client UI. Missing configuration returns a
+generic uncached 503; no provider or database is contacted in that case.
+
+Use HTTPS and an explicit origin, hashed single-use magic-link tokens with a
+five-minute expiry, database-backed rate limits, and no automatic account
+linking. Never log tokens, URLs, email bodies, or configuration secrets. The
+Netlify handler must overwrite the auth IP header from trusted `context.ip`,
+not trust client-supplied forwarding headers. No migrations run on requests.
+
+The initial tests below use disposable in-memory SQLite through Better Auth's
+supported Node adapter and captured email. Separate real PostgreSQL checks now
+also pass, as recorded in the development setup section. Do not treat SQLite
+tests as PostgreSQL or live-provider evidence.
+
+### Authentication verification — 2026-10-16
+
+- `npm --prefix apps/api test` — **63 tests passed**, including the original
+  19 merge tests. Auth tests use Better Auth 1.6.23 with a fresh in-memory
+  SQLite database per case, closed after each test, and captured email only.
+- API typecheck passes, including the Netlify `.mts` entrypoint. API
+  `npm audit` reports **0 vulnerabilities**.
+- Verified single-use/expired links, hashed storage, secure session cookies,
+  authenticated session reads, sign-out revocation, database-backed request
+  limits, Google authorization URL generation, and disabled Apple/passwords.
+- Verified untrusted origin and all three callback fields are rejected before
+  email delivery. Provider/database exceptions and 5xx bodies are replaced by
+  generic errors; forwarding headers cannot override Netlify's client IP.
+- Mocked Resend SDK tests cover plaintext copy, hashed idempotency keys, URL
+  checks, and redacted failures. No email was sent.
+- Local `netlify functions:build` created an auth archive. Its packaged user
+  module imports and returns the expected fail-closed 503 with an empty
+  secret. This is not a deployed Lambda invocation. Direct import of the
+  generated platform wrapper required Lambda's `awslambda` global; that
+  unsupported local check is not counted as a pass.
+- Owned temporary archive/extraction directories were deleted after success
+  and failure. No database server, container, device, or hosted service was
+  started. SQLite databases existed only in memory.
+- The web production build and **116 web tests** pass. **146 mobile tests**
+  and mobile typecheck pass. Neither client imports the authentication code.
+
+The package now requires Node **22.13+ in the Node 22 line, or Node 24+**
+because its tests use unflagged `node:sqlite`. PostgreSQL configuration always
+verifies TLS certificates and does not allow connection-URL SSL options to
+disable that check. API keys and database credentials are server-only; the
+example secret is blank so a copied example cannot enable authentication.
+Local environment files and Netlify artifacts are ignored by Git.
+
+### Next gates
+
+1. **Final manual pass, deferred:** complete Google consent/callback exchange. Authorization
+   initiation and the preview redirect pass; an interactive Google login has
+   not been performed. Keep secrets out of chat and Git.
+2. Hosted passwordless sessions and real Resend delivery to the provider test
+   inbox now pass, as recorded below. Personal inbox delivery remains unverified.
+   No schema migration runs on an incoming request.
+3. Account-scoped storage and transactional merges now pass automated checks
+   below. This backend evidence alone is not client or cross-device sync.
+4. **Next implementation:** native sign-in transport and opt-in sync using the
+   shared contract, plus cross-client recovery checks. Web integration below
+   does not wait for or replace the deferred manual checks.
+
+No production deployment or production database migration has been run. Manual JSON backups,
+local storage, offline use, and native reminder behavior stay unchanged.
+
+### Hosting and sender discovery — 2026-10-16
+
+Read-only inspection through the existing authenticated Netlify and Resend
+CLIs found:
+
+- Netlify project `friendship-garden`, connected to
+  `github.com/arthurnunesc/friendship-garden`.
+- Existing **production** URL: `https://friendship-garden.arthurnun.es`.
+  Its Netlify hostname is `friendship-garden.netlify.app`.
+- Production branch is `main`; branch deployment settings currently allow
+  only `main`. The deployment list contains a ready production deployment,
+  not an isolated development preview. The `main--` alias also targets that
+  production deployment and must not be treated as a test environment.
+- The custom domain has an associated Netlify DNS zone.
+- Resend has one verified sending domain:
+  `read-later-digest.arthurnun.es` (EU West). It belongs to another app and
+  should not be reused as this app's sender without an explicit decision.
+- Resend reports **1 of 3 domain slots used**. A new app-specific domain fits
+  the current domain quota; no plan upgrade was requested or performed.
+
+The configuration proposed at this discovery checkpoint was:
+
+- Use a Netlify branch deployment for `feature/mobile-app-creation`, with
+  branch-specific authentication settings and a separate development database.
+  Obtain and verify its actual HTTPS URL from Netlify after provisioning.
+- Verify the sending domain `auth.friendship-garden.arthurnun.es` and use
+  `Friendship Garden <sign-in@auth.friendship-garden.arthurnun.es>`.
+- Keep sign-in link tracking disabled and use an app-scoped sending key in
+  the server environment, not the broad CLI credential or a public variable.
+
+No DNS, provider, deployment, key, or Git remote change was made during that
+discovery. The user then explicitly approved the branch push, preview, and
+sender domain/DNS changes below. Existing CLI logins handled these steps;
+the user did not need to invent names or paste secrets into chat.
+
+### Approved preview and sender provisioning — 2026-10-16
+
+- Pushed `feature/mobile-app-creation` through discovery commit `de339e1`.
+  Netlify's allowed branches now include only the previous `main` plus this
+  feature branch. Production still uses `main`.
+- **Preview:** <https://feature-mobile-app-creation--friendship-garden.netlify.app>.
+  Initial branch deploy `6ad1dcd1dd12ebe8bed9e576` is **ready**, context
+  `branch-deploy`, source `de339e1`. The runtime source is auth commit
+  `d60d231`; later documentation pushes can replace the branch preview.
+- Browser verification: the garden loads with its local-only empty state and
+  add/export/import controls. `GET /api/auth/get-session` returns the expected
+  generic **503** JSON with `Cache-Control: no-store`. Live sign-in is still
+  disabled until configuration, database migrations, and provider checks pass.
+  A first browser wait used the wrong heading capitalization and timed out;
+  the fresh snapshot and explicit response assertions passed. Both owned
+  browser sessions were closed; no persistent browser test data is required.
+- **Sender domain:** `auth.friendship-garden.arthurnun.es`, Resend ID
+  `067a9e69-d114-45f0-b20c-42672b2de241`, region `eu-west-1`, **verified**.
+  Sending is enabled; receiving, open tracking, and click tracking are disabled.
+  The enforced-TLS update was accepted, but the GET response omits that setting,
+  so it is not independently read-back verified.
+- **Sender address:** `Friendship Garden <sign-in@auth.friendship-garden.arthurnun.es>`.
+  Domain verification permits this address; no email was sent and no inbox or
+  actual delivery was tested.
+- All four required DNS records resolve on an authoritative nameserver and
+  have Resend status **verified**. The parent already has DMARC `p=none`; no
+  DMARC policy was changed. Enforce a stronger policy only after delivery checks.
+- The site's stored DNS zone ID was stale and returned 404. Account DNS lookup
+  found the active `arthurnun.es` zone **`6a1decc110ba17c7557ddaac`**; public
+  NS records match `dns1`–`dns4.p05.nsone.net`. No stale zone was recreated.
+- Production deploy **`6a1df450234f820008eea876`**, commit
+  `1e3b28c21fb2d4fa3ef2a0e33f49da70fd5a1112`, remained published after setup.
+  All pre-existing DNS record IDs remain present. The existing read-later
+  Resend domain is still verified and was not modified.
+
+New DNS records in the active zone (TTL 300):
+
+| Record ID | Type | Hostname relative to `arthurnun.es` | Purpose |
+| --- | --- | --- | --- |
+| `6ad1dcfd8aac4db75ca53302` | TXT | `resend._domainkey.auth.friendship-garden` | Provider DKIM public key |
+| `6ad1dcff588522b86b8c5afc` | MX | `send.auth.friendship-garden` | `feedback-smtp.eu-west-1.amazonses.com`, priority 10 |
+| `6ad1dd01495951a9cf05a799` | TXT | `send.auth.friendship-garden` | `v=spf1 include:amazonses.com ~all` |
+| `6ad1dd0247c5a766b3247ad1` | CNAME | `rsend.auth.friendship-garden` | `send.forge.rmta.net` |
+
+These are **approved retained development resources**, owned by this project,
+not disposable test resources. No plan upgrade, database, sending key, or
+production environment variable was created or changed. Removal, if later
+approved: remove only this feature branch from the site's allowed branches
+(preserve all other entries); delete only the four record IDs above with
+`netlify api deleteDnsRecord --data '{"zone_id":"6a1decc110ba17c7557ddaac","dns_record_id":"<record-id>"}'`;
+delete only the new Resend domain with
+`resend domains delete 067a9e69-d114-45f0-b20c-42672b2de241`.
+Do not run those removal commands during normal setup or alter the other app's
+sender. Stop future branch deployments before removing their supporting setup.
+
+### User credential checks — 2026-10-16
+
+After the user completed Google setup and Neon login:
+
+- Google client ID and secret are present in the ignored local handoff file.
+  Values were not printed, committed, or passed into the unit-test environment.
+- A fresh browser reached Google's sign-in page using that client ID and
+  `https://feature-mobile-app-creation--friendship-garden.netlify.app/api/auth/callback/google`.
+  There was no invalid-client or redirect-mismatch screen. No Google account
+  login was performed; the client-secret exchange, consent/test-user access,
+  and completed session remain **unverified**.
+- Neon CLI authentication works. Project discovery requires an explicit
+  organization selection; the earlier unqualified lookup failure was not
+  evidence of a failed login. No dedicated Friendship Garden development
+  project was found. Unrelated projects were not modified or used for tests.
+- Local `DATABASE_URL` and `RESEND_API_KEY` are still example placeholders;
+  `BETTER_AUTH_SECRET` is unset. No connection was made using those placeholders.
+  These are remaining setup tasks, not a failure of the Google credential entry.
+- The preview still returns the expected uncached **503** for session reads.
+  Google variables have not yet been uploaded to Netlify by this check.
+- API tests were rerun without loading the local credentials: **63 passed**,
+  and API typecheck passed. The owned browser session was closed in `finally`.
+
+Full sign-in verification is blocked until the dedicated development database,
+app-restricted Resend sending key, random authentication secret, branch-only
+server configuration, and PostgreSQL migrations are ready. No cloud resource
+or provider configuration was changed during these checks.
+
+### Development database and secret setup — 2026-10-16
+
+The user approved creating the missing development resources, with no plan
+upgrade. This section supersedes the missing-configuration checkpoint above.
+
+- Created **`friendship-garden-development`**, Neon project
+  **`mute-wave-82809907`**, PostgreSQL 17 in `aws-eu-central-1`, fixed 0.25 CU.
+  Its retained branch is `br-morning-pine-ba055d1b`, endpoint
+  `ep-silent-leaf-batw3dyz`, database `neondb`. No unrelated project was changed.
+- `apps/api/development-database.json` pins the non-secret migration target.
+  Reviewed SQL `migrations/0001_auth.sql` matches Better Auth 1.6.23's PostgreSQL
+  schema: five auth tables and three indexes, plus the migration runner's ledger.
+- Added `npm --prefix apps/api run db:migrate:dev -- --dry-run` and `--apply`.
+  The runner rejects other hosts/databases, non-development targets, nonstandard
+  ports, and schema/search-path overrides before connecting. It uses verified
+  TLS, a transaction advisory lock, a fixed search path, and a checksum ledger.
+  A failed rollback discards the connection rather than returning it to the pool.
+- The retained development database reported **pending → applied → already-applied**.
+  No request handler runs migrations and no production database was migrated.
+- Added `npm --prefix apps/api run test:postgres`: owns a fresh schema-only
+  Neon test branch, verifies its identity/endpoint, uses synthetic credentials
+  and captured email, then deletes and confirms removal of that exact branch.
+  Cleanup is registered before creation, includes interruption handling, and
+  branch expiry is a one-hour fallback. It never loads `.env.local`.
+- Real PostgreSQL checks pass: concurrent/idempotent migration, checksum mismatch
+  rejection, no Better Auth schema drift, hashed/single-use/expired magic links,
+  secure sessions, sign-out, and database-backed request limits.
+- Temporary branches `br-misty-lake-baz4pav6`, `br-red-butterfly-bawkfcng`,
+  `br-divine-voice-bayal04i`, and `br-crimson-wind-bak6i7cm` were all deleted.
+  The first two stopped at an overstrict test ancestry assertion: Neon schema-only
+  branches are independent roots, not child forks. The corrected checks pass.
+- Created Resend key **`c16c1cce-f81e-40f0-8bfd-777c635c7618`**, `sending_access`
+  restricted to domain `067a9e69-d114-45f0-b20c-42672b2de241`. Its value and a
+  fresh random auth secret are stored only in ignored local/server configuration.
+  User-entered Google credential lines were preserved.
+- Configured all seven auth variables only for Netlify branch
+  `feature/mobile-app-creation`. The four private values are marked secret.
+  Netlify **Free** does not support Functions-only scopes. The user explicitly
+  chose to stay on Free and allow branch build access; secret scopes are
+  `builds`, `functions`, and `runtime`, not post-processing. This replaces the
+  earlier Functions-only setup intention. No public-prefixed variable was added.
+- Verified the production environment fingerprint is unchanged. The local CLI
+  is linked to the existing site in ignored `.netlify` state. No plan was upgraded.
+- Current checks: **75 API tests**, API typecheck, **0 API audit findings**,
+  **116 web tests** and web build, **146 mobile tests** and mobile typecheck pass.
+  Hosted sign-in verification is the next step; these checks alone do not claim
+  completed Google consent, actual inbox delivery, or client garden sync.
+
+Approved retained resources belong to this project's development environment,
+not to the test lifecycle. If later removal is approved, first remove their
+branch-only Netlify values, then revoke only the new key with
+`resend api-keys delete c16c1cce-f81e-40f0-8bfd-777c635c7618` and remove only the
+new project with `neon projects delete mute-wave-82809907`. Do not run these
+commands as routine test cleanup. Keep the user-owned local credentials private.
+
+### Hosted authentication verification — 2026-10-16
+
+Runtime and migration source is committed as **`1be237f`**. The configured
+development preview now serves authentication rather than the earlier
+missing-configuration 503. There is still no client sign-in UI or garden sync.
+
+- Created owned schema-only test branch **`br-patient-cake-ba0eaq14`** in the
+  development project. Verified its endpoint, applied the reviewed migration,
+  and temporarily pointed only the feature preview at it. No test account was
+  written to the retained development branch or another app's database.
+- Branch deploy **`6ad2484eb17dfd9c76919820`** passed hosted checks:
+  unauthenticated session returns **200/null**; Google sign-in initiation
+  returns the Google authorization URL with the exact preview callback.
+- The real restricted Resend key sent one sign-in email to a uniquely labelled
+  **provider-owned `delivered+…@resend.dev` test address**, not a human inbox.
+  Message **`01a1456a-eb05-75d2-953d-e0cee1a52abd`** reached **`delivered`**.
+  Its sign-in URL and all cookie/token values stayed in process memory and
+  were not printed or committed.
+- The delivered link created a **Secure, HttpOnly** session. A session read
+  returned the synthetic test user; reuse of the same link was rejected.
+  Sign-out revoked the session and left zero sessions in the test database.
+- Restored the retained development database URL, then redeployed as
+  **`6ad2487d7a8cf49bb7db142c`** from `1be237f`. Session reads on that restored
+  target return **200/null**. Deleted the test branch and verified absence.
+  Cleanup was registered before creation, including interruption handling
+  and a one-hour expiry fallback.
+- Final Neon branch listing contains only the approved retained branch
+  **`br-morning-pine-ba055d1b`**. No owned test branch remains. The provider's
+  test message remains as delivery evidence; its magic link was consumed and
+  its test database deleted, so it cannot provide a usable session.
+- Preview HTML, JavaScript, and CSS load. A literal-value check found none of
+  the four private configuration values in those served assets. This is a
+  focused check, not a general secret-scanning guarantee.
+- Production deploy **`6a1df450234f820008eea876`**, its `main` branch, and its
+  environment fingerprint remain unchanged. Netlify remains on **Free**.
+
+**Limits:** Google authorization initiation is not a completed Google login;
+its client-secret exchange, consent audience, and test-user access still need
+interactive verification. Delivery to Resend's test inbox is not proof of
+delivery to the user's personal inbox. Account-backed garden storage, client
+sign-in/import controls, and cross-device sync remained separate implementation
+at that checkpoint. The following section records the next backend slice.
+
+### Account-scoped garden backend — 2026-10-17
+
+Implemented the next backend slice without enabling client uploads:
+
+- `GET /api/garden` returns the signed-in user's canonical version-1 snapshot,
+  or an empty snapshot without creating a database row. `POST /api/garden`
+  accepts that snapshot directly and returns its transactional entity-level
+  merge with the account's current records. Omissions never delete records;
+  deletions remain tombstones. Retried/stale snapshots do not replace history.
+- The owner comes **only** from a server-validated Better Auth cookie session.
+  Database session lookup bypasses cookie caching and refresh. Query parameters
+  and extra top-level body fields (including user IDs) are rejected. Caller
+  identity, bearer, and forwarded-IP headers do not select an account.
+- The request URL must match the configured origin. POST requires its exact
+  `Origin`; foreign/opaque origins and cross-site Fetch Metadata are rejected
+  before session lookup. No cross-origin access is granted. Native transport
+  must send the configured origin; native sign-in/cookie plumbing is still pending.
+- Responses are uncached and errors are generic: **400** invalid snapshots,
+  **401** missing/revoked sessions, **403** invalid origin, **409** conflicting
+  versions, **413** size limit, **415** unsupported encoding, **503** internal
+  failure. Unsupported methods return **405**. No account data enters errors/logs.
+- New `0002_gardens.sql` stores a **structured JSONB snapshot per user**, with
+  a user foreign key and deletion cascade. SQL shape checks complement the
+  module's record validation. This is not an encrypted opaque client backup.
+  No sharing or client-selected ownership is introduced.
+- Parameterized account queries, an insert followed by `SELECT … FOR UPDATE`,
+  and one checked-out transaction serialize concurrent initial and later merges.
+  Failed writes roll back; failed rollback discards the connection. Five-second
+  lock/statement timeouts bound database work. Invalid stored data fails closed.
+- The initial **1 MiB UTF-8 JSON limit** applies to requests and canonical stored
+  snapshots, including merged history. Streamed bytes are checked even with a
+  misleading/missing Content-Length. Oversize merges roll back, never truncate
+  records or tombstones. Invalid PostgreSQL Unicode text is rejected before DB
+  access. Later clients must keep local edits on quota/conflict/network errors.
+- The guarded migration runner now allows only `0001_auth` and `0002_gardens`;
+  the CLI reads both files first, then checks/applies them in order. The applied
+  `0001_auth.sql` and its checksum are unchanged. Development dry-run/application
+  reported **0001 already-applied; 0002 pending → applied → already-applied**.
+  No migrations run in an HTTP request; production configuration is untouched.
+
+Automated evidence:
+
+- **122 API tests**, API typecheck, and API audit (**0 findings**) pass.
+- **116 web tests**, web build, **146 mobile tests**, and mobile typecheck pass.
+- Real PostgreSQL checks passed on owned disposable schema-only branch
+  **`br-weathered-cloud-bat4j8rr`**: both migration versions, real cookie-authenticated
+  users, account isolation with overlapping entity IDs, concurrent first writers,
+  independent edits, tombstones/stale retries, collision rollback, injected SQL
+  write-failure rollback, owner FK/shape constraints, session revocation, and
+  account deletion cascade without changing the other user's garden.
+- That branch was deleted and its absence verified. Tests use synthetic users
+  and captured email only, never local credentials or retained account data.
+  Cleanup now still attempts branch deletion if closing the test pool fails.
+- Source and this stage's roadmap update are committed in **`44537c6`**.
+  Feature deploy **`6ad3925a5e730a29775677be`** is ready from that commit.
+  Hosted checks confirmed anonymous garden GET/POST **401**, owner-query
+  rejection **400**, unsupported DELETE **405**, and auth-session **200/null**;
+  all responses are `no-store`. These are deployed negative checks, not a
+  completed hosted authenticated-garden or cross-device test. The real
+  authenticated-garden checks above ran against the isolated PostgreSQL branch.
+- Production's published deployment remains unchanged. Final Neon listing
+  contains only the approved retained development branch; no owned test branch
+  remains. No user-run verification or physical-device test was requested.
+
+Client sign-in, import consent, persisted sync metadata, and cross-device offline
+recovery are next. The final user-run verification checklist above remains pending.
+
+### Client protocol preparation — 2026-10-17
+
+- Moved the dependency-free merge/validation/materialization implementation to
+  `packages/garden-sync/src/snapshot.ts`. The original API module re-exports it,
+  preserving existing callers. Web and native code can use the same contract
+  without importing server authentication, database libraries, or secrets.
+- Added a pure client record-diff module: unchanged versions stay stable;
+  changed/deleted entities get new versions/tombstones. Timestamps advance
+  beyond the previous entity version even if the device clock goes backwards.
+  Legacy last-interaction dates are preserved as deterministic interactions.
+  Invalid legacy data is rejected for sync rather than silently changing it.
+- Garden requests now require **`x-garden-account`**, compared with the validated
+  cookie-session user **before reading or writing data**. It never selects the
+  owner. Missing headers return **400**; a session-account mismatch returns
+  **409 / `ACCOUNT_CHANGED`**. Version collisions return **409 / `SYNC_COLLISION`**.
+  This stops queued account-A data from being uploaded into account B when
+  browser cookies change between session lookup and the sync request.
+- **126 API tests** and API typecheck pass. The isolated PostgreSQL suite also
+  passes the account-header GET/POST mismatch checks, including proof that B's
+  garden is unchanged. Owned test branch **`br-jolly-sunset-bag8q7ps`** was deleted
+  and its absence verified. Six client-diff tests pass, including birthday
+  idempotence, clock rollback, deletions, legacy data, and duplicate rejection.
+
+Web integration follows this preparation; native integration and all user-run
+verification remain pending. No new schema migration or server secret is needed.
+
+### Web sign-in and opt-in sync — 2026-10-17
+
+The existing garden now has a compact **account & sync** disclosure; its visual
+identity and local-first fallback remain intact. This is the web slice, not
+completion of native or physical-device integration.
+
+- Added same-origin Google/email sign-in, session checks, sign-out, retry/status,
+  and explicit **merge local garden & sync** / **use account garden only** actions.
+  Merely signing in checks identity but does not read/upload the local garden.
+  Closing the section without choosing keeps local use unchanged.
+- The original guest garden keeps its existing storage key. Account gardens,
+  consent, pending state, record versions, and tombstones live in a separate
+  atomic local envelope, isolated by user ID. Switching accounts or signing out
+  never copies account A into B or overwrites the guest garden. Sign-out pauses
+  the saved account's sync and returns to the guest copy; cached account copies
+  remain on this device and can be opened explicitly while offline.
+- On startup, account data is not displayed until a matching session is checked
+  or the user explicitly opens a saved offline copy. Previously enabled account
+  queues resume only for the same user. New guest data is never included without
+  a new explicit import choice. Online/focus events and **sync now** retry sync;
+  this first slice does not poll continuously or use live subscriptions.
+- Account writes persist before visible success or upload. Changes made during
+  a request are merged with its response and sent in a later pass. Quota,
+  network, conflict, and acknowledgement-persistence failures retain local data.
+  Request epochs and account-scoped storage bindings reject stale responses and
+  stale UI actions after sign-out/account changes. No auth token is persisted in
+  the account envelope or exposed in errors.
+- Each garden request sends the expected-account header from the checked
+  identity. `ACCOUNT_CHANGED`/expired sessions stop the old account's sync rather
+  than retry its payload into another account. Server ownership still comes
+  only from the validated cookie, not this header.
+- An origin-scoped **Web Locks** lease allows only one browser tab to write the
+  account cache. Another tab retains local-only use with close/reload guidance;
+  unsupported locking disables account sync, not the local garden. A tab reads
+  fresh account state only after it owns the lease. Cleanup releases the lease
+  and prevents late writes; Strict Mode cannot leave a competing writer behind.
+  This is deliberate single-writer protection, not simultaneous tab editing.
+- Web mutations now persist outside React state updaters. Failed add/edit/chat
+  saves keep the previous garden, preserve the form draft, and do not display
+  success. JSON import uses this same active-storage boundary without a reload;
+  export remains compatible with the existing manual backup shape.
+- The shared diff also preserves unseen orphan interactions until their friend
+  arrives, instead of treating data the client could not display as a deletion.
+
+Evidence and limits:
+
+- **154 web tests** and web build pass, including 7 pure diff, 6 transport,
+  12 account-controller, 4 writer-lease, and 9 account/UI regressions.
+  **126 API tests**, API typecheck/audit (**0 findings**), **146 mobile tests**,
+  and mobile typecheck also pass. No native behavior changed in this slice.
+- Owned Chromium checks with **synthetic network fixtures** confirmed no POST
+  before consent, expected-account GET/POST after consent, separate guest and
+  account copies, sign-out restoration, and a blocked second writer tab. These
+  are UI/transport checks, not real provider or cross-device authentication.
+- Desktop **1280×900** and mobile web **390×844** captures were reviewed in two
+  bounded rounds. The available independent review agent replaced the absent
+  named design reviewer. It found one material fix (the disclosure touch target);
+  the target now measures **44px**, and the follow-up scored that fix resolved.
+  The mechanical UI detector returned no findings. No redesign or new visual
+  system was introduced; no whole-app visual certification is claimed.
+- The browser session was closed. Owned Vite PID **7821**, its PID file, and
+  port **5197** were removed/closed. Synthetic review images were moved out of
+  the repo to the approved temporary directory `fg-web-sync-review-20261017`.
+- Real Google consent/token exchange, personal inbox delivery, real hosted web
+  client round trips, and Android/iPhone client sync remain **unverified**.
+  The user does not need to perform those checks now. Native integration and
+  the consolidated final manual pass remain the next work.
+
+### Web client deployment evidence — 2026-10-17
+
+- Protocol preparation is committed/pushed as **`70cd28b`**; the web client
+  integration is committed/pushed as **`871a46f`** on
+  `feature/mobile-app-creation`.
+- Netlify source deploy **`6ad39ad747f7889188006c86`** is **ready** for
+  `871a46f`. The branch preview serves the new consent controls and account-cache
+  locking code; its HTML, JavaScript, and CSS return **200**.
+- Hosted session lookup returns **200 / null** and anonymous garden access
+  returns **401**, both with **`Cache-Control: no-store`**. These checks do not
+  establish an authenticated hosted garden round trip.
+- None of the four private runtime configuration values were found as literal
+  values in the served HTML/JavaScript/CSS. No secret values were printed.
+- All seven authentication variables remain feature-branch-only. Published
+  production deploy **`6a1df450234f820008eea876`** is unchanged. The retained
+  development Neon branch is still the only branch in the approved project;
+  no owned disposable database branch remains.
+
+This documentation update does not change runtime code. Native integration and
+the deferred provider/inbox/physical-device checks remain pending.
+
+### Native persistence and queue foundation — 2026-10-18
+
+Implemented the asynchronous client boundary needed before native sign-in can
+be connected. **This is not native account-sync completion:** the provider
+adapter, deep-link/cookie handoff, and account controls are not wired into the
+mobile app yet. Opening the current mobile app still uses the local garden.
+
+- Shared the dependency-free account identity/client/error contract between
+  web and native. The web transport keeps its existing public exports.
+- Added a native garden transport with injected authentication and fetch
+  dependencies. It sends the current secure-store adapter cookie, exact
+  configured HTTPS `Origin`, and `x-garden-account`; `credentials: omit` prevents
+  ambient native cookie jars from selecting a different session. Invalid
+  configuration, missing identity/cookies, malformed snapshots, and transport
+  failures fail closed with generic errors. The secure auth adapter itself is
+  still pending; no session token is stored in garden metadata.
+- Added native consent-gated per-account snapshots, pending state, versions,
+  tombstones, explicit offline-cache opening, and restart/retry support.
+  The original guest garden remains separate. A single asynchronous writer
+  serializes metadata, guest/account edits, and merge acknowledgements.
+- An optional atomic storage mutation callback computes local edits against
+  the latest committed account snapshot, not a stale rendered friend array.
+  This preserves remote friends that arrive before a queued local edit.
+  Changes made during an upload trigger another pass. Completed old-account
+  writes remain in that account's cache but cannot publish into a new account
+  or report success to a stale view after sign-out.
+- Ordinary native edits now wait for persistence outside React state updaters.
+  Add/edit/conversation/removal controls prevent duplicate submission, await
+  the result, and retain their draft or dialog on failure. The app closes the
+  add form only after a successful save. Notifications and manual backup imports
+  continue to observe committed garden state, not optimistic edits.
+- Failed, corrupt, or partly invalid local reads no longer become a valid empty
+  garden or silently discard entries. They retain the original saved bytes and
+  block startup edits/reminder reconciliation until a retry succeeds. Supported
+  legacy records missing the interaction array still load without rewriting
+  storage. Errors no longer log invalid friend payloads.
+- Storage subscriptions received during a save/import are replayed after the
+  write; switching storage or unmounting rejects stale loads/actions/results.
+- **190 mobile tests** and mobile typecheck pass: 15 account-queue, 10 native
+  transport, 14 garden-boundary, 7 storage, and 6 asynchronous form regressions,
+  plus existing domain/backup/reminder checks. **154 web tests/build** and
+  **126 API tests/typecheck/audit (0 findings)** pass. No database migration,
+  runtime secret, server trust-origin change, or paid test run is needed here.
+- Both self-contained native **Release builds** pass: unsigned ARM64 iPhone
+  simulator build and ARM64 Android APK (local development signing only).
+  These builds exercise the current local mobile UI, not a connected account
+  flow. Native provider and real cross-device sync remain unverified.
+- Local iPhone simulator and Pixel 8 emulator checks confirmed that a new
+  synthetic friend survives process termination and restart. Android removal
+  restored the pre-test empty garden; the disposable iPhone simulator was
+  deleted. No paid runs were used (noqa balance stayed at **$5.00**). Android
+  device control used local ADB after the noqa connection timed out.
+- The finish review found that pending forms could still be dismissed through
+  cancel, backdrop, or system back. Those paths now stay blocked until the save
+  completes; six component tests cover pending saves, drafts, and failures.
+  Both Release builds were repeated after the fix. The review scored these
+  fixes as resolved based on source/tests; injected storage-failure states were
+  **not** verified on a device. Normal-state screenshots predate this final fix.
+- Owned test simulator **`D8397A85-16FC-41F7-86E3-977B9B98E6C6`** was removed;
+  owned Android process **`15506`** / **`emulator-5584`**, resource wrapper
+  **`13627`**, and build daemon **`11811`** are absent. The existing Android AVD
+  was retained without resetting its data. No test server/database was created.
+- Source and this stage's roadmap are committed/pushed as **`0742d96`**.
+  Feature deploy **`6ad4d9fdecc4ac674a231ea3`** is ready from that commit.
+  Hosted home **200**, anonymous session **200/null**, and anonymous garden
+  **401** checks pass; both API responses are `no-store`. This is a web
+  regression/deployment check, not native authentication verification.
+  Production remains published at **`6a1df450234f820008eea876`**.
+
+Next: connect the secure provider adapter and narrowly trusted native callback,
+then integrate account controls and the native writer with foreground/offline
+recovery. Preserve the final consolidated user-run checks for that integration.
+
+### Native authentication and app integration — 2026-10-18
+
+- Connected Google/email sign-in, checked identity, consent, account storage,
+  saved offline copies, retry, foreground recovery, and sign-out to the existing
+  mobile settings and garden. No consent action means no garden upload.
+  Account transitions clear stale drafts; reminder reconciliation follows only
+  the committed active garden. The original guest garden remains separate.
+- Kept Expo **54.0.35**. Installed SDK-compatible `expo-secure-store`,
+  `expo-web-browser`, and `expo-crypto`; added the matching **1.6.23** Better Auth
+  Expo server plugin with origin override disabled. No migration or secret changed.
+- Native requests use explicit secure cookies, `credentials: omit`, and the
+  exact backend HTTPS `Origin`. The server accepts only
+  `friendship-garden://auth/callback?state=<64 lowercase hex digits>`, not a
+  scheme wildcard, arbitrary paths, fragments, or extra/duplicate fields.
+  The browser proxy accepts only Google's HTTPS authorization endpoint.
+- Each attempt saves a fresh 256-bit device nonce before sending a request.
+  Callback cookies remain untrusted until the nonce, five-minute expiry,
+  database-checked verified session, and initiating email (for email sign-in)
+  match. Only the named secure session cookie is stored. Replay and unsolicited
+  links are rejected. Open email links on the initiating device; a new request
+  replaces an older pending attempt. Live Google callbacks belong to the browser
+  session; cold-start callbacks can recover a saved attempt.
+- Credentials and pending attempts use one atomic SecureStore envelope,
+  isolated by backend origin with this-device-only iOS accessibility. Account
+  cache keys are also origin-scoped. No credential enters the garden cache.
+  Independent npm installs require a minimal Metro watch folder for the shared
+  dependency-free sync core; no root workspace or dependency migration was added.
+- Security review found and verified fixes for failed sign-out recovery:
+  retain a failed server revocation until it succeeds, retry it before another
+  login, and persist a separate non-secret sign-out fence so a Keychain write
+  failure cannot resume the session after restart. Old sign-out responses cannot
+  clear a newer login. If both stores and the server all fail, the action rejects;
+  it does not claim successful durable sign-out. Bounded independent re-review
+  found no remaining concrete issue in those fixes.
+- **226 mobile tests/typecheck**, **138 API tests/typecheck/audit (0 findings)**,
+  and **154 web tests/build** pass. Tests include a real Better Auth email
+  handoff → native adapter → explicit consent → garden sync → session revocation
+  round trip with captured mail and an isolated in-memory database. Reminder
+  integration covers account-only switching, failed persistence, and guest
+  restoration. These checks do not prove live Google consent or inbox delivery.
+- Mobile audit reports **49 findings**, identical to the previous lockfile
+  baseline (1 low, 12 moderate, 32 high, 4 critical). The new modules add none;
+  no forced dependency or SDK upgrade was applied.
+- Both ARM64 Release builds compile. Android is installed/launched on the owned
+  emulator. iOS local Keychain access needs simulator-only ad-hoc signing with
+  `com.apple.application-identifier`; unsigned builds fail with **-34018**.
+  Device checks, cleanup, and deployment evidence follow in the next checkpoint.
+- Set public `EXPO_PUBLIC_ACCOUNT_ORIGIN` from `apps/mobile/.env.example` before
+  building; it is the preview backend, not a secret. An unset/invalid origin or
+  Expo web retains local-only use. Rebuild native binaries after installing modules.
+
+Next: verify the deployed native initiation/cancellation boundary and finish the
+single consolidated user-run Google/inbox/web/Android/iPhone acceptance pass.
+No physical phone, personal inbox, production data, or paid test run was used.
+
+### Native integration deployment and verification — 2026-10-18
+
+- Implementation is committed/pushed as **`bdc1d91`**. Feature source deploy
+  **`6ad536187102deb2e398b867`** is **ready** for that exact commit. Previous
+  documentation deploy **`6ad4da54fb10db3a5e2d9c7f`** also reached ready.
+- Hosted home **200**, session **200/null**, anonymous garden **401**, and
+  malformed native email callback **403** pass. API responses are `no-store`.
+  The malformed callback is rejected before mail delivery. No test account or
+  garden was created on the retained preview database for these checks.
+- The real PostgreSQL suite passes again with the Expo plugin enabled: zero
+  auth-schema drift, guarded migrations, cookie sessions/revocation, rate limits,
+  account isolation, concurrent merges, tombstones, and rollback. Owned branch
+  **`br-steep-unit-ba41gjsx`** was deleted and its absence checked by the runner.
+- Final self-contained Android and iOS ARM64 Release builds pass. On the owned
+  simulator/emulator, the local garden opens and the account disclosure expands
+  with Google, email, and retry controls without requesting a notification
+  permission or uploading garden data. Initial iOS Keychain reads work after
+  the simulator-only signing correction in `plans/noqa-mobile-testing.md`.
+- Normal-state account UI screenshots were inspected together on both platforms;
+  controls and consent copy remain readable and scrollable. Existing Android
+  OS-denied reminder status was not changed. No paid grounding/run was used.
+  This was a bounded surface check, not new whole-app visual certification.
+- Real device-to-provider initiation/cancellation, full Google consent/token
+  exchange, email delivery/return to the app, authenticated hosted garden round
+  trips, and physical-phone behavior remain **unverified**. Unit/integration
+  coverage is not a substitute for the pending consolidated checklist above.
+- Test artifacts (logs, audit comparison, UI images, simulator entitlements,
+  and exact resource journal) are outside the repo under the approved temporary
+  directory **`fg-nativeauth-20261018`**. No native build certificate, production
+  setting, existing AVD, or unrelated application's resource was changed.
+- Cleanup is complete and independently checked: owned simulator
+  **`5B6FB74A-C86F-46C9-8AB5-D6F8C25448E1`** is deleted; wrapper **`80727`**,
+  Android process **`83515`**, and **`emulator-5586`** are absent. No Gradle build
+  daemon remains. No test server/container/volume was created. The final Neon
+  listing contains only approved retained branch **`br-morning-pine-ba055d1b`**.
+  Noqa balance remains **$5.00**. Production's published deploy is still
+  **`6a1df450234f820008eea876`**.
+
+## First chunk: merge contract
+
+Current web/mobile friends have creation and conversation dates, but no edit
+versions or deletion markers. Uploading complete friend arrays would lose
+independent conversation additions and could restore an old deleted record.
+Do not change the existing local storage format to address this prematurely.
+
+- Isolate the future backend in `apps/api`, with its own test/typecheck scripts.
+  Do not move the existing garden domain or change web/mobile runtime imports.
+- Use a version-1 snapshot containing separately versioned friend and
+  interaction records. Every record has a nonblank ID, canonical UTC ISO
+  `updatedAt`, a nonblank `changeId`, and an explicit deletion flag.
+- Friend values contain name, optional birthday, positive integer cadence,
+  and creation date. Interaction values contain date, optional type/note,
+  and an immutable parent friend ID as part of their identity.
+- A tombstone retains identity/version, not the old name, birthday, or note.
+  Retain tombstones; do not invent a time-based pruning policy.
+- Newer `updatedAt` wins. For equal timestamps, deletion wins over a live
+  record; otherwise compare `changeId` by code-point order. Equal identity,
+  timestamp, change ID, and deletion state with different values is invalid,
+  not an arrival-order tie. Validate both complete input snapshots before
+  selecting winners; do not ignore malformed data just because it is older.
+- Merge is deterministic, idempotent, order-independent, and does not mutate
+  its inputs. Reject malformed records/version collisions atomically. Build
+  fresh, canonical records; do not retain unknown payload fields.
+- Each input snapshot has at most one friend record per ID and one interaction
+  record per `(friendId, id)` pair. Reject duplicate identities within a
+  snapshot rather than guessing which duplicate the caller intended.
+- Materialize only live friends and their live interactions. Hide orphaned
+  children and children of deleted friends, but retain their versions in the
+  sync snapshot. Derive `lastInteractionAt` from live interactions rather than
+  syncing a second, potentially inconsistent copy.
+- Sort output by stable identities; sort materialized conversations by date
+  then ID. Expose the existing friend/interaction JSON shape to future clients.
+- Older live records cannot overwrite newer tombstones. A genuinely newer
+  live friend version can win under last-write-wins; offline edit/delete UX
+  needs verification before client integration.
+
+The merge module is **not** an authentication, account-isolation, or clock-trust
+mechanism. A future handler must authenticate the account, load only its
+records, validate timestamp policy, and commit merges transactionally. No HTTP
+endpoint, credentials, database, client upload, or automatic local import is
+part of this first chunk.
+
+## First-chunk checks
+
+- [x] Newer edits win independent of arrival order.
+- [x] Independent conversation additions survive concurrent friend edits.
+- [x] Friend/interaction tombstones reject stale versions.
+- [x] Equal-time conflicts converge deterministically; reused versions fail.
+- [x] Replays are idempotent; inputs and returned values do not alias.
+- [x] Invalid dates, values, duplicate-version collisions, and unknown schema
+  versions fail without a partial result.
+- [x] Materialized friends have compatible backup shape and derived dates.
+- [x] API tests/typecheck, existing web/mobile tests, and mobile typecheck pass.
+
+### Verification — 2026-10-16
+
+- API: `npm --prefix apps/api test` — **19 tests passed**.
+- API: `npm --prefix apps/api run ts:check` — passed.
+- API: `npm --prefix apps/api audit` — **0 vulnerabilities** reported.
+- Web: `npm test` — **116 tests passed**.
+- Mobile: `npm --prefix apps/mobile test` — **146 tests passed**.
+- Mobile: `npm --prefix apps/mobile run ts:check` — passed.
+
+At this merge-only checkpoint the package required Node 22.12+ in the Node 22
+line, or Node 24+; the authentication test requirement above supersedes this.
+Its isolated test runner uses Vitest 4.1.11 because the initially reused
+3.2.4 dependency set had known audit findings. Existing web/mobile dependency
+versions were not changed. No database, hosted service, or device was created
+for this chunk; no native UI rerun was needed for this pure, unconnected module.
+
+Coverage includes concurrent conversation additions, Unicode tie-breaking,
+friend/interaction deletions, reused-version collisions, invalid snapshots,
+canonicalization, output isolation, stable ordering, and materialized dates.
+These are module tests, not proof of authenticated persistence or live sync.
+
+## Questions before later chunks
+
+- Resend domain verification and credentials (provider selected).
+- Apple OAuth deferred until a later chunk (timing selected).
+- Opt-in privacy copy for structured server-side relationship data.
+- Local versus synced reminder preferences; avoid cross-device double alerts.
+- Server timestamp/skew policy, transactional persistence, and account scope.
+- Keep manual JSON backup support; decide how import interacts with remote
+  records and deletion versions before enabling signed-in import.
+
+These questions do not block the isolated merge module. They do block claiming
+that account-backed sync is complete or deploying it without further setup.
+
+Better Auth's current docs confirm that passwordless magic links require an
+actual `sendMagicLink` implementation. Do not simulate delivery by logging
+tokens or URLs. Apple Sign In also requires an HTTPS return URL rather than
+localhost. Resolve the email provider and Apple timing before those paths are
+enabled. These are not reasons to use the user's physical iPhone.
+
+Reference checked: Better Auth v1.6.23 documentation for
+[magic links](https://www.better-auth.com/docs/plugins/magic-link) and
+[Apple](https://www.better-auth.com/docs/authentication/apple).

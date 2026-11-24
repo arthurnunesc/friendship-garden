@@ -1,0 +1,452 @@
+import { describe, expect, it, vi } from 'vitest'
+import { AccountRequestError, type AccountClient, type AccountUser } from '../../../../packages/garden-sync/src/account'
+import { mergeGardenSnapshots, type SyncSnapshot } from '../../../../packages/garden-sync/src/snapshot'
+import type { Friend } from '../garden/Friend'
+import { createGardenAccount } from './gardenAccount'
+
+const empty = (): SyncSnapshot => ({ version: 1, friends: [], interactions: [] })
+const friend = (id: string): Friend => ({ id, name: id, cadenceDays: 14, createdAt: '2026-01-01T00:00:00.000Z', interactions: [] })
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no })
+  return { promise, resolve, reject }
+}
+
+function setup(server = new Map<string, SyncSnapshot>(), device = 'first') {
+  let guestFriends = [friend('guest')]
+  let user: AccountUser | null = { id: 'a', email: 'a@example.invalid' }
+  let serial = 0
+  const values = new Map<string, string>()
+  const persistence = {
+    getItem: vi.fn(async (key: string) => values.get(key) ?? null),
+    setItem: vi.fn(async (key: string, value: string) => { values.set(key, value) }),
+  }
+  const client = {
+    session: vi.fn(async () => user), google: vi.fn(async () => {}), email: vi.fn(async (_email: string) => {}),
+    signOut: vi.fn(async () => { user = null }),
+    read: vi.fn(async (id: string) => server.get(id) ?? empty()),
+    merge: vi.fn(async (id: string, incoming: SyncSnapshot) => {
+      if (id !== user?.id) throw new AccountRequestError(409, 'ACCOUNT_CHANGED')
+      const result = mergeGardenSnapshots(server.get(id) ?? empty(), incoming)
+      server.set(id, result)
+      return result
+    }),
+  } satisfies AccountClient
+  const guest = {
+    loadFriends: vi.fn(async () => guestFriends),
+    saveFriends: vi.fn(async (next: Friend[]) => { guestFriends = next }),
+  }
+  const options = { guest, persistence, client,
+    clock: () => ({ updatedAt: '2026-10-18T00:00:00.000Z', changeId: `change-${++serial}-${device}` }) }
+  return { options, account: createGardenAccount(options), values, persistence, client, server,
+    get guestFriends() { return guestFriends }, setUser(next: AccountUser | null) { user = next } }
+}
+
+describe('mobile consent-gated account gardens', () => {
+  it('uploads only the local copy chosen before a delayed account read', async () => {
+    const f = setup(); await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    f.client.read.mockReturnValueOnce(read.promise)
+    const enable = f.account.enable('import')
+    await f.account.getSnapshot().storage.saveFriends([friend('local-backup')])
+    read.resolve(empty()); await enable
+    expect(f.server.get('a')?.friends.map(record => record.id)).toEqual(['guest'])
+    expect(f.guestFriends).toEqual([friend('local-backup')])
+  })
+
+  it.each([false, true])('recovers cached collisions after sign-out (failed pause write: %s)', async (failedWrite) => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('import')
+    if (failedWrite) f.persistence.setItem.mockRejectedValueOnce(new Error('quota'))
+    await f.account.signOut()
+    const remote = f.server.get('a')!
+    const entry = remote.friends[0]!
+    if (entry.deleted) throw new Error('Expected live friend')
+    f.server.set('a', { ...remote, friends: [{ ...entry, value: { ...entry.value, name: 'Other edit' } }] })
+    await f.account.openOffline('a')
+    f.setUser({ id: 'a', email: 'a@example.invalid' }); await f.account.refresh()
+    expect(f.account.getSnapshot()).toMatchObject({ viewAccount: { id: 'a' }, syncEnabled: false })
+    f.client.merge.mockClear()
+    await f.account.enable('account')
+    expect(f.account.getSnapshot()).toMatchObject({ phase: 'conflict', syncEnabled: false })
+    expect(f.client.merge).not.toHaveBeenCalled()
+    await f.account.refresh()
+    expect(f.account.getSnapshot().phase).toBe('conflict')
+    f.client.read.mockRejectedValueOnce(new AccountRequestError(0))
+    await f.account.recoverCollision()
+    expect(f.account.getSnapshot().phase).toBe('conflict')
+    expect(f.client.merge).not.toHaveBeenCalled()
+    await f.account.recoverCollision()
+    expect(f.account.getSnapshot()).toMatchObject({ phase: 'ready', pending: false })
+    expect(f.server.get('a')?.friends[0]).toMatchObject({ value: { name: 'guest' } })
+  })
+  it('requires initialization or refresh and never reads/uploads a garden without consent', async () => {
+    const f = setup()
+    await expect(f.account.getSnapshot().storage.loadFriends()).rejects.toThrow('loading')
+    await f.account.refresh()
+    expect(f.account.getSnapshot().user?.id).toBe('a')
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual([friend('guest')])
+    expect(f.client.read).not.toHaveBeenCalled()
+    expect(f.client.merge).not.toHaveBeenCalled()
+  })
+
+  it('keeps the offline queue across restart and does not re-version it until asked', async () => {
+    const f = setup()
+    await f.account.refresh()
+    await f.account.enable('import')
+    f.client.merge.mockRejectedValue(new AccountRequestError(0))
+    await f.account.getSnapshot().storage.saveFriends([friend('guest'), friend('queued')])
+    await f.account.sync()
+    expect(f.account.getSnapshot()).toMatchObject({ pending: true, phase: 'offline' })
+    const lastSent = f.client.merge.mock.lastCall![1]
+    const queued = lastSent.friends.find(record => record.id === 'queued')!
+    if (queued.deleted) throw new Error('Expected a live record')
+    f.server.set('a', { ...lastSent, friends: [
+      { ...queued, value: { ...queued.value, name: 'Other version' } },
+      ...lastSent.friends.filter(record => record.id !== 'queued'),
+    ] })
+    const restored = createGardenAccount(f.options)
+    await restored.openOffline('a')
+    expect(restored.getSnapshot().pending).toBe(true)
+    f.client.merge.mockRejectedValue(new AccountRequestError(409, 'SYNC_COLLISION'))
+    await restored.refresh()
+    expect(restored.getSnapshot()).toMatchObject({ pending: true, phase: 'conflict' })
+    expect(f.client.merge.mock.lastCall![1]).toEqual(lastSent)
+    f.client.merge.mockImplementation(async (id, incoming) => {
+      const merged = mergeGardenSnapshots(f.server.get(id), incoming)
+      f.server.set(id, merged)
+      return merged
+    })
+    await restored.recoverCollision()
+    expect(restored.getSnapshot()).toMatchObject({ pending: false, phase: 'ready' })
+    expect(f.server.get('a')?.friends.find(record => record.id === 'queued')).toEqual({ ...queued, changeId: expect.stringContaining(queued.changeId + ':') })
+  })
+
+  it('persists import consent before upload and leaves the original guest garden untouched', async () => {
+    const f = setup(); await f.account.initialize(); await f.account.refresh()
+    f.client.merge.mockImplementationOnce(async (_id, incoming) => {
+      expect(f.persistence.setItem).toHaveBeenCalledOnce()
+      return incoming
+    })
+    await f.account.enable('import')
+    expect(f.client.read).toHaveBeenCalledOnce(); expect(f.client.merge).toHaveBeenCalledOnce()
+    expect(f.account.getSnapshot().viewAccount?.id).toBe('a')
+    expect(f.guestFriends).toEqual([friend('guest')])
+  })
+
+  it('waits for pending import consent before a concurrent refresh checks the session', async () => {
+    const f = setup(); await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    f.client.read.mockImplementationOnce(() => read.promise)
+
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.client.read).toHaveBeenCalledOnce())
+    const refreshing = Promise.all([f.account.refresh(), f.account.refresh()])
+    await Promise.resolve()
+    expect(f.client.session).toHaveBeenCalledTimes(1)
+
+    read.resolve(empty())
+    await Promise.all([enabling, refreshing])
+
+    expect(f.account.getSnapshot().viewAccount?.id).toBe('a')
+    expect(f.server.get('a')?.friends.some((item) => item.id === 'guest')).toBe(true)
+    expect(f.account.getSnapshot().phase).toBe('ready')
+    expect(f.client.session).toHaveBeenCalledTimes(2)
+  })
+
+  it('releases pending consent when the initial checking notification throws', async () => {
+    const f = setup(); await f.account.initialize(); await f.account.refresh()
+    let listenerActive = true
+    let threw = false
+    const unsubscribe = f.account.subscribe(() => {
+      if (listenerActive && !threw && f.account.getSnapshot().phase === 'checking') {
+        threw = true
+        throw new Error('listener failed')
+      }
+    })
+
+    const enabling = f.account.enable('import')
+    listenerActive = false
+    unsubscribe()
+    await enabling.catch(() => undefined)
+
+    let refreshSettled = false
+    const refreshing = f.account.refresh().then(() => { refreshSettled = true })
+    await Promise.resolve()
+    await vi.waitFor(() => expect(refreshSettled).toBe(true), { timeout: 100 })
+    await refreshing
+    await f.account.enable('import')
+    expect(f.account.getSnapshot().viewAccount?.id).toBe('a')
+  })
+
+  it('does not refresh the session while sign-out is revoking it during pending consent', async () => {
+    const f = setup(); await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    const revoke = deferred<void>()
+    f.client.read.mockImplementationOnce(() => read.promise)
+    f.client.signOut.mockImplementationOnce(async () => { await revoke.promise; f.setUser(null) })
+
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.client.read).toHaveBeenCalledOnce())
+    const signingOut = f.account.signOut()
+    await vi.waitFor(() => expect(f.client.signOut).toHaveBeenCalledOnce())
+    const sessionsBeforeRefresh = f.client.session.mock.calls.length
+    const refreshing = f.account.refresh()
+    read.resolve(empty())
+    await Promise.all([enabling, refreshing])
+    const sessionsDuringRevocation = f.client.session.mock.calls.length
+    const viewDuringRevocation = f.account.getSnapshot().viewAccount
+
+    revoke.resolve()
+    await Promise.all([enabling, signingOut, refreshing])
+    expect(sessionsDuringRevocation).toBe(sessionsBeforeRefresh)
+    expect(viewDuringRevocation).toBeNull()
+    expect(f.account.getSnapshot().user).toBeNull()
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual(f.guestFriends)
+    expect(f.client.merge).not.toHaveBeenCalled()
+  })
+
+  it('allows refresh and a sign-out retry after revocation fails', async () => {
+    const f = setup()
+    await f.account.refresh()
+    f.client.signOut.mockRejectedValueOnce(new Error('offline'))
+    await f.account.signOut()
+    expect(f.account.getSnapshot().phase).toBe('offline')
+    await f.account.refresh()
+    expect(f.client.session).toHaveBeenCalledTimes(2)
+    await f.account.signOut()
+    expect(f.client.signOut).toHaveBeenCalledTimes(2)
+    expect(f.account.getSnapshot().user).toBeNull()
+  })
+
+  it('does not let sign-out release a queued refresh into a pending import', async () => {
+    const f = setup(); await f.account.refresh()
+    const read = deferred<SyncSnapshot>()
+    f.client.read.mockImplementationOnce(() => read.promise)
+
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.client.read).toHaveBeenCalledOnce())
+    const refreshing = f.account.refresh()
+    await Promise.resolve()
+    const signingOut = f.account.signOut()
+    await signingOut
+    read.resolve(empty())
+    await Promise.all([enabling, refreshing])
+
+    expect(f.account.getSnapshot().user).toBeNull()
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual(f.guestFriends)
+    expect(f.client.merge).not.toHaveBeenCalled()
+    expect(f.client.session).toHaveBeenCalledTimes(1)
+  })
+
+  it('enables an account-only garden without importing guest data', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('account')
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual([])
+    expect(f.client.merge.mock.calls[0][1]).toEqual(empty())
+    expect(f.guestFriends).toEqual([friend('guest')])
+  })
+
+  it('does not expose or upload an enabled garden until its asynchronous consent write completes', async () => {
+    const f = setup(); await f.account.refresh()
+    const gate = deferred<void>()
+    f.persistence.setItem.mockImplementationOnce(async (key, value) => { await gate.promise; f.values.set(key, value) })
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.persistence.setItem).toHaveBeenCalledOnce())
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    expect(f.client.merge).not.toHaveBeenCalled()
+    gate.resolve(); await enabling
+    expect(f.client.merge).toHaveBeenCalled()
+    expect(f.account.getSnapshot().viewAccount?.id).toBe('a')
+  })
+
+  it('queues mutations and leaves the visible snapshot unchanged when persistence fails', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('import')
+    const storage = f.account.getSnapshot().storage
+    const before = await storage.loadFriends()
+    f.persistence.setItem.mockRejectedValueOnce(new Error('quota'))
+    await expect(storage.saveFriends([friend('failed')])).rejects.toThrow()
+    expect(await storage.loadFriends()).toEqual(before)
+    await storage.saveFriends([friend('saved')])
+    expect((await storage.loadFriends()).map(x => x.id)).toEqual(['saved'])
+  })
+
+  it('persists offline edits and tombstones, opens the saved copy, and replays it after restart', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('import')
+    f.client.merge.mockRejectedValue(new AccountRequestError(0))
+    await f.account.getSnapshot().storage.saveFriends([friend('offline')])
+    await f.account.sync()
+    expect(f.account.getSnapshot().phase).toBe('offline')
+    const restored = createGardenAccount(f.options)
+    await restored.openOffline('a')
+    expect((await restored.getSnapshot().storage.loadFriends()).map(x => x.id)).toEqual(['offline'])
+    f.client.merge.mockImplementation(async (id, incoming) => {
+      const result = mergeGardenSnapshots(f.server.get(id) ?? empty(), incoming); f.server.set(id, result); return result
+    })
+    await restored.refresh()
+    expect(f.server.get('a')?.friends.find(x => x.id === 'guest')?.deleted).toBe(true)
+    expect(f.server.get('a')?.friends.find(x => x.id === 'offline')?.deleted).toBe(false)
+  })
+
+  it('converges after two offline devices make independent edits and one deletes a shared friend', async () => {
+    const first = setup()
+    const second = setup(first.server, 'second')
+    await first.account.refresh()
+    await first.account.enable('import')
+    await second.account.refresh()
+    await second.account.enable('account')
+    expect(await second.account.getSnapshot().storage.loadFriends()).toEqual([friend('guest')])
+
+    const firstMerge = first.client.merge.getMockImplementation()!
+    const secondMerge = second.client.merge.getMockImplementation()!
+    first.client.merge.mockRejectedValue(new AccountRequestError(0))
+    second.client.merge.mockRejectedValue(new AccountRequestError(0))
+    await first.account.getSnapshot().storage.saveFriends([friend('first-edit')])
+    await second.account.getSnapshot().storage.saveFriends([friend('guest'), friend('second-edit')])
+    await Promise.all([first.account.sync(), second.account.sync()])
+    expect(first.account.getSnapshot().phase).toBe('offline')
+    expect(second.account.getSnapshot().phase).toBe('offline')
+
+    const restored = createGardenAccount(second.options)
+    await restored.openOffline('a')
+    expect((await restored.getSnapshot().storage.loadFriends()).map(x => x.id)).toEqual(['guest', 'second-edit'])
+    first.client.merge.mockImplementation(firstMerge)
+    second.client.merge.mockImplementation(secondMerge)
+    await first.account.refresh()
+    expect(first.server.get('a')?.friends.find(x => x.id === 'guest')?.deleted).toBe(true)
+    await restored.refresh()
+    await first.account.sync()
+    for (const account of [first.account, restored]) {
+      expect((await account.getSnapshot().storage.loadFriends()).map(x => x.id)).toEqual(['first-edit', 'second-edit'])
+    }
+    expect(first.server.get('a')?.friends.find(x => x.id === 'guest')?.deleted).toBe(true)
+    expect(first.guestFriends).toEqual([friend('guest')])
+    expect(second.guestFriends).toEqual([friend('guest')])
+  })
+
+  it('drains edits made during a POST using the latest persisted snapshot', async () => {
+    const f = setup(); await f.account.refresh()
+    const post = deferred<SyncSnapshot>()
+    f.client.merge.mockImplementationOnce(() => post.promise)
+    const enabling = f.account.enable('import')
+    await vi.waitFor(() => expect(f.client.merge).toHaveBeenCalledOnce())
+    await f.account.getSnapshot().storage.saveFriends([friend('guest'), friend('during-post')])
+    post.resolve(f.client.merge.mock.calls[0][1]); await enabling
+    expect(f.client.merge.mock.calls.length).toBeGreaterThanOrEqual(2)
+    expect((await f.account.getSnapshot().storage.loadFriends()).map(x => x.id)).toEqual(['during-post', 'guest'])
+  })
+
+  it('ignores an old account response after switching users and rejects an old binding', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('import')
+    const oldBinding = f.account.getSnapshot().storage
+    const post = deferred<SyncSnapshot>(); f.client.merge.mockImplementationOnce(() => post.promise)
+    const before = f.client.merge.mock.calls.length
+    const syncing = f.account.sync(); await vi.waitFor(() => expect(f.client.merge).toHaveBeenCalledTimes(before + 1))
+    f.setUser({ id: 'b', email: 'b@example.invalid' }); await f.account.refresh()
+    await expect(oldBinding.saveFriends([friend('wrong-owner')])).rejects.toThrow('changed')
+    post.resolve(f.client.merge.mock.calls.at(-1)![1]); await syncing
+    expect(f.account.getSnapshot().user?.id).toBe('b')
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual(f.guestFriends)
+    expect(f.server.has('b')).toBe(false)
+  })
+
+  it('keeps a completed old-account write while logout during that write returns the view to guest', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('import')
+    const write = deferred<void>()
+    const before = f.persistence.setItem.mock.calls.length
+    f.persistence.setItem.mockImplementationOnce(async (key, value) => { await write.promise; f.values.set(key, value) })
+    const saving = f.account.getSnapshot().storage.saveFriends([friend('durable')])
+    const staleResult = expect(saving).rejects.toThrow('changed')
+    await vi.waitFor(() => expect(f.persistence.setItem).toHaveBeenCalledTimes(before + 1))
+    const signingOut = f.account.signOut()
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    write.resolve(); await Promise.all([staleResult, signingOut])
+    expect(f.account.getSnapshot().user).toBeNull()
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual(f.guestFriends)
+    expect(f.client.merge).toHaveBeenCalledTimes(1)
+    const reopened = createGardenAccount(f.options); await reopened.openOffline('a')
+    expect((await reopened.getSnapshot().storage.loadFriends()).map(x => x.id)).toContain('durable')
+  })
+
+  it('calls server sign-out even when local account settings cannot be persisted', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('import')
+    f.persistence.setItem.mockRejectedValue(new Error('quota'))
+    await f.account.signOut()
+    expect(f.client.signOut).toHaveBeenCalledOnce()
+    expect(f.account.getSnapshot().user).toBeNull()
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual(f.guestFriends)
+  })
+
+  it('fails closed on malformed cached state without overwriting it or affecting guest data', async () => {
+    const f = setup(); f.persistence.getItem.mockResolvedValue('{broken')
+    await f.account.refresh(); await f.account.enable('import')
+    expect(f.persistence.setItem).not.toHaveBeenCalled()
+    expect(f.client.read).not.toHaveBeenCalled(); expect(f.client.merge).not.toHaveBeenCalled()
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual(f.guestFriends)
+  })
+
+  it('stops syncing and returns to guest when the server reports ACCOUNT_CHANGED', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('import')
+    f.client.merge.mockRejectedValueOnce(new AccountRequestError(409, 'ACCOUNT_CHANGED'))
+    await f.account.sync()
+    expect(f.account.getSnapshot().user).toBeNull()
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    expect(f.account.getSnapshot().error?.toLowerCase()).toContain('account changed')
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual(f.guestFriends)
+  })
+
+  it('applies queued local edits atomically to the latest friends after a remote friend arrives', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('account')
+    const storage = f.account.getSnapshot().storage
+    const write = deferred<void>()
+    const before = f.persistence.setItem.mock.calls.length
+    f.persistence.setItem.mockImplementationOnce(async (key, value) => { await write.promise; f.values.set(key, value) })
+    const localEdit = storage.updateFriends!(current => [...current, friend('local-edit')])
+    await vi.waitFor(() => expect(f.persistence.setItem).toHaveBeenCalledTimes(before + 1))
+    const remoteSnapshot: SyncSnapshot = { version: 1, friends: [{ id: 'remote', updatedAt: '2026-10-18T00:00:00.000Z',
+      changeId: 'remote-change', deleted: false, value: { name: 'remote', cadenceDays: 14, createdAt: '2026-01-01T00:00:00.000Z' } }], interactions: [] }
+    // Apply the server change while the local persistence write is blocked.
+    f.server.set('a', remoteSnapshot)
+    write.resolve(); await localEdit
+    await f.account.sync()
+    const ids = (await storage.loadFriends()).map(x => x.id).sort()
+    expect(ids).toEqual(['local-edit', 'remote'])
+  })
+
+  it('does not let a session refresh expose a garden while its acknowledgement write is blocked', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('import')
+    const ack = deferred<void>()
+    const before = f.persistence.setItem.mock.calls.length
+    f.persistence.setItem.mockImplementationOnce(async (key, value) => { await ack.promise; f.values.set(key, value) })
+    const sync = f.account.sync()
+    await vi.waitFor(() => expect(f.persistence.setItem).toHaveBeenCalledTimes(before + 1))
+    f.setUser({ id: 'b', email: 'b@example.invalid' })
+    const refreshing = f.account.refresh()
+    expect(f.account.getSnapshot().viewAccount?.id).toBe('a')
+    ack.resolve(); await Promise.all([sync, refreshing])
+    expect(f.account.getSnapshot().user?.id).toBe('b')
+    expect(f.account.getSnapshot().viewAccount).toBeNull()
+    expect(await f.account.getSnapshot().storage.loadFriends()).toEqual(f.guestFriends)
+  })
+
+  it('runs a queued edit against the remote acknowledgement committed immediately before it', async () => {
+    const f = setup(); await f.account.refresh(); await f.account.enable('account')
+    const remote = friend('new-remote')
+    f.server.set('a', { version: 1, friends: [{ id: remote.id, deleted: false,
+      updatedAt: '2026-10-18T00:00:00.000Z', changeId: 'remote',
+      value: { name: remote.name, createdAt: remote.createdAt, cadenceDays: 14 } }], interactions: [] })
+    const gate = deferred<void>()
+    const before = f.persistence.setItem.mock.calls.length
+    f.persistence.setItem.mockImplementationOnce(async (key, value) => { await gate.promise; f.values.set(key, value) })
+    const sync = f.account.sync()
+    await vi.waitFor(() => expect(f.persistence.setItem).toHaveBeenCalledTimes(before + 1))
+    const editing = f.account.getSnapshot().storage.updateFriends!(current => [...current, friend('local')])
+    gate.resolve()
+    await Promise.all([sync, editing]); await f.account.sync()
+    const snapshot = f.server.get('a')!
+    expect(snapshot.friends.find(item => item.id === 'new-remote')?.deleted).toBe(false)
+    expect((await f.account.getSnapshot().storage.loadFriends()).map(item => item.id)).toEqual(['local', 'new-remote'])
+  })
+})
